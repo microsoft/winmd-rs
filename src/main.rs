@@ -18,48 +18,60 @@ fn section_from_rva(
     }
 }
 
-fn offset_from_rva(section: &image_section_header, rva: u32) -> usize {
-    (rva - section.virtual_address + section.pointer_to_raw_data) as usize
+fn offset_from_rva(section: &image_section_header, rva: u32) -> u32 {
+    (rva - section.virtual_address + section.pointer_to_raw_data)
+}
+
+fn sizeof<T>() -> u32 {
+    std::mem::size_of::<T>() as u32
 }
 
 trait View {
-    fn view_as<T>(&self, pos: usize) -> std::io::Result<&T>;
-    fn view_as_slice_of<T>(&self, pos: usize, len: usize) -> std::io::Result<&[T]>;
-    fn view_as_str(&self, pos: usize) -> std::io::Result<&[u8]>;
-    fn offset(&self, pos: usize) -> std::io::Result<&[u8]>;
+    fn view_as<T>(&self, offset: u32) -> std::io::Result<&T>;
+    fn view_as_slice_of<T>(&self, offset: u32, len: u32) -> std::io::Result<&[T]>;
+    fn view_as_str(&self, offset: u32) -> std::io::Result<&[u8]>;
+    fn view_offset(&self, offset: u32) -> std::io::Result<&[u8]>;
+    fn view_subslice(&self, offset: u32, size: u32) -> std::io::Result<&[u8]>;
 }
 
 impl View for [u8] {
-    fn view_as<T>(&self, pos: usize) -> std::io::Result<&T> {
-        if pos + std::mem::size_of::<T>() > self.len() {
+    fn view_as<T>(&self, offset: u32) -> std::io::Result<&T> {
+        if offset + sizeof::<T>() > self.len() as u32 {
             return Err(unexpected_eof());
         }
 
-        unsafe { Ok(&*(&self[pos] as *const u8 as *const T)) }
+        unsafe { Ok(&*(&self[offset as usize] as *const u8 as *const T)) }
     }
 
-    fn view_as_slice_of<T>(&self, pos: usize, len: usize) -> std::io::Result<&[T]> {
-        if pos + std::mem::size_of::<T>() * len > self.len() {
+    fn view_as_slice_of<T>(&self, offset: u32, len: u32) -> std::io::Result<&[T]> {
+        if offset + sizeof::<T>() * len > self.len() as u32 {
             return Err(unexpected_eof());
         }
 
         unsafe {
             Ok(std::slice::from_raw_parts(
-                &self[pos] as *const u8 as *const T,
-                len,
+                &self[offset as usize] as *const u8 as *const T,
+                len as usize,
             ))
         }
     }
 
-    fn view_as_str(&self, pos: usize) -> std::io::Result<&[u8]> {
-        match self.offset(pos)?.iter().position(|c| *c == b'\0') {
-            Some(index) => Ok(&self[pos..pos + index]),
+    fn view_as_str(&self, offset: u32) -> std::io::Result<&[u8]> {
+        match self.view_offset(offset)?.iter().position(|c| *c == b'\0') {
+            Some(index) => Ok(&self[offset as usize..offset as usize + index]),
             None => Err(unexpected_eof()),
         }
     }
 
-    fn offset(&self, pos: usize) -> std::io::Result<&[u8]> {
-        match self.get(pos..) {
+    fn view_offset(&self, offset: u32) -> std::io::Result<&[u8]> {
+        match self.get(offset as usize..) {
+            Some(slice) => Ok(slice),
+            None => Err(unexpected_eof()),
+        }
+    }
+
+    fn view_subslice(&self, offset: u32, size: u32) -> std::io::Result<&[u8]> {
+        match self.get(offset as usize..(offset + size) as usize) {
             Some(slice) => Ok(slice),
             None => Err(unexpected_eof()),
         }
@@ -80,30 +92,30 @@ impl Database {
             return Err(invalid_data("Invalid DOS signature"));
         }
 
-        let pe = file.view_as::<image_nt_headers32>(dos.e_lfanew as usize)?;
+        let pe = file.view_as::<image_nt_headers32>(dos.e_lfanew as u32)?;
         let com_virtual_address: u32;
         let sections: &[image_section_header];
 
         match pe.optional_header.magic {
             MAGIC_PE32 => {
                 com_virtual_address = pe.optional_header.data_directory
-                    [IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR]
+                    [IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR as usize]
                     .virtual_address;
                 sections = file.view_as_slice_of::<image_section_header>(
-                    dos.e_lfanew as usize + std::mem::size_of::<image_nt_headers32>(),
-                    pe.file_header.number_of_sections as usize,
+                    dos.e_lfanew as u32 + sizeof::<image_nt_headers32>(),
+                    pe.file_header.number_of_sections as u32,
                 )?;
             }
 
             MAGIC_PE32PLUS => {
                 com_virtual_address = file
-                    .view_as::<image_nt_headers32plus>(dos.e_lfanew as usize)?
+                    .view_as::<image_nt_headers32plus>(dos.e_lfanew as u32)?
                     .optional_header
-                    .data_directory[IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR]
+                    .data_directory[IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR as usize]
                     .virtual_address;
                 sections = file.view_as_slice_of::<image_section_header>(
-                    dos.e_lfanew as usize + std::mem::size_of::<image_nt_headers32plus>(),
-                    pe.file_header.number_of_sections as usize,
+                    dos.e_lfanew as u32 + sizeof::<image_nt_headers32plus>(),
+                    pe.file_header.number_of_sections as u32,
                 )?;
             }
 
@@ -114,7 +126,7 @@ impl Database {
         let cli =
             file.view_as::<image_cor20_header>(offset_from_rva(section, com_virtual_address))?;
 
-        if cli.cb as usize != std::mem::size_of::<image_cor20_header>() {
+        if cli.cb != sizeof::<image_cor20_header>() {
             return Err(invalid_data("Invalid CLI header"));
         }
 
@@ -125,9 +137,12 @@ impl Database {
             return Err(invalid_data("CLI metadata magic signature not found"));
         }
 
-        let version_length = *file.view_as::<u32>(offset + 12)? as usize;
-        let mut slice = file.offset(offset + version_length + 20)?;
-        let tables: &[u8];
+        let version_length = *file.view_as::<u32>(offset + 12)?;
+        let mut slice = file.view_offset(offset + version_length + 20)?;
+        let mut strings: Option<&[u8]> = None;
+        let mut blobs: Option<&[u8]> = None;
+        let mut guids: Option<&[u8]> = None;
+        let mut tables: Option<&[u8]> = None;
 
         for _ in 0..*file.view_as::<u16>(offset + version_length + 18)? {
             let stream_offset = *slice.view_as::<u32>(0)?;
@@ -135,11 +150,13 @@ impl Database {
             let stream_name = slice.view_as_str(8)?;
 
             match stream_name {
-                b"#Strings" => println!("strings"),
-                b"#Blob" => println!("blob"),
-                b"#GUID" => println!("guid"),
-                b"#~" => println!("tables"),
-                b"#US" => println!("us"),
+                b"#Strings" => {
+                    strings = Some(file.view_subslice(offset + stream_offset, stream_size)?)
+                }
+                b"#Blob" => blobs = Some(file.view_subslice(offset + stream_offset, stream_size)?),
+                b"#GUID" => guids = Some(file.view_subslice(offset + stream_offset, stream_size)?),
+                b"#~" => tables = Some(file.view_subslice(offset + stream_offset, stream_size)?),
+                b"#US" => {},
                 _ => return Err(invalid_data("Unknown metadata stream")),
             }
 
@@ -151,6 +168,31 @@ impl Database {
 
             slice = &slice[8 + stream_name.len() + padding..];
         }
+
+        let strings = match strings {
+            Some(value) => value,
+            None => return Err(invalid_data("Strings stream not found")),
+        };
+        let blobs = match blobs {
+            Some(value) => value,
+            None => return Err(invalid_data("Blob stream not found")),
+        };
+        let guids = match guids {
+            Some(value) => value,
+            None => return Err(invalid_data("GUID stream not found")),
+        };
+        let tables = match tables {
+            Some(value) => value,
+            None => return Err(invalid_data("Tables stream not found")),
+        };
+
+        let heap_sizes = *tables.view_as::<u8>(6)?;
+        let string_index_size = if (heap_sizes & 1) == 1 { 4 } else { 2 };
+        let guid_index_size = if (heap_sizes >> 1 & 1) == 1 { 4 } else { 2 };
+        let blob_index_size = if (heap_sizes >> 2 & 1) == 1 { 4 } else { 2 };
+
+        let valid_bits = *tables.view_as::<u64>(8)?;
+        slice = tables.view_offset(24)?;
 
         Ok(Database { buffer: buffer })
     }
@@ -167,7 +209,7 @@ fn main() {
 const IMAGE_DOS_SIGNATURE: u16 = 0x5A4D;
 const MAGIC_PE32: u16 = 0x10B;
 const MAGIC_PE32PLUS: u16 = 0x20B;
-const IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR: usize = 14;
+const IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR: u32 = 14;
 const STORAGE_MAGIC_SIG: u32 = 0x424A5342;
 
 #[repr(C)]
