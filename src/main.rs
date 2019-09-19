@@ -1,31 +1,124 @@
-use std::io::{Error, ErrorKind};
-use std::mem::size_of;
-
-trait Slice {
-    fn as_struct_ptr<T>(&self) -> std::io::Result<*const T>;
-}
-
 fn invalid_data(message: &str) -> std::io::Error {
-    Error::new(ErrorKind::InvalidData, message)
+    std::io::Error::new(std::io::ErrorKind::InvalidData, message)
 }
 
-impl Slice for &[u8] {
-    fn as_struct_ptr<T>(&self) -> std::io::Result<*const T> {
-        if self.len() < size_of::<T>() {
-            return Err(invalid_data("Buffer too small"));
+fn unexpected_eof() -> std::io::Error {
+    std::io::Error::from(std::io::ErrorKind::UnexpectedEof)
+}
+
+fn section_from_rva(
+    sections: &[image_section_header],
+    rva: u32,
+) -> std::io::Result<&image_section_header> {
+    match sections.iter().find(|&s| {
+        rva >= s.virtual_address && rva < s.virtual_address + s.physical_address_or_virtual_size
+    }) {
+        Some(section) => Ok(section),
+        None => Err(invalid_data("Section containing RVA not found")),
+    }
+}
+
+fn offset_from_rva(section: &image_section_header, rva: u32) -> usize {
+    (rva - section.virtual_address + section.pointer_to_raw_data) as usize
+}
+
+trait View {
+    fn view_as<T>(&self, pos: usize) -> std::io::Result<&T>;
+    fn view_as_slice_of<T>(&self, pos: usize, len: usize) -> std::io::Result<&[T]>;
+    fn offset(&self, pos: usize) -> std::io::Result<&[u8]>;
+}
+
+impl View for [u8] {
+    fn view_as<T>(&self, pos: usize) -> std::io::Result<&T> {
+        if pos + std::mem::size_of::<T>() > self.len() {
+            return Err(unexpected_eof());
         }
 
-        Ok(self.as_ptr() as *const T)
+        unsafe { Ok(&*(&self[pos] as *const u8 as *const T)) }
+    }
+
+    fn view_as_slice_of<T>(&self, pos: usize, len: usize) -> std::io::Result<&[T]> {
+        if pos + std::mem::size_of::<T>() * len > self.len() {
+            return Err(unexpected_eof());
+        }
+
+        unsafe { Ok(std::slice::from_raw_parts(&self[pos] as *const u8 as *const T, len)) }
+    }
+
+    fn offset(&self, pos: usize) -> std::io::Result<&[u8]> {
+        match self.get(pos..self.len()) {
+            Some(slice) => Ok(slice),
+            None => Err(unexpected_eof()),
+        }
     }
 }
 
 fn run() -> std::io::Result<()> {
-    let file = std::fs::read(r#"c:\windows\system32\winmetadata\Windows.Foundation.winmd"#)?;
-    let slice = file.as_slice();
-    let dos = slice.as_struct_ptr::<image_dos_header>()?;
+    let buffer = std::fs::read(r#"c:\windows\system32\winmetadata\Windows.Foundation.winmd"#)?;
+    let file = buffer.as_slice();
+    let dos = file.view_as::<image_dos_header>(0)?;
 
-    if unsafe { (*dos).e_signature != 0x5A4D } {
+    if dos.e_signature != IMAGE_DOS_SIGNATURE {
         return Err(invalid_data("Invalid DOS signature"));
+    }
+
+    let pe = file.view_as::<image_nt_headers32>(dos.e_lfanew as usize)?;
+
+    if pe.file_header.number_of_sections == 0 || pe.file_header.number_of_sections > 100 {
+        return Err(invalid_data("Invalid PE section count"));
+    }
+
+    let com_virtual_address: u32;
+    let sections: &[image_section_header];
+
+    match pe.optional_header.magic {
+        MAGIC_PE32 => {
+            com_virtual_address = pe.optional_header.data_directory
+                [IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR]
+                .virtual_address;
+            sections = file.view_as_slice_of::<image_section_header>(
+                dos.e_lfanew as usize + std::mem::size_of::<image_nt_headers32>(),
+                pe.file_header.number_of_sections as usize,
+            )?;
+        }
+
+        MAGIC_PE32PLUS => {
+            com_virtual_address = file
+                .view_as::<image_nt_headers32plus>(dos.e_lfanew as usize)?
+                .optional_header
+                .data_directory[IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR]
+                .virtual_address;
+            sections = file.view_as_slice_of::<image_section_header>(
+                dos.e_lfanew as usize + std::mem::size_of::<image_nt_headers32plus>(),
+                pe.file_header.number_of_sections as usize,
+            )?;
+        }
+
+        _ => return Err(invalid_data("Invalid optional header magic value")),
+    };
+
+    let section = section_from_rva(sections, com_virtual_address)?;
+    let cli = file.view_as::<image_cor20_header>(offset_from_rva(section, com_virtual_address))?;
+
+    if cli.cb as usize != std::mem::size_of::<image_cor20_header>() {
+        return Err(invalid_data("Invalid CLI header"));
+    }
+
+    let section = section_from_rva(sections, cli.meta_data.virtual_address)?;
+    let offset = offset_from_rva(section, cli.meta_data.virtual_address);
+
+    if *file.view_as::<u32>(offset)? != STORAGE_MAGIC_SIG
+    {
+        return Err(invalid_data("CLI metadata magic signature not found"));
+    }
+
+    let version_length = *file.view_as::<u32>(offset + 12)? as usize;
+    let view = file.offset(offset + version_length + 20);
+    let tables: &[u8];
+
+    for _ in 0..*file.view_as::<u16>(offset + version_length + 18)?
+    {
+
     }
 
     Ok(())
@@ -38,6 +131,12 @@ fn main() {
 
     run().unwrap();
 }
+
+const IMAGE_DOS_SIGNATURE: u16 = 0x5A4D;
+const MAGIC_PE32: u16 = 0x10B;
+const MAGIC_PE32PLUS: u16 = 0x20B;
+const IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR: usize = 14;
+const STORAGE_MAGIC_SIG:u32 =   0x424A5342;
 
 #[repr(C)]
 struct image_dos_header {
