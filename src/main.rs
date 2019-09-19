@@ -25,6 +25,7 @@ fn offset_from_rva(section: &image_section_header, rva: u32) -> usize {
 trait View {
     fn view_as<T>(&self, pos: usize) -> std::io::Result<&T>;
     fn view_as_slice_of<T>(&self, pos: usize, len: usize) -> std::io::Result<&[T]>;
+    fn view_as_str(&self, pos: usize) -> std::io::Result<&[u8]>;
     fn offset(&self, pos: usize) -> std::io::Result<&[u8]>;
 }
 
@@ -45,8 +46,17 @@ impl View for [u8] {
         unsafe { Ok(std::slice::from_raw_parts(&self[pos] as *const u8 as *const T, len)) }
     }
 
+    fn view_as_str(&self, pos: usize) -> std::io::Result<&[u8]>
+    {
+        match self.offset(pos)?.iter().position(|c| *c == b'\0')
+        {
+            Some(index) => Ok(&self[pos..pos + index]),
+            None => Err(unexpected_eof()),
+        }
+    }
+
     fn offset(&self, pos: usize) -> std::io::Result<&[u8]> {
-        match self.get(pos..self.len()) {
+        match self.get(pos..) {
             Some(slice) => Ok(slice),
             None => Err(unexpected_eof()),
         }
@@ -63,11 +73,6 @@ fn run() -> std::io::Result<()> {
     }
 
     let pe = file.view_as::<image_nt_headers32>(dos.e_lfanew as usize)?;
-
-    if pe.file_header.number_of_sections == 0 || pe.file_header.number_of_sections > 100 {
-        return Err(invalid_data("Invalid PE section count"));
-    }
-
     let com_virtual_address: u32;
     let sections: &[image_section_header];
 
@@ -113,12 +118,33 @@ fn run() -> std::io::Result<()> {
     }
 
     let version_length = *file.view_as::<u32>(offset + 12)? as usize;
-    let view = file.offset(offset + version_length + 20);
+    let mut slice = file.offset(offset + version_length + 20)?;
     let tables: &[u8];
 
     for _ in 0..*file.view_as::<u16>(offset + version_length + 18)?
     {
+        let stream_offset = *slice.view_as::<u32>(0)?;
+        let stream_size = *slice.view_as::<u32>(4)?;
+        let stream_name = slice.view_as_str(8)?;
 
+        match stream_name
+        {
+            b"#Strings" => println!("strings"),
+            b"#Blob" => println!("blob"),
+            b"#GUID" => println!("guid"),
+            b"#~" => println!("tables"),
+            b"#US" => println!("us"),
+            _ => return Err(invalid_data("Unknown metadata stream")),
+        }
+
+        let mut padding = 4 - stream_name.len() % 4;
+
+        if padding == 0
+        {
+            padding = 4;
+        }
+
+        slice = &slice[8 + stream_name.len() + padding..];
     }
 
     Ok(())
