@@ -43,13 +43,16 @@ impl View for [u8] {
             return Err(unexpected_eof());
         }
 
-        unsafe { Ok(std::slice::from_raw_parts(&self[pos] as *const u8 as *const T, len)) }
+        unsafe {
+            Ok(std::slice::from_raw_parts(
+                &self[pos] as *const u8 as *const T,
+                len,
+            ))
+        }
     }
 
-    fn view_as_str(&self, pos: usize) -> std::io::Result<&[u8]>
-    {
-        match self.offset(pos)?.iter().position(|c| *c == b'\0')
-        {
+    fn view_as_str(&self, pos: usize) -> std::io::Result<&[u8]> {
+        match self.offset(pos)?.iter().position(|c| *c == b'\0') {
             Some(index) => Ok(&self[pos..pos + index]),
             None => Err(unexpected_eof()),
         }
@@ -63,91 +66,94 @@ impl View for [u8] {
     }
 }
 
-fn run() -> std::io::Result<()> {
-    let buffer = std::fs::read(r#"c:\windows\system32\winmetadata\Windows.Foundation.winmd"#)?;
-    let file = buffer.as_slice();
-    let dos = file.view_as::<image_dos_header>(0)?;
+struct Database {
+    buffer: std::vec::Vec<u8>,
+}
 
-    if dos.e_signature != IMAGE_DOS_SIGNATURE {
-        return Err(invalid_data("Invalid DOS signature"));
-    }
+impl Database {
+    pub fn new<P: AsRef<std::path::Path>>(filename: P) -> std::io::Result<Database> {
+        let buffer = std::fs::read(filename)?;
+        let file = buffer.as_slice();
+        let dos = file.view_as::<image_dos_header>(0)?;
 
-    let pe = file.view_as::<image_nt_headers32>(dos.e_lfanew as usize)?;
-    let com_virtual_address: u32;
-    let sections: &[image_section_header];
-
-    match pe.optional_header.magic {
-        MAGIC_PE32 => {
-            com_virtual_address = pe.optional_header.data_directory
-                [IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR]
-                .virtual_address;
-            sections = file.view_as_slice_of::<image_section_header>(
-                dos.e_lfanew as usize + std::mem::size_of::<image_nt_headers32>(),
-                pe.file_header.number_of_sections as usize,
-            )?;
+        if dos.e_signature != IMAGE_DOS_SIGNATURE {
+            return Err(invalid_data("Invalid DOS signature"));
         }
 
-        MAGIC_PE32PLUS => {
-            com_virtual_address = file
-                .view_as::<image_nt_headers32plus>(dos.e_lfanew as usize)?
-                .optional_header
-                .data_directory[IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR]
-                .virtual_address;
-            sections = file.view_as_slice_of::<image_section_header>(
-                dos.e_lfanew as usize + std::mem::size_of::<image_nt_headers32plus>(),
-                pe.file_header.number_of_sections as usize,
-            )?;
+        let pe = file.view_as::<image_nt_headers32>(dos.e_lfanew as usize)?;
+        let com_virtual_address: u32;
+        let sections: &[image_section_header];
+
+        match pe.optional_header.magic {
+            MAGIC_PE32 => {
+                com_virtual_address = pe.optional_header.data_directory
+                    [IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR]
+                    .virtual_address;
+                sections = file.view_as_slice_of::<image_section_header>(
+                    dos.e_lfanew as usize + std::mem::size_of::<image_nt_headers32>(),
+                    pe.file_header.number_of_sections as usize,
+                )?;
+            }
+
+            MAGIC_PE32PLUS => {
+                com_virtual_address = file
+                    .view_as::<image_nt_headers32plus>(dos.e_lfanew as usize)?
+                    .optional_header
+                    .data_directory[IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR]
+                    .virtual_address;
+                sections = file.view_as_slice_of::<image_section_header>(
+                    dos.e_lfanew as usize + std::mem::size_of::<image_nt_headers32plus>(),
+                    pe.file_header.number_of_sections as usize,
+                )?;
+            }
+
+            _ => return Err(invalid_data("Invalid optional header magic value")),
+        };
+
+        let section = section_from_rva(sections, com_virtual_address)?;
+        let cli =
+            file.view_as::<image_cor20_header>(offset_from_rva(section, com_virtual_address))?;
+
+        if cli.cb as usize != std::mem::size_of::<image_cor20_header>() {
+            return Err(invalid_data("Invalid CLI header"));
         }
 
-        _ => return Err(invalid_data("Invalid optional header magic value")),
-    };
+        let section = section_from_rva(sections, cli.meta_data.virtual_address)?;
+        let offset = offset_from_rva(section, cli.meta_data.virtual_address);
 
-    let section = section_from_rva(sections, com_virtual_address)?;
-    let cli = file.view_as::<image_cor20_header>(offset_from_rva(section, com_virtual_address))?;
-
-    if cli.cb as usize != std::mem::size_of::<image_cor20_header>() {
-        return Err(invalid_data("Invalid CLI header"));
-    }
-
-    let section = section_from_rva(sections, cli.meta_data.virtual_address)?;
-    let offset = offset_from_rva(section, cli.meta_data.virtual_address);
-
-    if *file.view_as::<u32>(offset)? != STORAGE_MAGIC_SIG
-    {
-        return Err(invalid_data("CLI metadata magic signature not found"));
-    }
-
-    let version_length = *file.view_as::<u32>(offset + 12)? as usize;
-    let mut slice = file.offset(offset + version_length + 20)?;
-    let tables: &[u8];
-
-    for _ in 0..*file.view_as::<u16>(offset + version_length + 18)?
-    {
-        let stream_offset = *slice.view_as::<u32>(0)?;
-        let stream_size = *slice.view_as::<u32>(4)?;
-        let stream_name = slice.view_as_str(8)?;
-
-        match stream_name
-        {
-            b"#Strings" => println!("strings"),
-            b"#Blob" => println!("blob"),
-            b"#GUID" => println!("guid"),
-            b"#~" => println!("tables"),
-            b"#US" => println!("us"),
-            _ => return Err(invalid_data("Unknown metadata stream")),
+        if *file.view_as::<u32>(offset)? != STORAGE_MAGIC_SIG {
+            return Err(invalid_data("CLI metadata magic signature not found"));
         }
 
-        let mut padding = 4 - stream_name.len() % 4;
+        let version_length = *file.view_as::<u32>(offset + 12)? as usize;
+        let mut slice = file.offset(offset + version_length + 20)?;
+        let tables: &[u8];
 
-        if padding == 0
-        {
-            padding = 4;
+        for _ in 0..*file.view_as::<u16>(offset + version_length + 18)? {
+            let stream_offset = *slice.view_as::<u32>(0)?;
+            let stream_size = *slice.view_as::<u32>(4)?;
+            let stream_name = slice.view_as_str(8)?;
+
+            match stream_name {
+                b"#Strings" => println!("strings"),
+                b"#Blob" => println!("blob"),
+                b"#GUID" => println!("guid"),
+                b"#~" => println!("tables"),
+                b"#US" => println!("us"),
+                _ => return Err(invalid_data("Unknown metadata stream")),
+            }
+
+            let mut padding = 4 - stream_name.len() % 4;
+
+            if padding == 0 {
+                padding = 4;
+            }
+
+            slice = &slice[8 + stream_name.len() + padding..];
         }
 
-        slice = &slice[8 + stream_name.len() + padding..];
+        Ok(Database { buffer: buffer })
     }
-
-    Ok(())
 }
 
 fn main() {
@@ -155,14 +161,14 @@ fn main() {
         println!("{}", entry.unwrap().path().display());
     }
 
-    run().unwrap();
+    let db = Database::new(r#"c:\windows\system32\winmetadata\Windows.Foundation.winmd"#).unwrap();
 }
 
 const IMAGE_DOS_SIGNATURE: u16 = 0x5A4D;
 const MAGIC_PE32: u16 = 0x10B;
 const MAGIC_PE32PLUS: u16 = 0x20B;
 const IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR: usize = 14;
-const STORAGE_MAGIC_SIG:u32 =   0x424A5342;
+const STORAGE_MAGIC_SIG: u32 = 0x424A5342;
 
 #[repr(C)]
 struct image_dos_header {
