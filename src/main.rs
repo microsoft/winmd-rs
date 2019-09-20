@@ -231,8 +231,8 @@ impl Database {
         }
 
         let empty_table = Table::default();
-        let type_def_or_ref = composite_index_size(&[&tables.type_def, &tables.type_ref, &tables.type_spec]);
         let has_constant = composite_index_size(&[&tables.field, &tables.param, &tables.property]);
+        let type_def_or_ref = composite_index_size(&[&tables.type_def, &tables.type_ref, &tables.type_spec]);
         let has_custom_attribute = composite_index_size(&[&tables.method_def, &tables.field, &tables.type_ref, &tables.type_def, &tables.param, &tables.interface_impl, &tables.member_ref, &tables.module, &tables.property, &tables.event, &tables.standalone_sig, &tables.module_ref, &tables.type_spec, &tables.assembly, &tables.assembly_ref, &tables.file, &tables.exported_type, &tables.manifest_resource, &tables.generic_param, &tables.generic_param_constraint, &tables.method_spec]);
         let has_field_marshal = composite_index_size(&[&tables.field, &tables.param]);
         let has_decl_security = composite_index_size(&[&tables.type_def, &tables.method_def, &tables.assembly]);
