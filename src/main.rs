@@ -12,7 +12,9 @@ fn main() {
 
 #[derive(Default)]
 struct Table {
-    rows: u32,
+    row_count: u32,
+    row_size:u32,
+    columns: [(u32,u32); 6],
 }
 
 #[derive(Default)]
@@ -184,65 +186,107 @@ impl Database {
                 continue;
             }
 
-            let rows = *slice.view_as::<u32>(0)?;
+            let row_count = *slice.view_as::<u32>(0)?;
             slice = slice.view_offset(4)?;
 
             match i {
-                0x00 => tables.module.rows = rows,
-                0x01 => tables.type_ref.rows = rows,
-                0x02 => tables.type_def.rows = rows,
-                0x04 => tables.field.rows = rows,
-                0x06 => tables.method_def.rows = rows,
-                0x08 => tables.param.rows = rows,
-                0x09 => tables.interface_impl.rows = rows,
-                0x0a => tables.member_ref.rows = rows,
-                0x0b => tables.constant.rows = rows,
-                0x0c => tables.custom_attribute.rows = rows,
-                0x0d => tables.field_marshal.rows = rows,
-                0x0e => tables.decl_security.rows = rows,
-                0x0f => tables.class_layout.rows = rows,
-                0x10 => tables.field_layout.rows = rows,
-                0x11 => tables.standalone_sig.rows = rows,
-                0x12 => tables.event_map.rows = rows,
-                0x14 => tables.event.rows = rows,
-                0x15 => tables.property_map.rows = rows,
-                0x17 => tables.property.rows = rows,
-                0x18 => tables.method_semantics.rows = rows,
-                0x19 => tables.method_impl.rows = rows,
-                0x1a => tables.module_ref.rows = rows,
-                0x1b => tables.type_spec.rows = rows,
-                0x1c => tables.impl_map.rows = rows,
-                0x1d => tables.field_rva.rows = rows,
-                0x20 => tables.assembly.rows = rows,
-                0x21 => tables.assembly_processor.rows = rows,
-                0x22 => tables.assembly_os.rows = rows,
-                0x23 => tables.assembly_ref.rows = rows,
-                0x24 => tables.assembly_ref_processor.rows = rows,
-                0x25 => tables.assembly_ref_os.rows = rows,
-                0x26 => tables.file.rows = rows,
-                0x27 => tables.exported_type.rows = rows,
-                0x28 => tables.manifest_resource.rows = rows,
-                0x29 => tables.nested_class.rows = rows,
-                0x2a => tables.generic_param.rows = rows,
-                0x2b => tables.method_spec.rows = rows,
-                0x2c => tables.generic_param_constraint.rows = rows,
+                0x00 => tables.module.row_count = row_count,
+                0x01 => tables.type_ref.row_count = row_count,
+                0x02 => tables.type_def.row_count = row_count,
+                0x04 => tables.field.row_count = row_count,
+                0x06 => tables.method_def.row_count = row_count,
+                0x08 => tables.param.row_count = row_count,
+                0x09 => tables.interface_impl.row_count = row_count,
+                0x0a => tables.member_ref.row_count = row_count,
+                0x0b => tables.constant.row_count = row_count,
+                0x0c => tables.custom_attribute.row_count = row_count,
+                0x0d => tables.field_marshal.row_count = row_count,
+                0x0e => tables.decl_security.row_count = row_count,
+                0x0f => tables.class_layout.row_count = row_count,
+                0x10 => tables.field_layout.row_count = row_count,
+                0x11 => tables.standalone_sig.row_count = row_count,
+                0x12 => tables.event_map.row_count = row_count,
+                0x14 => tables.event.row_count = row_count,
+                0x15 => tables.property_map.row_count = row_count,
+                0x17 => tables.property.row_count = row_count,
+                0x18 => tables.method_semantics.row_count = row_count,
+                0x19 => tables.method_impl.row_count = row_count,
+                0x1a => tables.module_ref.row_count = row_count,
+                0x1b => tables.type_spec.row_count = row_count,
+                0x1c => tables.impl_map.row_count = row_count,
+                0x1d => tables.field_rva.row_count = row_count,
+                0x20 => tables.assembly.row_count = row_count,
+                0x21 => tables.assembly_processor.row_count = row_count,
+                0x22 => tables.assembly_os.row_count = row_count,
+                0x23 => tables.assembly_ref.row_count = row_count,
+                0x24 => tables.assembly_ref_processor.row_count = row_count,
+                0x25 => tables.assembly_ref_os.row_count = row_count,
+                0x26 => tables.file.row_count = row_count,
+                0x27 => tables.exported_type.row_count = row_count,
+                0x28 => tables.manifest_resource.row_count = row_count,
+                0x29 => tables.nested_class.row_count = row_count,
+                0x2a => tables.generic_param.row_count = row_count,
+                0x2b => tables.method_spec.row_count = row_count,
+                0x2c => tables.generic_param_constraint.row_count = row_count,
                 _ => return Err(invalid_data("Unknown metadata table")),
             };
         }
 
         let empty_table = Table::default();
         let has_constant = composite_index_size(&[&tables.field, &tables.param, &tables.property]);
-        let type_def_or_ref = composite_index_size(&[&tables.type_def, &tables.type_ref, &tables.type_spec]);
-        let has_custom_attribute = composite_index_size(&[&tables.method_def, &tables.field, &tables.type_ref, &tables.type_def, &tables.param, &tables.interface_impl, &tables.member_ref, &tables.module, &tables.property, &tables.event, &tables.standalone_sig, &tables.module_ref, &tables.type_spec, &tables.assembly, &tables.assembly_ref, &tables.file, &tables.exported_type, &tables.manifest_resource, &tables.generic_param, &tables.generic_param_constraint, &tables.method_spec]);
+        let type_def_or_ref =
+            composite_index_size(&[&tables.type_def, &tables.type_ref, &tables.type_spec]);
+        let has_custom_attribute = composite_index_size(&[
+            &tables.method_def,
+            &tables.field,
+            &tables.type_ref,
+            &tables.type_def,
+            &tables.param,
+            &tables.interface_impl,
+            &tables.member_ref,
+            &tables.module,
+            &tables.property,
+            &tables.event,
+            &tables.standalone_sig,
+            &tables.module_ref,
+            &tables.type_spec,
+            &tables.assembly,
+            &tables.assembly_ref,
+            &tables.file,
+            &tables.exported_type,
+            &tables.manifest_resource,
+            &tables.generic_param,
+            &tables.generic_param_constraint,
+            &tables.method_spec,
+        ]);
         let has_field_marshal = composite_index_size(&[&tables.field, &tables.param]);
-        let has_decl_security = composite_index_size(&[&tables.type_def, &tables.method_def, &tables.assembly]);
-        let member_ref_parent = composite_index_size(&[&tables.type_def, &tables.type_ref, &tables.module_ref, &tables.method_def, &tables.type_spec]);
+        let has_decl_security =
+            composite_index_size(&[&tables.type_def, &tables.method_def, &tables.assembly]);
+        let member_ref_parent = composite_index_size(&[
+            &tables.type_def,
+            &tables.type_ref,
+            &tables.module_ref,
+            &tables.method_def,
+            &tables.type_spec,
+        ]);
         let has_semantics = composite_index_size(&[&tables.event, &tables.property]);
         let method_def_or_ref = composite_index_size(&[&tables.method_def, &tables.member_ref]);
         let member_forwarded = composite_index_size(&[&tables.field, &tables.method_def]);
-        let implementation = composite_index_size(&[&tables.file, &tables.assembly_ref, &tables.exported_type]);
-        let custom_attribute_type = composite_index_size(&[&tables.method_def, &tables.member_ref, &empty_table, &empty_table, &empty_table]);
-        let resolution_scope = composite_index_size(&[&tables.module, &tables.module_ref, &tables.assembly_ref, &tables.type_ref]);
+        let implementation =
+            composite_index_size(&[&tables.file, &tables.assembly_ref, &tables.exported_type]);
+        let custom_attribute_type = composite_index_size(&[
+            &tables.method_def,
+            &tables.member_ref,
+            &empty_table,
+            &empty_table,
+            &empty_table,
+        ]);
+        let resolution_scope = composite_index_size(&[
+            &tables.module,
+            &tables.module_ref,
+            &tables.assembly_ref,
+            &tables.type_ref,
+        ]);
         let type_or_method_def = composite_index_size(&[&tables.type_def, &tables.method_def]);
 
         Ok(Database {
@@ -284,7 +328,7 @@ fn sizeof<T>() -> u32 {
 }
 
 fn composite_index_size(tables: &[&Table]) -> u8 {
-    let small = |rows: u32, bits: u8| (rows as u64) < (1u64 << (16 - bits));
+    let small = |row_count: u32, bits: u8| (row_count as u64) < (1u64 << (16 - bits));
 
     let bits_needed = |value| {
         let mut value = value - 1;
@@ -305,7 +349,7 @@ fn composite_index_size(tables: &[&Table]) -> u8 {
 
     let bits_needed = bits_needed(tables.len());
 
-    if tables.iter().all(|table| small(table.rows, bits_needed)) {
+    if tables.iter().all(|table| small(table.row_count, bits_needed)) {
         2
     } else {
         4
