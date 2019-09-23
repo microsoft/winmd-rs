@@ -13,6 +13,10 @@ fn main() {
     };
 
     println!("use 'db' here...");
+
+    let module = db.file.view_as_str(db.strings.0);
+
+    println!("{:?}", module.unwrap());
 }
 
 #[derive(Default)]
@@ -109,6 +113,7 @@ struct Tables {
 
 struct Database {
     file: std::vec::Vec<u8>,
+    // Just make these offsets as well?
     strings: (u32, u32),
     blobs: (u32, u32),
     guids: (u32, u32),
