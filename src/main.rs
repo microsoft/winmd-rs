@@ -298,6 +298,43 @@ impl Database {
         tables.type_spec.set_columns(blob_index_size, 0, 0, 0, 0, 0);
 
         tables.module.set_data(&mut view);
+        tables.type_ref.set_data(&mut view);
+        tables.type_def.set_data(&mut view);
+        tables.field.set_data(&mut view);
+        tables.method_def.set_data(&mut view);
+        tables.param.set_data(&mut view);
+        tables.interface_impl.set_data(&mut view);
+        tables.member_ref.set_data(&mut view);
+        tables.constant.set_data(&mut view);
+        tables.custom_attribute.set_data(&mut view);
+        tables.field_marshal.set_data(&mut view);
+        tables.decl_security.set_data(&mut view);
+        tables.class_layout.set_data(&mut view);
+        tables.field_layout.set_data(&mut view);
+        tables.standalone_sig.set_data(&mut view);
+        tables.event_map.set_data(&mut view);
+        tables.event.set_data(&mut view);
+        tables.property_map.set_data(&mut view);
+        tables.property.set_data(&mut view);
+        tables.method_semantics.set_data(&mut view);
+        tables.method_impl.set_data(&mut view);
+        tables.module_ref.set_data(&mut view);
+        tables.type_spec.set_data(&mut view);
+        tables.impl_map.set_data(&mut view);
+        tables.field_rva.set_data(&mut view);
+        tables.assembly.set_data(&mut view);
+        tables.assembly_processor.set_data(&mut view);
+        tables.assembly_os.set_data(&mut view);
+        tables.assembly_ref.set_data(&mut view);
+        tables.assembly_ref_processor.set_data(&mut view);
+        tables.assembly_ref_os.set_data(&mut view);
+        tables.file.set_data(&mut view);
+        tables.exported_type.set_data(&mut view);
+        tables.manifest_resource.set_data(&mut view);
+        tables.nested_class.set_data(&mut view);
+        tables.generic_param.set_data(&mut view);
+        tables.method_spec.set_data(&mut view);
+        tables.generic_param_constraint.set_data(&mut view);
 
         Ok(Database { file: file, strings: strings, blobs: blobs, guids: guids, tables: tables })
     }
