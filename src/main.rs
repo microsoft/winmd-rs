@@ -7,12 +7,12 @@ fn main() {
         println!("{}", entry.unwrap().path().display());
     }
 
-    let db = match Database::new(r"c:\windows\notepad.exe") {
+    let db = match Database::new(r"c:\windows\system32\winmetadata\Windows.Foundation.winmd") {
         Ok(db) => db,
         Err(e) => return println!("{}", e),
     };
 
-    // TODO: use 'db' here...
+    println!("use 'db' here...");
 }
 
 #[derive(Default)]
@@ -20,6 +20,37 @@ struct Table {
     row_count: u32,
     row_size: u32,
     columns: [(u32, u32); 6],
+}
+
+impl Table {
+    fn index_size(&self) -> u32 {
+        if self.row_count < (1 << 16) {
+            2
+        } else {
+            4
+        }
+    }
+
+    fn set_columns(&mut self, a: u32, b: u32, c: u32, d: u32, e: u32, f: u32) {
+        self.row_size = (a + b + c + d + e + f).into();
+        self.columns[0] = (0, a);
+
+        if b != 0 {
+            self.columns[1] = ((a), b);
+        }
+        if c != 0 {
+            self.columns[2] = ((a + b), c);
+        }
+        if d != 0 {
+            self.columns[3] = ((a + b + c), d);
+        }
+        if e != 0 {
+            self.columns[4] = ((a + b + c + d), e);
+        }
+        if f != 0 {
+            self.columns[5] = ((a + b + c + d + e), f);
+        }
+    }
 }
 
 #[derive(Default)]
@@ -76,7 +107,6 @@ struct Database {
 impl Database {
     fn new<P: AsRef<std::path::Path>>(filename: P) -> std::io::Result<Database> {
         let file = std::fs::read(filename)?;
-
         let dos = file.view_as::<ImageDosHeader>(0)?;
 
         if dos.signature != IMAGE_DOS_SIGNATURE {
@@ -89,25 +119,13 @@ impl Database {
 
         match pe.optional_header.magic {
             MAGIC_PE32 => {
-                com_virtual_address = pe.optional_header.data_directory
-                    [IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR as usize]
-                    .virtual_address;
-                sections = file.view_as_slice_of::<ImageSectionHeader>(
-                    dos.lfanew as u32 + sizeof::<ImageNtHeader>(),
-                    pe.file_header.number_of_sections as u32,
-                )?;
+                com_virtual_address = pe.optional_header.data_directory[IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR as usize].virtual_address;
+                sections = file.view_as_slice_of::<ImageSectionHeader>(dos.lfanew as u32 + sizeof::<ImageNtHeader>(), pe.file_header.number_of_sections as u32)?;
             }
 
             MAGIC_PE32PLUS => {
-                com_virtual_address = file
-                    .view_as::<ImageNtHeaderPlus>(dos.lfanew as u32)?
-                    .optional_header
-                    .data_directory[IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR as usize]
-                    .virtual_address;
-                sections = file.view_as_slice_of::<ImageSectionHeader>(
-                    dos.lfanew as u32 + sizeof::<ImageNtHeaderPlus>(),
-                    pe.file_header.number_of_sections as u32,
-                )?;
+                com_virtual_address = file.view_as::<ImageNtHeaderPlus>(dos.lfanew as u32)?.optional_header.data_directory[IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR as usize].virtual_address;
+                sections = file.view_as_slice_of::<ImageSectionHeader>(dos.lfanew as u32 + sizeof::<ImageNtHeaderPlus>(), pe.file_header.number_of_sections as u32)?;
             }
 
             _ => return Err(invalid_data("Invalid optional header magic value")),
@@ -166,7 +184,6 @@ impl Database {
         let string_index_size = if (heap_sizes & 1) == 1 { 4 } else { 2 };
         let guid_index_size = if (heap_sizes >> 1 & 1) == 1 { 4 } else { 2 };
         let blob_index_size = if (heap_sizes >> 2 & 1) == 1 { 4 } else { 2 };
-
         let valid_bits = *tables.view_as::<u64>(8)?;
         slice = tables.view_offset(24)?;
         let mut tables = Tables::default();
@@ -224,68 +241,59 @@ impl Database {
 
         let empty_table = Table::default();
         let has_constant = composite_index_size(&[&tables.field, &tables.param, &tables.property]);
-        let type_def_or_ref =
-            composite_index_size(&[&tables.type_def, &tables.type_ref, &tables.type_spec]);
-        let has_custom_attribute = composite_index_size(&[
-            &tables.method_def,
-            &tables.field,
-            &tables.type_ref,
-            &tables.type_def,
-            &tables.param,
-            &tables.interface_impl,
-            &tables.member_ref,
-            &tables.module,
-            &tables.property,
-            &tables.event,
-            &tables.standalone_sig,
-            &tables.module_ref,
-            &tables.type_spec,
-            &tables.assembly,
-            &tables.assembly_ref,
-            &tables.file,
-            &tables.exported_type,
-            &tables.manifest_resource,
-            &tables.generic_param,
-            &tables.generic_param_constraint,
-            &tables.method_spec,
-        ]);
+        let type_def_or_ref = composite_index_size(&[&tables.type_def, &tables.type_ref, &tables.type_spec]);
+        let has_custom_attribute = composite_index_size(&[&tables.method_def, &tables.field, &tables.type_ref, &tables.type_def, &tables.param, &tables.interface_impl, &tables.member_ref, &tables.module, &tables.property, &tables.event, &tables.standalone_sig, &tables.module_ref, &tables.type_spec, &tables.assembly, &tables.assembly_ref, &tables.file, &tables.exported_type, &tables.manifest_resource, &tables.generic_param, &tables.generic_param_constraint, &tables.method_spec]);
         let has_field_marshal = composite_index_size(&[&tables.field, &tables.param]);
-        let has_decl_security =
-            composite_index_size(&[&tables.type_def, &tables.method_def, &tables.assembly]);
-        let member_ref_parent = composite_index_size(&[
-            &tables.type_def,
-            &tables.type_ref,
-            &tables.module_ref,
-            &tables.method_def,
-            &tables.type_spec,
-        ]);
+        let has_decl_security = composite_index_size(&[&tables.type_def, &tables.method_def, &tables.assembly]);
+        let member_ref_parent = composite_index_size(&[&tables.type_def, &tables.type_ref, &tables.module_ref, &tables.method_def, &tables.type_spec]);
         let has_semantics = composite_index_size(&[&tables.event, &tables.property]);
         let method_def_or_ref = composite_index_size(&[&tables.method_def, &tables.member_ref]);
         let member_forwarded = composite_index_size(&[&tables.field, &tables.method_def]);
-        let implementation =
-            composite_index_size(&[&tables.file, &tables.assembly_ref, &tables.exported_type]);
-        let custom_attribute_type = composite_index_size(&[
-            &tables.method_def,
-            &tables.member_ref,
-            &empty_table,
-            &empty_table,
-            &empty_table,
-        ]);
-        let resolution_scope = composite_index_size(&[
-            &tables.module,
-            &tables.module_ref,
-            &tables.assembly_ref,
-            &tables.type_ref,
-        ]);
+        let implementation = composite_index_size(&[&tables.file, &tables.assembly_ref, &tables.exported_type]);
+        let custom_attribute_type = composite_index_size(&[&tables.method_def, &tables.member_ref, &empty_table, &empty_table, &empty_table]);
+        let resolution_scope = composite_index_size(&[&tables.module, &tables.module_ref, &tables.assembly_ref, &tables.type_ref]);
         let type_or_method_def = composite_index_size(&[&tables.type_def, &tables.method_def]);
 
-        Ok(Database {
-            file: file,
-            strings: strings,
-            blobs: blobs,
-            guids: guids,
-            tables: tables,
-        })
+        tables.assembly.set_columns(4, 8, 4, blob_index_size, string_index_size, string_index_size);
+        tables.assembly_os.set_columns(4, 4, 4, 0, 0, 0);
+        tables.assembly_processor.set_columns(4, 0, 0, 0, 0, 0);
+        tables.assembly_ref.set_columns(8, 4, blob_index_size, string_index_size, string_index_size, blob_index_size);
+        tables.assembly_ref_os.set_columns(4, 4, 4, tables.assembly_ref.index_size(), 0, 0);
+        tables.assembly_ref_processor.set_columns(4, tables.assembly_ref.index_size(), 0, 0, 0, 0);
+        tables.class_layout.set_columns(2, 4, tables.type_def.index_size(), 0, 0, 0);
+        tables.constant.set_columns(2, has_constant, blob_index_size, 0, 0, 0);
+        tables.custom_attribute.set_columns(has_custom_attribute, custom_attribute_type, blob_index_size, 0, 0, 0);
+        tables.decl_security.set_columns(2, has_decl_security, blob_index_size, 0, 0, 0);
+        tables.event_map.set_columns(tables.type_def.index_size(), tables.event.index_size(), 0, 0, 0, 0);
+        tables.event.set_columns(2, string_index_size, type_def_or_ref, 0, 0, 0);
+        tables.exported_type.set_columns(4, 4, string_index_size, string_index_size, implementation, 0);
+        tables.field.set_columns(2, string_index_size, blob_index_size, 0, 0, 0);
+        tables.field_layout.set_columns(4, tables.field.index_size(), 0, 0, 0, 0);
+        tables.field_marshal.set_columns(has_field_marshal, blob_index_size, 0, 0, 0, 0);
+        tables.field_rva.set_columns(4, tables.field.index_size(), 0, 0, 0, 0);
+        tables.file.set_columns(4, string_index_size, blob_index_size, 0, 0, 0);
+        tables.generic_param.set_columns(2, 2, type_or_method_def, string_index_size, 0, 0);
+        tables.generic_param_constraint.set_columns(tables.generic_param.index_size(), type_def_or_ref, 0, 0, 0, 0);
+        tables.impl_map.set_columns(2, member_forwarded, string_index_size, tables.module_ref.index_size(), 0, 0);
+        tables.interface_impl.set_columns(tables.type_def.index_size(), type_def_or_ref, 0, 0, 0, 0);
+        tables.manifest_resource.set_columns(4, 4, string_index_size, implementation, 0, 0);
+        tables.member_ref.set_columns(member_ref_parent, string_index_size, blob_index_size, 0, 0, 0);
+        tables.method_def.set_columns(4, 2, 2, string_index_size, blob_index_size, tables.param.index_size());
+        tables.method_impl.set_columns(tables.type_def.index_size(), method_def_or_ref, method_def_or_ref, 0, 0, 0);
+        tables.method_semantics.set_columns(2, tables.method_def.index_size(), has_semantics, 0, 0, 0);
+        tables.method_spec.set_columns(method_def_or_ref, blob_index_size, 0, 0, 0, 0);
+        tables.module.set_columns(2, string_index_size, guid_index_size, guid_index_size, guid_index_size, 0);
+        tables.module_ref.set_columns(string_index_size, 0, 0, 0, 0, 0);
+        tables.nested_class.set_columns(tables.type_def.index_size(), tables.type_def.index_size(), 0, 0, 0, 0);
+        tables.param.set_columns(2, 2, string_index_size, 0, 0, 0);
+        tables.property.set_columns(2, string_index_size, blob_index_size, 0, 0, 0);
+        tables.property_map.set_columns(tables.type_def.index_size(), tables.property.index_size(), 0, 0, 0, 0);
+        tables.standalone_sig.set_columns(blob_index_size, 0, 0, 0, 0, 0);
+        tables.type_def.set_columns(4, string_index_size, string_index_size, type_def_or_ref, tables.field.index_size(), tables.method_def.index_size());
+        tables.type_ref.set_columns(resolution_scope, string_index_size, string_index_size, 0, 0, 0);
+        tables.type_spec.set_columns(blob_index_size, 0, 0, 0, 0, 0);
+
+        Ok(Database { file: file, strings: strings, blobs: blobs, guids: guids, tables: tables })
     }
 }
 
@@ -297,13 +305,8 @@ fn unexpected_eof() -> std::io::Error {
     std::io::Error::from(std::io::ErrorKind::UnexpectedEof)
 }
 
-fn section_from_rva(
-    sections: &[ImageSectionHeader],
-    rva: u32,
-) -> std::io::Result<&ImageSectionHeader> {
-    match sections.iter().find(|&s| {
-        rva >= s.virtual_address && rva < s.virtual_address + s.physical_address_or_virtual_size
-    }) {
+fn section_from_rva(sections: &[ImageSectionHeader], rva: u32) -> std::io::Result<&ImageSectionHeader> {
+    match sections.iter().find(|&s| rva >= s.virtual_address && rva < s.virtual_address + s.physical_address_or_virtual_size) {
         Some(section) => Ok(section),
         None => Err(invalid_data("Section containing RVA not found")),
     }
@@ -317,7 +320,7 @@ fn sizeof<T>() -> u32 {
     std::mem::size_of::<T>() as u32
 }
 
-fn composite_index_size(tables: &[&Table]) -> u8 {
+fn composite_index_size(tables: &[&Table]) -> u32 {
     let small = |row_count: u32, bits: u8| (row_count as u64) < (1u64 << (16 - bits));
 
     let bits_needed = |value| {
@@ -339,10 +342,7 @@ fn composite_index_size(tables: &[&Table]) -> u8 {
 
     let bits_needed = bits_needed(tables.len());
 
-    if tables
-        .iter()
-        .all(|table| small(table.row_count, bits_needed))
-    {
+    if tables.iter().all(|table| small(table.row_count, bits_needed)) {
         2
     } else {
         4
@@ -371,12 +371,7 @@ impl View for [u8] {
             return Err(unexpected_eof());
         }
 
-        unsafe {
-            Ok(std::slice::from_raw_parts(
-                &self[offset as usize] as *const u8 as *const T,
-                len as usize,
-            ))
-        }
+        unsafe { Ok(std::slice::from_raw_parts(&self[offset as usize] as *const u8 as *const T, len as usize)) }
     }
 
     fn view_as_str(&self, offset: u32) -> std::io::Result<&[u8]> {
