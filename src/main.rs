@@ -53,13 +53,13 @@ impl Table {
         }
     }
 
-    fn set_data(&mut self, view: &mut (u32, u32))
+    fn set_data(&mut self, data: &mut (u32, u32))
     {
         if self.row_count != 0
         {
-            let next = view.0 + self.row_count * self.row_size;
-            self.data = (view.0, next);
-            view.0 = next;
+            let next = data.0 + self.row_count * self.row_size;
+            self.data = (data.0, next);
+            data.0 = next;
         }
     }
 }
@@ -142,37 +142,35 @@ impl Database {
             _ => return Err(invalid_data("Invalid optional header magic value")),
         };
 
-        let section = section_from_rva(sections, com_virtual_address)?;
-        let cli = file.view_as::<ImageCorHeader>(offset_from_rva(section, com_virtual_address))?;
+        let cli = file.view_as::<ImageCorHeader>(offset_from_rva(section_from_rva(sections, com_virtual_address)?, com_virtual_address))?;
 
         if cli.cb != sizeof::<ImageCorHeader>() {
             return Err(invalid_data("Invalid CLI header"));
         }
 
-        let section = section_from_rva(sections, cli.meta_data.virtual_address)?;
-        let offset = offset_from_rva(section, cli.meta_data.virtual_address);
+        let cli_offset = offset_from_rva(section_from_rva(sections, cli.meta_data.virtual_address)?, cli.meta_data.virtual_address);
 
-        if *file.view_as::<u32>(offset)? != STORAGE_MAGIC_SIG {
+        if *file.view_as::<u32>(cli_offset)? != STORAGE_MAGIC_SIG {
             return Err(invalid_data("CLI metadata magic signature not found"));
         }
 
-        let version_length = *file.view_as::<u32>(offset + 12)?;
-        let mut slice = file.view_offset(offset + version_length + 20)?;
+        let version_length = *file.view_as::<u32>(cli_offset + 12)?;
+        let mut view = file.view_offset(cli_offset + version_length + 20)?;
         let mut strings: (u32, u32) = (0, 0);
         let mut blobs: (u32, u32) = (0, 0);
         let mut guids: (u32, u32) = (0, 0);
         let mut tables_data: (u32, u32) = (0, 0);
 
-        for _ in 0..*file.view_as::<u16>(offset + version_length + 18)? {
-            let stream_offset = *slice.view_as::<u32>(0)?;
-            let stream_size = *slice.view_as::<u32>(4)?;
-            let stream_name = slice.view_as_str(8)?;
+        for _ in 0..*file.view_as::<u16>(cli_offset + version_length + 18)? {
+            let stream_offset = *view.view_as::<u32>(0)?;
+            let stream_size = *view.view_as::<u32>(4)?;
+            let stream_name = view.view_as_str(8)?;
 
             match stream_name {
-                b"#Strings" => strings = (offset + stream_offset, stream_size),
-                b"#Blob" => blobs = (offset + stream_offset, stream_size),
-                b"#GUID" => guids = (offset + stream_offset, stream_size),
-                b"#~" => tables_data = (offset + stream_offset, stream_size),
+                b"#Strings" => strings = (cli_offset + stream_offset, stream_size),
+                b"#Blob" => blobs = (cli_offset + stream_offset, stream_size),
+                b"#GUID" => guids = (cli_offset + stream_offset, stream_size),
+                b"#~" => tables_data = (cli_offset + stream_offset, stream_size),
                 b"#US" => {}
                 _ => return Err(invalid_data("Unknown metadata stream")),
             }
@@ -183,7 +181,7 @@ impl Database {
                 padding = 4;
             }
 
-            slice = &slice[8 + stream_name.len() + padding..];
+            view = &view[8 + stream_name.len() + padding..];
         }
 
         let heap_sizes = *file.view_as::<u8>(tables_data.0 + 6)?;
@@ -199,8 +197,8 @@ impl Database {
                 continue;
             }
 
-            let row_count = *slice.view_as::<u32>(0)?;
-            slice = slice.view_offset(4)?;
+            let row_count = *view.view_as::<u32>(0)?;
+            view = view.view_offset(4)?;
 
             match i {
                 0x00 => tables.module.row_count = row_count,
@@ -358,46 +356,46 @@ fn composite_index_size(tables: &[&Table]) -> u32 {
 }
 
 trait View {
-    fn view_as<T>(&self, offset: u32) -> std::io::Result<&T>;
-    fn view_as_slice_of<T>(&self, offset: u32, len: u32) -> std::io::Result<&[T]>;
-    fn view_as_str(&self, offset: u32) -> std::io::Result<&[u8]>;
-    fn view_offset(&self, offset: u32) -> std::io::Result<&[u8]>;
-    fn view_subslice(&self, offset: u32, size: u32) -> std::io::Result<&[u8]>;
+    fn view_as<T>(&self, cli_offset: u32) -> std::io::Result<&T>;
+    fn view_as_slice_of<T>(&self, cli_offset: u32, len: u32) -> std::io::Result<&[T]>;
+    fn view_as_str(&self, cli_offset: u32) -> std::io::Result<&[u8]>;
+    fn view_offset(&self, cli_offset: u32) -> std::io::Result<&[u8]>;
+    fn view_subslice(&self, cli_offset: u32, size: u32) -> std::io::Result<&[u8]>;
 }
 
 impl View for [u8] {
-    fn view_as<T>(&self, offset: u32) -> std::io::Result<&T> {
-        if offset + sizeof::<T>() > self.len() as u32 {
+    fn view_as<T>(&self, cli_offset: u32) -> std::io::Result<&T> {
+        if cli_offset + sizeof::<T>() > self.len() as u32 {
             return Err(unexpected_eof());
         }
 
-        unsafe { Ok(&*(&self[offset as usize] as *const u8 as *const T)) }
+        unsafe { Ok(&*(&self[cli_offset as usize] as *const u8 as *const T)) }
     }
 
-    fn view_as_slice_of<T>(&self, offset: u32, len: u32) -> std::io::Result<&[T]> {
-        if offset + sizeof::<T>() * len > self.len() as u32 {
+    fn view_as_slice_of<T>(&self, cli_offset: u32, len: u32) -> std::io::Result<&[T]> {
+        if cli_offset + sizeof::<T>() * len > self.len() as u32 {
             return Err(unexpected_eof());
         }
 
-        unsafe { Ok(std::slice::from_raw_parts(&self[offset as usize] as *const u8 as *const T, len as usize)) }
+        unsafe { Ok(std::slice::from_raw_parts(&self[cli_offset as usize] as *const u8 as *const T, len as usize)) }
     }
 
-    fn view_as_str(&self, offset: u32) -> std::io::Result<&[u8]> {
-        match self.view_offset(offset)?.iter().position(|c| *c == b'\0') {
-            Some(index) => Ok(&self[offset as usize..offset as usize + index]),
+    fn view_as_str(&self, cli_offset: u32) -> std::io::Result<&[u8]> {
+        match self.view_offset(cli_offset)?.iter().position(|c| *c == b'\0') {
+            Some(index) => Ok(&self[cli_offset as usize..cli_offset as usize + index]),
             None => Err(unexpected_eof()),
         }
     }
 
-    fn view_offset(&self, offset: u32) -> std::io::Result<&[u8]> {
-        match self.get(offset as usize..) {
+    fn view_offset(&self, cli_offset: u32) -> std::io::Result<&[u8]> {
+        match self.get(cli_offset as usize..) {
             Some(slice) => Ok(slice),
             None => Err(unexpected_eof()),
         }
     }
 
-    fn view_subslice(&self, offset: u32, size: u32) -> std::io::Result<&[u8]> {
-        match self.get(offset as usize..(offset + size) as usize) {
+    fn view_subslice(&self, cli_offset: u32, size: u32) -> std::io::Result<&[u8]> {
+        match self.get(cli_offset as usize..(cli_offset + size) as usize) {
             Some(slice) => Ok(slice),
             None => Err(unexpected_eof()),
         }
