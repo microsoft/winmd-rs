@@ -17,6 +17,7 @@ fn main() {
 
 #[derive(Default)]
 struct Table {
+    data:(u32, u32),
     row_count: u32,
     row_size: u32,
     columns: [(u32, u32); 6],
@@ -49,6 +50,16 @@ impl Table {
         }
         if f != 0 {
             self.columns[5] = ((a + b + c + d + e), f);
+        }
+    }
+
+    fn set_data(&mut self, view: &mut (u32, u32))
+    {
+        if self.row_count != 0
+        {
+            let next = view.0 + self.row_count * self.row_size;
+            self.data = (view.0, next);
+            view.0 = next;
         }
     }
 }
