@@ -17,7 +17,7 @@ fn main() {
 
 #[derive(Default)]
 struct Table {
-    data:(u32, u32),
+    data:u32,
     row_count: u32,
     row_size: u32,
     columns: [(u32, u32); 6],
@@ -53,13 +53,13 @@ impl Table {
         }
     }
 
-    fn set_data(&mut self, data: &mut (u32, u32))
+    fn set_data(&mut self, data: &mut u32)
     {
         if self.row_count != 0
         {
-            let next = data.0 + self.row_count * self.row_size;
-            self.data = (data.0, next);
-            data.0 = next;
+            let next = *data + self.row_count * self.row_size;
+            self.data = *data;
+            *data = next;
         }
     }
 }
@@ -155,16 +155,16 @@ impl Database {
         }
 
         let version_length = *file.view_as::<u32>(cli_offset + 12)?;
-        let mut view = file.view_offset(cli_offset + version_length + 20)?;
+        let mut view = cli_offset + version_length + 20;
         let mut strings: (u32, u32) = (0, 0);
         let mut blobs: (u32, u32) = (0, 0);
         let mut guids: (u32, u32) = (0, 0);
         let mut tables_data: (u32, u32) = (0, 0);
 
         for _ in 0..*file.view_as::<u16>(cli_offset + version_length + 18)? {
-            let stream_offset = *view.view_as::<u32>(0)?;
-            let stream_size = *view.view_as::<u32>(4)?;
-            let stream_name = view.view_as_str(8)?;
+            let stream_offset = *file.view_as::<u32>(view)?;
+            let stream_size = *file.view_as::<u32>(view + 4)?;
+            let stream_name = file.view_as_str(view + 8)?;
 
             match stream_name {
                 b"#Strings" => strings = (cli_offset + stream_offset, stream_size),
@@ -181,7 +181,7 @@ impl Database {
                 padding = 4;
             }
 
-            view = &view[8 + stream_name.len() + padding..];
+            view = view + (8 + stream_name.len() + padding) as u32;
         }
 
         let heap_sizes = *file.view_as::<u8>(tables_data.0 + 6)?;
@@ -197,8 +197,8 @@ impl Database {
                 continue;
             }
 
-            let row_count = *view.view_as::<u32>(0)?;
-            view = view.view_offset(4)?;
+            let row_count = *file.view_as::<u32>(view)?;
+            view = view + 4;
 
             match i {
                 0x00 => tables.module.row_count = row_count,
@@ -297,7 +297,7 @@ impl Database {
         tables.type_ref.set_columns(resolution_scope, string_index_size, string_index_size, 0, 0, 0);
         tables.type_spec.set_columns(blob_index_size, 0, 0, 0, 0, 0);
 
-        // println!("{:?}", file[strings.0 as usize..].view_as_str(0)?);
+        tables.module.set_data(&mut view);
 
         Ok(Database { file: file, strings: strings, blobs: blobs, guids: guids, tables: tables })
     }
