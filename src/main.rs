@@ -161,7 +161,7 @@ impl Database {
         let mut strings: (u32, u32) = (0, 0);
         let mut blobs: (u32, u32) = (0, 0);
         let mut guids: (u32, u32) = (0, 0);
-        let mut tables: Option<&[u8]> = None;
+        let mut tables_data: (u32, u32) = (0, 0);
 
         for _ in 0..*file.view_as::<u16>(offset + version_length + 18)? {
             let stream_offset = *slice.view_as::<u32>(0)?;
@@ -172,7 +172,7 @@ impl Database {
                 b"#Strings" => strings = (offset + stream_offset, stream_size),
                 b"#Blob" => blobs = (offset + stream_offset, stream_size),
                 b"#GUID" => guids = (offset + stream_offset, stream_size),
-                b"#~" => tables = Some(file.view_subslice(offset + stream_offset, stream_size)?),
+                b"#~" => tables_data = (offset + stream_offset, stream_size),
                 b"#US" => {}
                 _ => return Err(invalid_data("Unknown metadata stream")),
             }
@@ -186,17 +186,12 @@ impl Database {
             slice = &slice[8 + stream_name.len() + padding..];
         }
 
-        let tables = match tables {
-            Some(value) => value,
-            None => return Err(invalid_data("Tables stream not found")),
-        };
-
-        let heap_sizes = *tables.view_as::<u8>(6)?;
+        let heap_sizes = *file.view_as::<u8>(tables_data.0 + 6)?;
         let string_index_size = if (heap_sizes & 1) == 1 { 4 } else { 2 };
         let guid_index_size = if (heap_sizes >> 1 & 1) == 1 { 4 } else { 2 };
         let blob_index_size = if (heap_sizes >> 2 & 1) == 1 { 4 } else { 2 };
-        let valid_bits = *tables.view_as::<u64>(8)?;
-        slice = tables.view_offset(24)?;
+        let valid_bits = *file.view_as::<u64>(tables_data.0 + 8)?;
+        tables_data.0 = tables_data.0 + 24;
         let mut tables = Tables::default();
 
         for i in 0..64 {
@@ -303,6 +298,8 @@ impl Database {
         tables.type_def.set_columns(4, string_index_size, string_index_size, type_def_or_ref, tables.field.index_size(), tables.method_def.index_size());
         tables.type_ref.set_columns(resolution_scope, string_index_size, string_index_size, 0, 0, 0);
         tables.type_spec.set_columns(blob_index_size, 0, 0, 0, 0, 0);
+
+        // println!("{:?}", file[strings.0 as usize..].view_as_str(0)?);
 
         Ok(Database { file: file, strings: strings, blobs: blobs, guids: guids, tables: tables })
     }
