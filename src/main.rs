@@ -3,18 +3,23 @@
 #![allow(dead_code)]
 
 fn main() {
-    for entry in std::fs::read_dir(r#"c:\windows\system32\winmetadata"#).unwrap() {
+    for entry in std::fs::read_dir(r"c:\windows\system32\winmetadata").unwrap() {
         println!("{}", entry.unwrap().path().display());
     }
 
-    let db = Database::new(r#"c:\windows\system32\winmetadata\Windows.UI.Xaml.winmd"#).unwrap();
+    let db = match Database::new(r"c:\windows\notepad.exe") {
+        Ok(db) => db,
+        Err(e) => return println!("{}", e),
+    };
+
+    // TODO: use 'db' here...
 }
 
 #[derive(Default)]
 struct Table {
     row_count: u32,
-    row_size:u32,
-    columns: [(u32,u32); 6],
+    row_size: u32,
+    columns: [(u32, u32); 6],
 }
 
 #[derive(Default)]
@@ -61,18 +66,17 @@ struct Tables {
 }
 
 struct Database {
-    buffer: std::vec::Vec<u8>,
-    strings: (*const u8, usize),
-    blobs: (*const u8, usize),
-    guids: (*const u8, usize),
+    file: std::vec::Vec<u8>,
+    strings: (u32, u32),
+    blobs: (u32, u32),
+    guids: (u32, u32),
     tables: Tables,
 }
 
 impl Database {
     fn new<P: AsRef<std::path::Path>>(filename: P) -> std::io::Result<Database> {
-        let buffer = std::fs::read(filename)?;
+        let file = std::fs::read(filename)?;
 
-        let file = buffer.as_slice();
         let dos = file.view_as::<ImageDosHeader>(0)?;
 
         if dos.signature != IMAGE_DOS_SIGNATURE {
@@ -125,9 +129,9 @@ impl Database {
 
         let version_length = *file.view_as::<u32>(offset + 12)?;
         let mut slice = file.view_offset(offset + version_length + 20)?;
-        let mut strings: Option<&[u8]> = None;
-        let mut blobs: Option<&[u8]> = None;
-        let mut guids: Option<&[u8]> = None;
+        let mut strings: (u32, u32) = (0, 0);
+        let mut blobs: (u32, u32) = (0, 0);
+        let mut guids: (u32, u32) = (0, 0);
         let mut tables: Option<&[u8]> = None;
 
         for _ in 0..*file.view_as::<u16>(offset + version_length + 18)? {
@@ -136,11 +140,9 @@ impl Database {
             let stream_name = slice.view_as_str(8)?;
 
             match stream_name {
-                b"#Strings" => {
-                    strings = Some(file.view_subslice(offset + stream_offset, stream_size)?)
-                }
-                b"#Blob" => blobs = Some(file.view_subslice(offset + stream_offset, stream_size)?),
-                b"#GUID" => guids = Some(file.view_subslice(offset + stream_offset, stream_size)?),
+                b"#Strings" => strings = (offset + stream_offset, stream_size),
+                b"#Blob" => blobs = (offset + stream_offset, stream_size),
+                b"#GUID" => guids = (offset + stream_offset, stream_size),
                 b"#~" => tables = Some(file.view_subslice(offset + stream_offset, stream_size)?),
                 b"#US" => {}
                 _ => return Err(invalid_data("Unknown metadata stream")),
@@ -155,18 +157,6 @@ impl Database {
             slice = &slice[8 + stream_name.len() + padding..];
         }
 
-        let strings = match strings {
-            Some(value) => (value.as_ptr(), value.len()),
-            None => return Err(invalid_data("Strings stream not found")),
-        };
-        let blobs = match blobs {
-            Some(value) => (value.as_ptr(), value.len()),
-            None => return Err(invalid_data("Blob stream not found")),
-        };
-        let guids = match guids {
-            Some(value) => (value.as_ptr(), value.len()),
-            None => return Err(invalid_data("GUID stream not found")),
-        };
         let tables = match tables {
             Some(value) => value,
             None => return Err(invalid_data("Tables stream not found")),
@@ -290,7 +280,7 @@ impl Database {
         let type_or_method_def = composite_index_size(&[&tables.type_def, &tables.method_def]);
 
         Ok(Database {
-            buffer: buffer,
+            file: file,
             strings: strings,
             blobs: blobs,
             guids: guids,
@@ -349,7 +339,10 @@ fn composite_index_size(tables: &[&Table]) -> u8 {
 
     let bits_needed = bits_needed(tables.len());
 
-    if tables.iter().all(|table| small(table.row_count, bits_needed)) {
+    if tables
+        .iter()
+        .all(|table| small(table.row_count, bits_needed))
+    {
         2
     } else {
         4
