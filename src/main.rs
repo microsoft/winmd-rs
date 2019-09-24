@@ -3,30 +3,21 @@
 #![allow(dead_code)]
 
 fn main() {
-    for entry in std::fs::read_dir(r"c:\windows\system32\winmetadata").unwrap() {
-        println!("{}", entry.unwrap().path().display());
-    }
-
     let db = match Database::new(r"c:\windows\system32\winmetadata\Windows.Foundation.winmd") {
         Ok(db) => db,
         Err(e) => return println!("{}", e),
     };
 
-    // use 'db' here...
-
-    println!("{}", db.strings(1).unwrap());
-
-    let module = db.file.view_as_str(db.strings.0 + 1).unwrap();
-
-    if let Ok(s) = std::str::from_utf8(module)
-    {
-        println!("{}", s);
+    for row in 0..db.type_def.row_count {
+        println!("{}.{}", 
+            db.strings(db.cell32(&db.type_def, row, 2).unwrap()).unwrap(),
+            db.strings(db.cell32(&db.type_def, row, 1).unwrap()).unwrap())
     }
 }
 
 #[derive(Default)]
 struct Table {
-    data:u32,
+    data: u32,
     row_count: u32,
     row_size: u32,
     columns: [(u32, u32); 6],
@@ -62,10 +53,8 @@ impl Table {
         }
     }
 
-    fn set_data(&mut self, data: &mut u32)
-    {
-        if self.row_count != 0
-        {
+    fn set_data(&mut self, data: &mut u32) {
+        if self.row_count != 0 {
             let next = *data + self.row_count * self.row_size;
             self.data = *data;
             *data = next;
@@ -74,7 +63,13 @@ impl Table {
 }
 
 #[derive(Default)]
-struct Tables {
+struct Database {
+    bytes: std::vec::Vec<u8>,
+    // Just make these offsets as well?
+    strings: (u32, u32),
+    blobs: (u32, u32),
+    guids: (u32, u32),
+
     // TODO: remove comments once field types match comments
     type_ref: Table,                 // TypeRef
     generic_param_constraint: Table, // GenericParamConstraint
@@ -116,43 +111,34 @@ struct Tables {
     method_spec: Table,              // MethodSpec
 }
 
-struct Database {
-    file: std::vec::Vec<u8>,
-    // Just make these offsets as well?
-    strings: (u32, u32),
-    blobs: (u32, u32),
-    guids: (u32, u32),
-    tables: Tables,
-}
-
 impl Database {
     fn new<P: AsRef<std::path::Path>>(filename: P) -> std::io::Result<Database> {
-        let file = std::fs::read(filename)?;
-        let dos = file.view_as::<ImageDosHeader>(0)?;
+        let mut db = Database { bytes: std::fs::read(filename)?, ..Default::default() };
+        let dos = db.bytes.view_as::<ImageDosHeader>(0)?;
 
         if dos.signature != IMAGE_DOS_SIGNATURE {
             return Err(invalid_data("Invalid DOS signature"));
         }
 
-        let pe = file.view_as::<ImageNtHeader>(dos.lfanew as u32)?;
+        let pe = db.bytes.view_as::<ImageNtHeader>(dos.lfanew as u32)?;
         let com_virtual_address: u32;
         let sections: &[ImageSectionHeader];
 
         match pe.optional_header.magic {
             MAGIC_PE32 => {
                 com_virtual_address = pe.optional_header.data_directory[IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR as usize].virtual_address;
-                sections = file.view_as_slice_of::<ImageSectionHeader>(dos.lfanew as u32 + sizeof::<ImageNtHeader>(), pe.file_header.number_of_sections as u32)?;
+                sections = db.bytes.view_as_slice_of::<ImageSectionHeader>(dos.lfanew as u32 + sizeof::<ImageNtHeader>(), pe.file_header.number_of_sections as u32)?;
             }
 
             MAGIC_PE32PLUS => {
-                com_virtual_address = file.view_as::<ImageNtHeaderPlus>(dos.lfanew as u32)?.optional_header.data_directory[IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR as usize].virtual_address;
-                sections = file.view_as_slice_of::<ImageSectionHeader>(dos.lfanew as u32 + sizeof::<ImageNtHeaderPlus>(), pe.file_header.number_of_sections as u32)?;
+                com_virtual_address = db.bytes.view_as::<ImageNtHeaderPlus>(dos.lfanew as u32)?.optional_header.data_directory[IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR as usize].virtual_address;
+                sections = db.bytes.view_as_slice_of::<ImageSectionHeader>(dos.lfanew as u32 + sizeof::<ImageNtHeaderPlus>(), pe.file_header.number_of_sections as u32)?;
             }
 
             _ => return Err(invalid_data("Invalid optional header magic value")),
         };
 
-        let cli = file.view_as::<ImageCorHeader>(offset_from_rva(section_from_rva(sections, com_virtual_address)?, com_virtual_address))?;
+        let cli = db.bytes.view_as::<ImageCorHeader>(offset_from_rva(section_from_rva(sections, com_virtual_address)?, com_virtual_address))?;
 
         if cli.cb != sizeof::<ImageCorHeader>() {
             return Err(invalid_data("Invalid CLI header"));
@@ -160,26 +146,23 @@ impl Database {
 
         let cli_offset = offset_from_rva(section_from_rva(sections, cli.meta_data.virtual_address)?, cli.meta_data.virtual_address);
 
-        if *file.view_as::<u32>(cli_offset)? != STORAGE_MAGIC_SIG {
+        if *db.bytes.view_as::<u32>(cli_offset)? != STORAGE_MAGIC_SIG {
             return Err(invalid_data("CLI metadata magic signature not found"));
         }
 
-        let version_length = *file.view_as::<u32>(cli_offset + 12)?;
+        let version_length = *db.bytes.view_as::<u32>(cli_offset + 12)?;
         let mut view = cli_offset + version_length + 20;
-        let mut strings: (u32, u32) = (0, 0);
-        let mut blobs: (u32, u32) = (0, 0);
-        let mut guids: (u32, u32) = (0, 0);
         let mut tables_data: (u32, u32) = (0, 0);
 
-        for _ in 0..*file.view_as::<u16>(cli_offset + version_length + 18)? {
-            let stream_offset = *file.view_as::<u32>(view)?;
-            let stream_size = *file.view_as::<u32>(view + 4)?;
-            let stream_name = file.view_as_str(view + 8)?;
+        for _ in 0..*db.bytes.view_as::<u16>(cli_offset + version_length + 18)? {
+            let stream_offset = *db.bytes.view_as::<u32>(view)?;
+            let stream_size = *db.bytes.view_as::<u32>(view + 4)?;
+            let stream_name = db.bytes.view_as_str(view + 8)?;
 
             match stream_name {
-                b"#Strings" => strings = (cli_offset + stream_offset, stream_size),
-                b"#Blob" => blobs = (cli_offset + stream_offset, stream_size),
-                b"#GUID" => guids = (cli_offset + stream_offset, stream_size),
+                b"#Strings" => db.strings = (cli_offset + stream_offset, stream_size),
+                b"#Blob" => db.blobs = (cli_offset + stream_offset, stream_size),
+                b"#GUID" => db.guids = (cli_offset + stream_offset, stream_size),
                 b"#~" => tables_data = (cli_offset + stream_offset, stream_size),
                 b"#US" => {}
                 _ => return Err(invalid_data("Unknown metadata stream")),
@@ -194,173 +177,180 @@ impl Database {
             view = view + (8 + stream_name.len() + padding) as u32;
         }
 
-        let heap_sizes = *file.view_as::<u8>(tables_data.0 + 6)?;
+        let heap_sizes = *db.bytes.view_as::<u8>(tables_data.0 + 6)?;
         let string_index_size = if (heap_sizes & 1) == 1 { 4 } else { 2 };
         let guid_index_size = if (heap_sizes >> 1 & 1) == 1 { 4 } else { 2 };
         let blob_index_size = if (heap_sizes >> 2 & 1) == 1 { 4 } else { 2 };
-        let valid_bits = *file.view_as::<u64>(tables_data.0 + 8)?;
+        let valid_bits = *db.bytes.view_as::<u64>(tables_data.0 + 8)?;
         view = tables_data.0 + 24;
-        let mut tables = Tables::default();
 
         for i in 0..64 {
             if (valid_bits >> i & 1) == 0 {
                 continue;
             }
 
-            let row_count = *file.view_as::<u32>(view)?;
+            let row_count = *db.bytes.view_as::<u32>(view)?;
             view = view + 4;
 
             match i {
-                0x00 => tables.module.row_count = row_count,
-                0x01 => tables.type_ref.row_count = row_count,
-                0x02 => tables.type_def.row_count = row_count,
-                0x04 => tables.field.row_count = row_count,
-                0x06 => tables.method_def.row_count = row_count,
-                0x08 => tables.param.row_count = row_count,
-                0x09 => tables.interface_impl.row_count = row_count,
-                0x0a => tables.member_ref.row_count = row_count,
-                0x0b => tables.constant.row_count = row_count,
-                0x0c => tables.custom_attribute.row_count = row_count,
-                0x0d => tables.field_marshal.row_count = row_count,
-                0x0e => tables.decl_security.row_count = row_count,
-                0x0f => tables.class_layout.row_count = row_count,
-                0x10 => tables.field_layout.row_count = row_count,
-                0x11 => tables.standalone_sig.row_count = row_count,
-                0x12 => tables.event_map.row_count = row_count,
-                0x14 => tables.event.row_count = row_count,
-                0x15 => tables.property_map.row_count = row_count,
-                0x17 => tables.property.row_count = row_count,
-                0x18 => tables.method_semantics.row_count = row_count,
-                0x19 => tables.method_impl.row_count = row_count,
-                0x1a => tables.module_ref.row_count = row_count,
-                0x1b => tables.type_spec.row_count = row_count,
-                0x1c => tables.impl_map.row_count = row_count,
-                0x1d => tables.field_rva.row_count = row_count,
-                0x20 => tables.assembly.row_count = row_count,
-                0x21 => tables.assembly_processor.row_count = row_count,
-                0x22 => tables.assembly_os.row_count = row_count,
-                0x23 => tables.assembly_ref.row_count = row_count,
-                0x24 => tables.assembly_ref_processor.row_count = row_count,
-                0x25 => tables.assembly_ref_os.row_count = row_count,
-                0x26 => tables.file.row_count = row_count,
-                0x27 => tables.exported_type.row_count = row_count,
-                0x28 => tables.manifest_resource.row_count = row_count,
-                0x29 => tables.nested_class.row_count = row_count,
-                0x2a => tables.generic_param.row_count = row_count,
-                0x2b => tables.method_spec.row_count = row_count,
-                0x2c => tables.generic_param_constraint.row_count = row_count,
+                0x00 => db.module.row_count = row_count,
+                0x01 => db.type_ref.row_count = row_count,
+                0x02 => db.type_def.row_count = row_count,
+                0x04 => db.field.row_count = row_count,
+                0x06 => db.method_def.row_count = row_count,
+                0x08 => db.param.row_count = row_count,
+                0x09 => db.interface_impl.row_count = row_count,
+                0x0a => db.member_ref.row_count = row_count,
+                0x0b => db.constant.row_count = row_count,
+                0x0c => db.custom_attribute.row_count = row_count,
+                0x0d => db.field_marshal.row_count = row_count,
+                0x0e => db.decl_security.row_count = row_count,
+                0x0f => db.class_layout.row_count = row_count,
+                0x10 => db.field_layout.row_count = row_count,
+                0x11 => db.standalone_sig.row_count = row_count,
+                0x12 => db.event_map.row_count = row_count,
+                0x14 => db.event.row_count = row_count,
+                0x15 => db.property_map.row_count = row_count,
+                0x17 => db.property.row_count = row_count,
+                0x18 => db.method_semantics.row_count = row_count,
+                0x19 => db.method_impl.row_count = row_count,
+                0x1a => db.module_ref.row_count = row_count,
+                0x1b => db.type_spec.row_count = row_count,
+                0x1c => db.impl_map.row_count = row_count,
+                0x1d => db.field_rva.row_count = row_count,
+                0x20 => db.assembly.row_count = row_count,
+                0x21 => db.assembly_processor.row_count = row_count,
+                0x22 => db.assembly_os.row_count = row_count,
+                0x23 => db.assembly_ref.row_count = row_count,
+                0x24 => db.assembly_ref_processor.row_count = row_count,
+                0x25 => db.assembly_ref_os.row_count = row_count,
+                0x26 => db.file.row_count = row_count,
+                0x27 => db.exported_type.row_count = row_count,
+                0x28 => db.manifest_resource.row_count = row_count,
+                0x29 => db.nested_class.row_count = row_count,
+                0x2a => db.generic_param.row_count = row_count,
+                0x2b => db.method_spec.row_count = row_count,
+                0x2c => db.generic_param_constraint.row_count = row_count,
                 _ => return Err(invalid_data("Unknown metadata table")),
             };
         }
 
         let empty_table = Table::default();
-        let has_constant = composite_index_size(&[&tables.field, &tables.param, &tables.property]);
-        let type_def_or_ref = composite_index_size(&[&tables.type_def, &tables.type_ref, &tables.type_spec]);
-        let has_custom_attribute = composite_index_size(&[&tables.method_def, &tables.field, &tables.type_ref, &tables.type_def, &tables.param, &tables.interface_impl, &tables.member_ref, &tables.module, &tables.property, &tables.event, &tables.standalone_sig, &tables.module_ref, &tables.type_spec, &tables.assembly, &tables.assembly_ref, &tables.file, &tables.exported_type, &tables.manifest_resource, &tables.generic_param, &tables.generic_param_constraint, &tables.method_spec]);
-        let has_field_marshal = composite_index_size(&[&tables.field, &tables.param]);
-        let has_decl_security = composite_index_size(&[&tables.type_def, &tables.method_def, &tables.assembly]);
-        let member_ref_parent = composite_index_size(&[&tables.type_def, &tables.type_ref, &tables.module_ref, &tables.method_def, &tables.type_spec]);
-        let has_semantics = composite_index_size(&[&tables.event, &tables.property]);
-        let method_def_or_ref = composite_index_size(&[&tables.method_def, &tables.member_ref]);
-        let member_forwarded = composite_index_size(&[&tables.field, &tables.method_def]);
-        let implementation = composite_index_size(&[&tables.file, &tables.assembly_ref, &tables.exported_type]);
-        let custom_attribute_type = composite_index_size(&[&tables.method_def, &tables.member_ref, &empty_table, &empty_table, &empty_table]);
-        let resolution_scope = composite_index_size(&[&tables.module, &tables.module_ref, &tables.assembly_ref, &tables.type_ref]);
-        let type_or_method_def = composite_index_size(&[&tables.type_def, &tables.method_def]);
+        let has_constant = composite_index_size(&[&db.field, &db.param, &db.property]);
+        let type_def_or_ref = composite_index_size(&[&db.type_def, &db.type_ref, &db.type_spec]);
+        let has_custom_attribute = composite_index_size(&[&db.method_def, &db.field, &db.type_ref, &db.type_def, &db.param, &db.interface_impl, &db.member_ref, &db.module, &db.property, &db.event, &db.standalone_sig, &db.module_ref, &db.type_spec, &db.assembly, &db.assembly_ref, &db.file, &db.exported_type, &db.manifest_resource, &db.generic_param, &db.generic_param_constraint, &db.method_spec]);
+        let has_field_marshal = composite_index_size(&[&db.field, &db.param]);
+        let has_decl_security = composite_index_size(&[&db.type_def, &db.method_def, &db.assembly]);
+        let member_ref_parent = composite_index_size(&[&db.type_def, &db.type_ref, &db.module_ref, &db.method_def, &db.type_spec]);
+        let has_semantics = composite_index_size(&[&db.event, &db.property]);
+        let method_def_or_ref = composite_index_size(&[&db.method_def, &db.member_ref]);
+        let member_forwarded = composite_index_size(&[&db.field, &db.method_def]);
+        let implementation = composite_index_size(&[&db.file, &db.assembly_ref, &db.exported_type]);
+        let custom_attribute_type = composite_index_size(&[&db.method_def, &db.member_ref, &empty_table, &empty_table, &empty_table]);
+        let resolution_scope = composite_index_size(&[&db.module, &db.module_ref, &db.assembly_ref, &db.type_ref]);
+        let type_or_method_def = composite_index_size(&[&db.type_def, &db.method_def]);
 
-        tables.assembly.set_columns(4, 8, 4, blob_index_size, string_index_size, string_index_size);
-        tables.assembly_os.set_columns(4, 4, 4, 0, 0, 0);
-        tables.assembly_processor.set_columns(4, 0, 0, 0, 0, 0);
-        tables.assembly_ref.set_columns(8, 4, blob_index_size, string_index_size, string_index_size, blob_index_size);
-        tables.assembly_ref_os.set_columns(4, 4, 4, tables.assembly_ref.index_size(), 0, 0);
-        tables.assembly_ref_processor.set_columns(4, tables.assembly_ref.index_size(), 0, 0, 0, 0);
-        tables.class_layout.set_columns(2, 4, tables.type_def.index_size(), 0, 0, 0);
-        tables.constant.set_columns(2, has_constant, blob_index_size, 0, 0, 0);
-        tables.custom_attribute.set_columns(has_custom_attribute, custom_attribute_type, blob_index_size, 0, 0, 0);
-        tables.decl_security.set_columns(2, has_decl_security, blob_index_size, 0, 0, 0);
-        tables.event_map.set_columns(tables.type_def.index_size(), tables.event.index_size(), 0, 0, 0, 0);
-        tables.event.set_columns(2, string_index_size, type_def_or_ref, 0, 0, 0);
-        tables.exported_type.set_columns(4, 4, string_index_size, string_index_size, implementation, 0);
-        tables.field.set_columns(2, string_index_size, blob_index_size, 0, 0, 0);
-        tables.field_layout.set_columns(4, tables.field.index_size(), 0, 0, 0, 0);
-        tables.field_marshal.set_columns(has_field_marshal, blob_index_size, 0, 0, 0, 0);
-        tables.field_rva.set_columns(4, tables.field.index_size(), 0, 0, 0, 0);
-        tables.file.set_columns(4, string_index_size, blob_index_size, 0, 0, 0);
-        tables.generic_param.set_columns(2, 2, type_or_method_def, string_index_size, 0, 0);
-        tables.generic_param_constraint.set_columns(tables.generic_param.index_size(), type_def_or_ref, 0, 0, 0, 0);
-        tables.impl_map.set_columns(2, member_forwarded, string_index_size, tables.module_ref.index_size(), 0, 0);
-        tables.interface_impl.set_columns(tables.type_def.index_size(), type_def_or_ref, 0, 0, 0, 0);
-        tables.manifest_resource.set_columns(4, 4, string_index_size, implementation, 0, 0);
-        tables.member_ref.set_columns(member_ref_parent, string_index_size, blob_index_size, 0, 0, 0);
-        tables.method_def.set_columns(4, 2, 2, string_index_size, blob_index_size, tables.param.index_size());
-        tables.method_impl.set_columns(tables.type_def.index_size(), method_def_or_ref, method_def_or_ref, 0, 0, 0);
-        tables.method_semantics.set_columns(2, tables.method_def.index_size(), has_semantics, 0, 0, 0);
-        tables.method_spec.set_columns(method_def_or_ref, blob_index_size, 0, 0, 0, 0);
-        tables.module.set_columns(2, string_index_size, guid_index_size, guid_index_size, guid_index_size, 0);
-        tables.module_ref.set_columns(string_index_size, 0, 0, 0, 0, 0);
-        tables.nested_class.set_columns(tables.type_def.index_size(), tables.type_def.index_size(), 0, 0, 0, 0);
-        tables.param.set_columns(2, 2, string_index_size, 0, 0, 0);
-        tables.property.set_columns(2, string_index_size, blob_index_size, 0, 0, 0);
-        tables.property_map.set_columns(tables.type_def.index_size(), tables.property.index_size(), 0, 0, 0, 0);
-        tables.standalone_sig.set_columns(blob_index_size, 0, 0, 0, 0, 0);
-        tables.type_def.set_columns(4, string_index_size, string_index_size, type_def_or_ref, tables.field.index_size(), tables.method_def.index_size());
-        tables.type_ref.set_columns(resolution_scope, string_index_size, string_index_size, 0, 0, 0);
-        tables.type_spec.set_columns(blob_index_size, 0, 0, 0, 0, 0);
+        db.assembly.set_columns(4, 8, 4, blob_index_size, string_index_size, string_index_size);
+        db.assembly_os.set_columns(4, 4, 4, 0, 0, 0);
+        db.assembly_processor.set_columns(4, 0, 0, 0, 0, 0);
+        db.assembly_ref.set_columns(8, 4, blob_index_size, string_index_size, string_index_size, blob_index_size);
+        db.assembly_ref_os.set_columns(4, 4, 4, db.assembly_ref.index_size(), 0, 0);
+        db.assembly_ref_processor.set_columns(4, db.assembly_ref.index_size(), 0, 0, 0, 0);
+        db.class_layout.set_columns(2, 4, db.type_def.index_size(), 0, 0, 0);
+        db.constant.set_columns(2, has_constant, blob_index_size, 0, 0, 0);
+        db.custom_attribute.set_columns(has_custom_attribute, custom_attribute_type, blob_index_size, 0, 0, 0);
+        db.decl_security.set_columns(2, has_decl_security, blob_index_size, 0, 0, 0);
+        db.event_map.set_columns(db.type_def.index_size(), db.event.index_size(), 0, 0, 0, 0);
+        db.event.set_columns(2, string_index_size, type_def_or_ref, 0, 0, 0);
+        db.exported_type.set_columns(4, 4, string_index_size, string_index_size, implementation, 0);
+        db.field.set_columns(2, string_index_size, blob_index_size, 0, 0, 0);
+        db.field_layout.set_columns(4, db.field.index_size(), 0, 0, 0, 0);
+        db.field_marshal.set_columns(has_field_marshal, blob_index_size, 0, 0, 0, 0);
+        db.field_rva.set_columns(4, db.field.index_size(), 0, 0, 0, 0);
+        db.file.set_columns(4, string_index_size, blob_index_size, 0, 0, 0);
+        db.generic_param.set_columns(2, 2, type_or_method_def, string_index_size, 0, 0);
+        db.generic_param_constraint.set_columns(db.generic_param.index_size(), type_def_or_ref, 0, 0, 0, 0);
+        db.impl_map.set_columns(2, member_forwarded, string_index_size, db.module_ref.index_size(), 0, 0);
+        db.interface_impl.set_columns(db.type_def.index_size(), type_def_or_ref, 0, 0, 0, 0);
+        db.manifest_resource.set_columns(4, 4, string_index_size, implementation, 0, 0);
+        db.member_ref.set_columns(member_ref_parent, string_index_size, blob_index_size, 0, 0, 0);
+        db.method_def.set_columns(4, 2, 2, string_index_size, blob_index_size, db.param.index_size());
+        db.method_impl.set_columns(db.type_def.index_size(), method_def_or_ref, method_def_or_ref, 0, 0, 0);
+        db.method_semantics.set_columns(2, db.method_def.index_size(), has_semantics, 0, 0, 0);
+        db.method_spec.set_columns(method_def_or_ref, blob_index_size, 0, 0, 0, 0);
+        db.module.set_columns(2, string_index_size, guid_index_size, guid_index_size, guid_index_size, 0);
+        db.module_ref.set_columns(string_index_size, 0, 0, 0, 0, 0);
+        db.nested_class.set_columns(db.type_def.index_size(), db.type_def.index_size(), 0, 0, 0, 0);
+        db.param.set_columns(2, 2, string_index_size, 0, 0, 0);
+        db.property.set_columns(2, string_index_size, blob_index_size, 0, 0, 0);
+        db.property_map.set_columns(db.type_def.index_size(), db.property.index_size(), 0, 0, 0, 0);
+        db.standalone_sig.set_columns(blob_index_size, 0, 0, 0, 0, 0);
+        db.type_def.set_columns(4, string_index_size, string_index_size, type_def_or_ref, db.field.index_size(), db.method_def.index_size());
+        db.type_ref.set_columns(resolution_scope, string_index_size, string_index_size, 0, 0, 0);
+        db.type_spec.set_columns(blob_index_size, 0, 0, 0, 0, 0);
 
-        tables.module.set_data(&mut view);
-        tables.type_ref.set_data(&mut view);
-        tables.type_def.set_data(&mut view);
-        tables.field.set_data(&mut view);
-        tables.method_def.set_data(&mut view);
-        tables.param.set_data(&mut view);
-        tables.interface_impl.set_data(&mut view);
-        tables.member_ref.set_data(&mut view);
-        tables.constant.set_data(&mut view);
-        tables.custom_attribute.set_data(&mut view);
-        tables.field_marshal.set_data(&mut view);
-        tables.decl_security.set_data(&mut view);
-        tables.class_layout.set_data(&mut view);
-        tables.field_layout.set_data(&mut view);
-        tables.standalone_sig.set_data(&mut view);
-        tables.event_map.set_data(&mut view);
-        tables.event.set_data(&mut view);
-        tables.property_map.set_data(&mut view);
-        tables.property.set_data(&mut view);
-        tables.method_semantics.set_data(&mut view);
-        tables.method_impl.set_data(&mut view);
-        tables.module_ref.set_data(&mut view);
-        tables.type_spec.set_data(&mut view);
-        tables.impl_map.set_data(&mut view);
-        tables.field_rva.set_data(&mut view);
-        tables.assembly.set_data(&mut view);
-        tables.assembly_processor.set_data(&mut view);
-        tables.assembly_os.set_data(&mut view);
-        tables.assembly_ref.set_data(&mut view);
-        tables.assembly_ref_processor.set_data(&mut view);
-        tables.assembly_ref_os.set_data(&mut view);
-        tables.file.set_data(&mut view);
-        tables.exported_type.set_data(&mut view);
-        tables.manifest_resource.set_data(&mut view);
-        tables.nested_class.set_data(&mut view);
-        tables.generic_param.set_data(&mut view);
-        tables.method_spec.set_data(&mut view);
-        tables.generic_param_constraint.set_data(&mut view);
+        db.module.set_data(&mut view);
+        db.type_ref.set_data(&mut view);
+        db.type_def.set_data(&mut view);
+        db.field.set_data(&mut view);
+        db.method_def.set_data(&mut view);
+        db.param.set_data(&mut view);
+        db.interface_impl.set_data(&mut view);
+        db.member_ref.set_data(&mut view);
+        db.constant.set_data(&mut view);
+        db.custom_attribute.set_data(&mut view);
+        db.field_marshal.set_data(&mut view);
+        db.decl_security.set_data(&mut view);
+        db.class_layout.set_data(&mut view);
+        db.field_layout.set_data(&mut view);
+        db.standalone_sig.set_data(&mut view);
+        db.event_map.set_data(&mut view);
+        db.event.set_data(&mut view);
+        db.property_map.set_data(&mut view);
+        db.property.set_data(&mut view);
+        db.method_semantics.set_data(&mut view);
+        db.method_impl.set_data(&mut view);
+        db.module_ref.set_data(&mut view);
+        db.type_spec.set_data(&mut view);
+        db.impl_map.set_data(&mut view);
+        db.field_rva.set_data(&mut view);
+        db.assembly.set_data(&mut view);
+        db.assembly_processor.set_data(&mut view);
+        db.assembly_os.set_data(&mut view);
+        db.assembly_ref.set_data(&mut view);
+        db.assembly_ref_processor.set_data(&mut view);
+        db.assembly_ref_os.set_data(&mut view);
+        db.file.set_data(&mut view);
+        db.exported_type.set_data(&mut view);
+        db.manifest_resource.set_data(&mut view);
+        db.nested_class.set_data(&mut view);
+        db.generic_param.set_data(&mut view);
+        db.method_spec.set_data(&mut view);
+        db.generic_param_constraint.set_data(&mut view);
 
-        Ok(Database { file: file, strings: strings, blobs: blobs, guids: guids, tables: tables })
+        Ok(db)
     }
 
-    fn strings(&self, index: u32) -> std::io::Result<&str>
-    {
+    fn strings(&self, index: u32) -> std::io::Result<&str> {
         let offset = (self.strings.0 + index) as usize;
 
-        // tODO: propagate the UTF error info
-        match self.file[offset..].iter().position(|c| *c == b'\0') {
+        match self.bytes[offset..].iter().position(|c| *c == b'\0') {
             None => Err(unexpected_eof()),
-            Some(last) => match std::str::from_utf8(&self.file[offset..offset+last])
-            {
+            Some(last) => match std::str::from_utf8(&self.bytes[offset..offset + last]) {
                 Ok(string) => Ok(string),
                 Err(_) => Err(invalid_data("Bytes are not valid UTF-8")),
             },
+        }
+    }
+
+    fn cell32(&self, table: &Table, row: u32, column: u32) -> std::io::Result<u32> {
+        let offset = table.data + row * table.row_size + table.columns[column as usize].0;
+
+        match table.columns[column as usize].1 {
+            1 => Ok(*(self.bytes.view_as::<u8>(offset)?) as u32),
+            2 => Ok(*(self.bytes.view_as::<u16>(offset)?) as u32),
+            4 => Ok(*(self.bytes.view_as::<u32>(offset)?) as u32),
+            _ => Ok(*(self.bytes.view_as::<u64>(offset)?) as u32),
         }
     }
 }
