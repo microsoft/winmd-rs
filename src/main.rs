@@ -194,7 +194,7 @@ impl Database {
         let guid_index_size = if (heap_sizes >> 1 & 1) == 1 { 4 } else { 2 };
         let blob_index_size = if (heap_sizes >> 2 & 1) == 1 { 4 } else { 2 };
         let valid_bits = *file.view_as::<u64>(tables_data.0 + 8)?;
-        tables_data.0 = tables_data.0 + 24;
+        view = tables_data.0 + 24;
         let mut tables = Tables::default();
 
         for i in 0..64 {
