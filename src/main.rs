@@ -12,11 +12,16 @@ fn main() {
         Err(e) => return println!("{}", e),
     };
 
-    println!("use 'db' here...");
+    // use 'db' here...
 
-    let module = db.file.view_as_str(db.strings.0);
+    println!("{}", db.strings(1).unwrap());
 
-    println!("{:?}", module.unwrap());
+    let module = db.file.view_as_str(db.strings.0 + 1).unwrap();
+
+    if let Ok(s) = std::str::from_utf8(module)
+    {
+        println!("{}", s);
+    }
 }
 
 #[derive(Default)]
@@ -342,6 +347,21 @@ impl Database {
         tables.generic_param_constraint.set_data(&mut view);
 
         Ok(Database { file: file, strings: strings, blobs: blobs, guids: guids, tables: tables })
+    }
+
+    fn strings(&self, index: u32) -> std::io::Result<&str>
+    {
+        let offset = (self.strings.0 + index) as usize;
+
+        // tODO: propagate the UTF error info
+        match self.file[offset..].iter().position(|c| *c == b'\0') {
+            None => Err(unexpected_eof()),
+            Some(last) => match std::str::from_utf8(&self.file[offset..offset+last])
+            {
+                Ok(string) => Ok(string),
+                Err(_) => Err(invalid_data("Bytes are not valid UTF-8")),
+            },
+        }
     }
 }
 
