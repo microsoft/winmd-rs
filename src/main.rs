@@ -1,18 +1,22 @@
-// TODO: remove these once Database is working.
-#![allow(unused_variables)]
-#![allow(dead_code)]
 
 fn main() {
-    let db = match Database::new(r"c:\windows\system32\winmetadata\Windows.Foundation.winmd") {
-        Ok(db) => db,
-        Err(e) => return println!("{}", e),
+    match run() {
+        Ok(_) => (),
+        Err(e) => println!("{}", e),
     };
+}
+
+fn run() -> std::io::Result<()>
+{
+    let db = Database::new(r"c:\windows\system32\winmetadata\Windows.Foundation.winmd")?;
 
     for row in 0..db.type_def.row_count {
         println!("{}.{}", 
-            db.strings(db.cell32(&db.type_def, row, 2).unwrap()).unwrap(),
-            db.strings(db.cell32(&db.type_def, row, 1).unwrap()).unwrap())
+            db.strings(db.cell32(&db.type_def, row, 2)?)?,
+            db.strings(db.cell32(&db.type_def, row, 1)?)?)
     }
+
+    Ok(())
 }
 
 #[derive(Default)]
