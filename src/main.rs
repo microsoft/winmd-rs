@@ -1,4 +1,3 @@
-
 fn main() {
     match run() {
         Ok(_) => (),
@@ -6,12 +5,11 @@ fn main() {
     };
 }
 
-fn run() -> std::io::Result<()>
-{
+fn run() -> std::io::Result<()> {
     let db = Database::new(r"c:\windows\system32\winmetadata\Windows.Foundation.winmd")?;
 
     for row in 0..db.type_def.row_count {
-        println!("{}.{}", 
+        println!("{}.{}",
             db.strings(db.cell32(&db.type_def, row, 2)?)?,
             db.strings(db.cell32(&db.type_def, row, 1)?)?)
     }
