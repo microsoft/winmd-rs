@@ -8,15 +8,69 @@ fn main() {
 fn run() -> std::io::Result<()> {
     let db = Database::new(r"c:\windows\system32\winmetadata\Windows.Foundation.winmd")?;
 
-    for row in 0..db.type_def.row_count {
+    for row in 0..db.type_def.table.row_count {
         println!("{}.{}",
-            db.strings(db.cell32(&db.type_def, row, 2)?)?,
-            db.strings(db.cell32(&db.type_def, row, 1)?)?)
+            db.type_def.type_namespace(&db, row)?,
+            db.type_def.type_name(&db, row)?)
     }
 
     Ok(())
 }
 
+struct TypeDefRow<'a>
+{
+    db:&'a Database,
+    index:u32,
+}
+
+impl<'a> TypeDefRow<'a>{
+    fn type_name(&self) -> std::io::Result<&'a str> {
+        self.db.type_def.type_name(&self.db, self.index)
+    }
+    fn type_namespace(&self) -> std::io::Result<&'a str> {
+        self.db.type_def.type_namespace(&self.db, self.index)
+    }
+}
+
+#[derive(Default)]
+struct TypeDef {
+    table: Table,
+}
+
+impl TypeDef{
+    fn type_name<'a>(&self, db:&'a Database, row: u32) -> std::io::Result<&'a str> {
+        db.strings(db.cell32(&self.table, row, 1)?)
+    }
+    fn type_namespace<'a>(&self, db:&'a Database, row: u32) -> std::io::Result<&'a str> {
+        db.strings(db.cell32(&self.table, row, 2)?)
+    }
+}
+
+// TODO: Could this be generic to avoid repetition?
+
+// impl<'a> Iterator for TypeDef<'a>{
+//     type Item = TypeDefRow<'a>;
+
+//     fn next(&mut self) -> Option<TypeDefRow>
+//     {
+//         if self.index >= self.db.type_def.row_count
+//         {
+//             return None;
+//         }
+
+//         let result = Some(self);
+//         self.index += 1;
+//         result
+//     }
+// }
+
+// impl Iterator for TypeDef{
+//     type Item = &TypeDef;
+// }
+
+// tODO: add TypeDef row/iterator type
+
+// TODO: turn Table into a trait with get functions for cell32 to use.
 #[derive(Default)]
 struct Table {
     data: u32,
@@ -76,7 +130,7 @@ struct Database {
     type_ref: Table,                 // TypeRef
     generic_param_constraint: Table, // GenericParamConstraint
     type_spec: Table,                // TypeSpec
-    type_def: Table,                 // TypeDef
+    type_def: TypeDef,                 // TypeDef
     custom_attribute: Table,         // CustomAttribute
     method_def: Table,               // MethodDef
     member_ref: Table,               // MemberRef
@@ -197,7 +251,7 @@ impl Database {
             match i {
                 0x00 => db.module.row_count = row_count,
                 0x01 => db.type_ref.row_count = row_count,
-                0x02 => db.type_def.row_count = row_count,
+                0x02 => db.type_def.table.row_count = row_count,
                 0x04 => db.field.row_count = row_count,
                 0x06 => db.method_def.row_count = row_count,
                 0x08 => db.param.row_count = row_count,
@@ -239,18 +293,18 @@ impl Database {
 
         let empty_table = Table::default();
         let has_constant = composite_index_size(&[&db.field, &db.param, &db.property]);
-        let type_def_or_ref = composite_index_size(&[&db.type_def, &db.type_ref, &db.type_spec]);
-        let has_custom_attribute = composite_index_size(&[&db.method_def, &db.field, &db.type_ref, &db.type_def, &db.param, &db.interface_impl, &db.member_ref, &db.module, &db.property, &db.event, &db.standalone_sig, &db.module_ref, &db.type_spec, &db.assembly, &db.assembly_ref, &db.file, &db.exported_type, &db.manifest_resource, &db.generic_param, &db.generic_param_constraint, &db.method_spec]);
+        let type_def_or_ref = composite_index_size(&[&db.type_def.table, &db.type_ref, &db.type_spec]);
+        let has_custom_attribute = composite_index_size(&[&db.method_def, &db.field, &db.type_ref, &db.type_def.table, &db.param, &db.interface_impl, &db.member_ref, &db.module, &db.property, &db.event, &db.standalone_sig, &db.module_ref, &db.type_spec, &db.assembly, &db.assembly_ref, &db.file, &db.exported_type, &db.manifest_resource, &db.generic_param, &db.generic_param_constraint, &db.method_spec]);
         let has_field_marshal = composite_index_size(&[&db.field, &db.param]);
-        let has_decl_security = composite_index_size(&[&db.type_def, &db.method_def, &db.assembly]);
-        let member_ref_parent = composite_index_size(&[&db.type_def, &db.type_ref, &db.module_ref, &db.method_def, &db.type_spec]);
+        let has_decl_security = composite_index_size(&[&db.type_def.table, &db.method_def, &db.assembly]);
+        let member_ref_parent = composite_index_size(&[&db.type_def.table, &db.type_ref, &db.module_ref, &db.method_def, &db.type_spec]);
         let has_semantics = composite_index_size(&[&db.event, &db.property]);
         let method_def_or_ref = composite_index_size(&[&db.method_def, &db.member_ref]);
         let member_forwarded = composite_index_size(&[&db.field, &db.method_def]);
         let implementation = composite_index_size(&[&db.file, &db.assembly_ref, &db.exported_type]);
         let custom_attribute_type = composite_index_size(&[&db.method_def, &db.member_ref, &empty_table, &empty_table, &empty_table]);
         let resolution_scope = composite_index_size(&[&db.module, &db.module_ref, &db.assembly_ref, &db.type_ref]);
-        let type_or_method_def = composite_index_size(&[&db.type_def, &db.method_def]);
+        let type_or_method_def = composite_index_size(&[&db.type_def.table, &db.method_def]);
 
         db.assembly.set_columns(4, 8, 4, blob_index_size, string_index_size, string_index_size);
         db.assembly_os.set_columns(4, 4, 4, 0, 0, 0);
@@ -258,11 +312,11 @@ impl Database {
         db.assembly_ref.set_columns(8, 4, blob_index_size, string_index_size, string_index_size, blob_index_size);
         db.assembly_ref_os.set_columns(4, 4, 4, db.assembly_ref.index_size(), 0, 0);
         db.assembly_ref_processor.set_columns(4, db.assembly_ref.index_size(), 0, 0, 0, 0);
-        db.class_layout.set_columns(2, 4, db.type_def.index_size(), 0, 0, 0);
+        db.class_layout.set_columns(2, 4, db.type_def.table.index_size(), 0, 0, 0);
         db.constant.set_columns(2, has_constant, blob_index_size, 0, 0, 0);
         db.custom_attribute.set_columns(has_custom_attribute, custom_attribute_type, blob_index_size, 0, 0, 0);
         db.decl_security.set_columns(2, has_decl_security, blob_index_size, 0, 0, 0);
-        db.event_map.set_columns(db.type_def.index_size(), db.event.index_size(), 0, 0, 0, 0);
+        db.event_map.set_columns(db.type_def.table.index_size(), db.event.index_size(), 0, 0, 0, 0);
         db.event.set_columns(2, string_index_size, type_def_or_ref, 0, 0, 0);
         db.exported_type.set_columns(4, 4, string_index_size, string_index_size, implementation, 0);
         db.field.set_columns(2, string_index_size, blob_index_size, 0, 0, 0);
@@ -273,27 +327,27 @@ impl Database {
         db.generic_param.set_columns(2, 2, type_or_method_def, string_index_size, 0, 0);
         db.generic_param_constraint.set_columns(db.generic_param.index_size(), type_def_or_ref, 0, 0, 0, 0);
         db.impl_map.set_columns(2, member_forwarded, string_index_size, db.module_ref.index_size(), 0, 0);
-        db.interface_impl.set_columns(db.type_def.index_size(), type_def_or_ref, 0, 0, 0, 0);
+        db.interface_impl.set_columns(db.type_def.table.index_size(), type_def_or_ref, 0, 0, 0, 0);
         db.manifest_resource.set_columns(4, 4, string_index_size, implementation, 0, 0);
         db.member_ref.set_columns(member_ref_parent, string_index_size, blob_index_size, 0, 0, 0);
         db.method_def.set_columns(4, 2, 2, string_index_size, blob_index_size, db.param.index_size());
-        db.method_impl.set_columns(db.type_def.index_size(), method_def_or_ref, method_def_or_ref, 0, 0, 0);
+        db.method_impl.set_columns(db.type_def.table.index_size(), method_def_or_ref, method_def_or_ref, 0, 0, 0);
         db.method_semantics.set_columns(2, db.method_def.index_size(), has_semantics, 0, 0, 0);
         db.method_spec.set_columns(method_def_or_ref, blob_index_size, 0, 0, 0, 0);
         db.module.set_columns(2, string_index_size, guid_index_size, guid_index_size, guid_index_size, 0);
         db.module_ref.set_columns(string_index_size, 0, 0, 0, 0, 0);
-        db.nested_class.set_columns(db.type_def.index_size(), db.type_def.index_size(), 0, 0, 0, 0);
+        db.nested_class.set_columns(db.type_def.table.index_size(), db.type_def.table.index_size(), 0, 0, 0, 0);
         db.param.set_columns(2, 2, string_index_size, 0, 0, 0);
         db.property.set_columns(2, string_index_size, blob_index_size, 0, 0, 0);
-        db.property_map.set_columns(db.type_def.index_size(), db.property.index_size(), 0, 0, 0, 0);
+        db.property_map.set_columns(db.type_def.table.index_size(), db.property.index_size(), 0, 0, 0, 0);
         db.standalone_sig.set_columns(blob_index_size, 0, 0, 0, 0, 0);
-        db.type_def.set_columns(4, string_index_size, string_index_size, type_def_or_ref, db.field.index_size(), db.method_def.index_size());
+        db.type_def.table.set_columns(4, string_index_size, string_index_size, type_def_or_ref, db.field.index_size(), db.method_def.index_size());
         db.type_ref.set_columns(resolution_scope, string_index_size, string_index_size, 0, 0, 0);
         db.type_spec.set_columns(blob_index_size, 0, 0, 0, 0, 0);
 
         db.module.set_data(&mut view);
         db.type_ref.set_data(&mut view);
-        db.type_def.set_data(&mut view);
+        db.type_def.table.set_data(&mut view);
         db.field.set_data(&mut view);
         db.method_def.set_data(&mut view);
         db.param.set_data(&mut view);
