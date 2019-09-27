@@ -1,6 +1,6 @@
 // TODO: remove these once Database is working.
-#![allow(unused_variables)]
-#![allow(dead_code)]
+// #![allow(unused_variables)]
+// #![allow(dead_code)]
 
 fn main() {
     match run() {
@@ -22,12 +22,6 @@ fn run() -> std::io::Result<()> {
 #[derive(Copy, Clone)]
 struct TypeDef<'a> {
     db: &'a Database,
-}
-
-impl<'a> TypeDef<'a> {
-    fn iter(&self) -> TypeDefRow {
-        TypeDefRow { db: self.db, index: 0 }
-    }
 }
 
 impl<'a> IntoIterator for TypeDef<'a> {
