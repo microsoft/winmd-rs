@@ -12,7 +12,7 @@ fn main() {
 fn run() -> std::io::Result<()> {
     let db = Database::new(r"c:\windows\system32\winmetadata\Windows.Foundation.winmd")?;
 
-    for type_def in db.type_def().iter() {
+    for type_def in db.type_def() {
         println!("{}.{}", type_def.namespace()?, type_def.name()?);
     }
 
@@ -27,6 +27,17 @@ struct TypeDef<'a> {
 impl<'a> TypeDef<'a> {
     fn iter(&self) -> TypeDefRow {
         TypeDefRow { db: self.db, index: 0 }
+    }
+}
+
+impl<'a> IntoIterator for TypeDef<'a>
+{
+    type Item = TypeDefRow<'a>;
+    type IntoIter = TypeDefRow<'a>;
+
+    fn into_iter(self) -> TypeDefRow<'a>
+    {
+        TypeDefRow{db:self.db, index:0}
     }
 }
 
