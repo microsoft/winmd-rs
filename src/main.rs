@@ -30,14 +30,12 @@ impl<'a> TypeDef<'a> {
     }
 }
 
-impl<'a> IntoIterator for TypeDef<'a>
-{
+impl<'a> IntoIterator for TypeDef<'a> {
     type Item = TypeDefRow<'a>;
     type IntoIter = TypeDefRow<'a>;
 
-    fn into_iter(self) -> TypeDefRow<'a>
-    {
-        TypeDefRow{db:self.db, index:0}
+    fn into_iter(self) -> TypeDefRow<'a> {
+        TypeDefRow { db: self.db, index: 0 }
     }
 }
 
@@ -70,45 +68,6 @@ impl<'a> Iterator for TypeDefRow<'a> {
     }
 }
 
-// #[derive(Default)]
-// struct TypeDef {
-//     table: Table,
-// }
-
-// impl TypeDef {
-//     fn type_name<'a>(&self, db: &'a Database, row: u32) -> std::io::Result<&'a str> {
-//         db.strings(db.cell32(&self.table, row, 1)?)
-//     }
-//     fn type_namespace<'a>(&self, db: &'a Database, row: u32) -> std::io::Result<&'a str> {
-//         db.strings(db.cell32(&self.table, row, 2)?)
-//     }
-// }
-
-// TODO: Could this be generic to avoid repetition?
-
-// impl<'a> Iterator for TypeDef<'a>{
-//     type Item = TypeDefRow<'a>;
-
-//     fn next(&mut self) -> Option<TypeDefRow>
-//     {
-//         if self.index >= self.db.type_def.row_count
-//         {
-//             return None;
-//         }
-
-//         let result = Some(self);
-//         self.index += 1;
-//         result
-//     }
-// }
-
-// impl Iterator for TypeDef{
-//     type Item = &TypeDef;
-// }
-
-// tODO: add TypeDef row/iterator type
-
-// TODO: turn Table into a trait with get functions for cell32 to use.
 #[derive(Default)]
 struct Table {
     data: u32,
@@ -159,50 +118,50 @@ impl Table {
 #[derive(Default)]
 struct Database {
     bytes: std::vec::Vec<u8>,
-    // Just make these offsets as well?
+
+    // TODO: Just make these offsets as well?
     strings: (u32, u32),
     blobs: (u32, u32),
     guids: (u32, u32),
 
-    // TODO: remove comments once field types match comments
-    type_ref: Table,                 // TypeRef
-    generic_param_constraint: Table, // GenericParamConstraint
-    type_spec: Table,                // TypeSpec
-    type_def: Table,                 // TypeDef
-    custom_attribute: Table,         // CustomAttribute
-    method_def: Table,               // MethodDef
-    member_ref: Table,               // MemberRef
-    module: Table,                   // Module
-    param: Table,                    // Param
-    interface_impl: Table,           // InterfaceImpl
-    constant: Table,                 // Constant
-    field: Table,                    // Field
-    field_marshal: Table,            // FieldMarshal
-    decl_security: Table,            // DeclSecurity
-    class_layout: Table,             // ClassLayout
-    field_layout: Table,             // FieldLayout
-    standalone_sig: Table,           // StandAloneSig
-    event_map: Table,                // EventMap
-    event: Table,                    // Event
-    property_map: Table,             // PropertyMap
-    property: Table,                 // Property
-    method_semantics: Table,         // MethodSemantics
-    method_impl: Table,              // MethodImpl
-    module_ref: Table,               // ModuleRef
-    impl_map: Table,                 // ImplMap
-    field_rva: Table,                // FieldRVA
-    assembly: Table,                 // Assembly
-    assembly_processor: Table,       // AssemblyProcessor
-    assembly_os: Table,              // AssemblyOS
-    assembly_ref: Table,             // AssemblyRef
-    assembly_ref_processor: Table,   // AssemblyRefProcessor
-    assembly_ref_os: Table,          // AssemblyRefOS
-    file: Table,                     // File
-    exported_type: Table,            // ExportedType
-    manifest_resource: Table,        // ManifestResource
-    nested_class: Table,             // NestedClass
-    generic_param: Table,            // GenericParam
-    method_spec: Table,              // MethodSpec
+    type_ref: Table,
+    generic_param_constraint: Table,
+    type_spec: Table,
+    type_def: Table,
+    custom_attribute: Table,
+    method_def: Table,
+    member_ref: Table,
+    module: Table,
+    param: Table,
+    interface_impl: Table,
+    constant: Table,
+    field: Table,
+    field_marshal: Table,
+    decl_security: Table,
+    class_layout: Table,
+    field_layout: Table,
+    standalone_sig: Table,
+    event_map: Table,
+    event: Table,
+    property_map: Table,
+    property: Table,
+    method_semantics: Table,
+    method_impl: Table,
+    module_ref: Table,
+    impl_map: Table,
+    field_rva: Table,
+    assembly: Table,
+    assembly_processor: Table,
+    assembly_os: Table,
+    assembly_ref: Table,
+    assembly_ref_processor: Table,
+    assembly_ref_os: Table,
+    file: Table,
+    exported_type: Table,
+    manifest_resource: Table,
+    nested_class: Table,
+    generic_param: Table,
+    method_spec: Table,
 }
 
 impl Database {
