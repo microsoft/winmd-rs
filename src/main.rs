@@ -3,10 +3,9 @@
 // #![allow(dead_code)]
 
 fn main() {
-    match run() {
-        Ok(_) => (),
-        Err(e) => println!("{}", e),
-    };
+    if let Err(e) = run() {
+        println!("{}", e);
+    }
 }
 
 fn run() -> std::io::Result<()> {
@@ -118,6 +117,7 @@ struct Database {
     blobs: (u32, u32),
     guids: (u32, u32),
 
+    // tODO: make this an array of Table?
     type_ref: Table,
     generic_param_constraint: Table,
     type_spec: Table,
