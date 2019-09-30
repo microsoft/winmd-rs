@@ -19,8 +19,8 @@ fn run() -> std::io::Result<()> {
 }
 
 #[derive(Copy, Clone)]
-struct TypeDef<'a> {
-    db: &'a Database,
+pub struct TypeDef<'a> {
+    pub(crate) db: &'a Database,
 }
 
 impl<'a> IntoIterator for TypeDef<'a> {
@@ -33,9 +33,9 @@ impl<'a> IntoIterator for TypeDef<'a> {
 }
 
 #[derive(Copy, Clone)]
-struct TypeDefRow<'a> {
-    db: &'a Database,
-    index: u32,
+pub struct TypeDefRow<'a> {
+    pub(crate) db: &'a Database,
+    pub(crate) index: u32,
 }
 
 impl<'a> TypeDefRow<'a> {
@@ -109,7 +109,7 @@ impl Table {
 }
 
 #[derive(Default)]
-struct Database {
+pub struct Database {
     bytes: std::vec::Vec<u8>,
 
     // TODO: Just make these offsets as well?
