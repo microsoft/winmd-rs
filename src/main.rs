@@ -415,7 +415,7 @@ fn unexpected_eof() -> std::io::Error {
 }
 
 fn section_from_rva(sections: &[ImageSectionHeader], rva: u32) -> std::io::Result<&ImageSectionHeader> {
-    sections.iter().find(|&s| rva >= s.virtual_address && rva < s.virtual_address + s.physical_address_or_virtual_size).ok_or_else(||invalid_data("Section containing RVA not found"))
+    sections.iter().find(|&s| rva >= s.virtual_address && rva < s.virtual_address + s.physical_address_or_virtual_size).ok_or_else(|| invalid_data("Section containing RVA not found"))
 }
 
 fn offset_from_rva(section: &ImageSectionHeader, rva: u32) -> u32 {
@@ -427,9 +427,11 @@ fn sizeof<T>() -> u32 {
 }
 
 fn composite_index_size(tables: &[&Table]) -> u32 {
-    let small = |row_count: u32, bits: u8| (row_count as u64) < (1u64 << (16 - bits));
+    fn small(row_count: u32, bits: u8) -> bool {
+        (row_count as u64) < (1u64 << (16 - bits))
+    }
 
-    let bits_needed = |value| {
+    fn bits_needed(value: usize) -> u8 {
         let mut value = value - 1;
         let mut bits: u8 = 1;
 
@@ -444,7 +446,7 @@ fn composite_index_size(tables: &[&Table]) -> u32 {
         }
 
         bits
-    };
+    }
 
     let bits_needed = bits_needed(tables.len());
 
