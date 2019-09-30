@@ -415,10 +415,7 @@ fn unexpected_eof() -> std::io::Error {
 }
 
 fn section_from_rva(sections: &[ImageSectionHeader], rva: u32) -> std::io::Result<&ImageSectionHeader> {
-    match sections.iter().find(|&s| rva >= s.virtual_address && rva < s.virtual_address + s.physical_address_or_virtual_size) {
-        Some(section) => Ok(section),
-        None => Err(invalid_data("Section containing RVA not found")),
-    }
+    sections.iter().find(|&s| rva >= s.virtual_address && rva < s.virtual_address + s.physical_address_or_virtual_size).ok_or_else(||invalid_data("Section containing RVA not found"))
 }
 
 fn offset_from_rva(section: &ImageSectionHeader, rva: u32) -> u32 {
@@ -491,17 +488,11 @@ impl View for [u8] {
     }
 
     fn view_offset(&self, cli_offset: u32) -> std::io::Result<&[u8]> {
-        match self.get(cli_offset as usize..) {
-            Some(slice) => Ok(slice),
-            None => Err(unexpected_eof()),
-        }
+        self.get(cli_offset as usize..).ok_or_else(|| unexpected_eof())
     }
 
     fn view_subslice(&self, cli_offset: u32, size: u32) -> std::io::Result<&[u8]> {
-        match self.get(cli_offset as usize..(cli_offset + size) as usize) {
-            Some(slice) => Ok(slice),
-            None => Err(unexpected_eof()),
-        }
+        self.get(cli_offset as usize..(cli_offset + size) as usize).ok_or_else(|| unexpected_eof())
     }
 }
 
