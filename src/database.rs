@@ -1,7 +1,7 @@
 use crate::tables::*;
 
 #[derive(Default)]
-pub(crate) struct Table {
+pub struct Table {
     data: u32,
     row_count: u32,
     row_size: u32,
@@ -55,10 +55,9 @@ impl Table {
 pub struct Database {
     bytes: std::vec::Vec<u8>,
 
-    // TODO: Just make these offsets as well?
-    strings: (u32, u32),
-    blobs: (u32, u32),
-    guids: (u32, u32),
+    strings: u32,
+    blobs: u32,
+    guids: u32,
 
     type_ref: Table,
     generic_param_constraint: Table,
@@ -149,9 +148,9 @@ impl Database {
             let stream_name = db.bytes.view_as_str(view + 8)?;
 
             match stream_name {
-                b"#Strings" => db.strings = (cli_offset + stream_offset, stream_size),
-                b"#Blob" => db.blobs = (cli_offset + stream_offset, stream_size),
-                b"#GUID" => db.guids = (cli_offset + stream_offset, stream_size),
+                b"#Strings" => db.strings = cli_offset + stream_offset,
+                b"#Blob" => db.blobs = cli_offset + stream_offset,
+                b"#GUID" => db.guids = cli_offset + stream_offset,
                 b"#~" => tables_data = (cli_offset + stream_offset, stream_size),
                 b"#US" => {}
                 _ => return Err(invalid_data("Unknown metadata stream")),
@@ -321,11 +320,7 @@ impl Database {
     }
 
     pub(crate) fn string(&self, table: &Table, row: u32, column: u32) -> std::io::Result<&str> {
-        self.strings(self.cell32(table, row, column)?)
-    }
-
-    fn strings(&self, index: u32) -> std::io::Result<&str> {
-        let offset = (self.strings.0 + index) as usize;
+        let offset = (self.strings + self.u32(table, row, column)?) as usize;
 
         match self.bytes[offset..].iter().position(|c| *c == b'\0') {
             None => Err(unexpected_eof()),
@@ -336,7 +331,7 @@ impl Database {
         }
     }
 
-    fn cell32(&self, table: &Table, row: u32, column: u32) -> std::io::Result<u32> {
+    fn u32(&self, table: &Table, row: u32, column: u32) -> std::io::Result<u32> {
         let offset = table.data + row * table.row_size + table.columns[column as usize].0;
 
         match table.columns[column as usize].1 {

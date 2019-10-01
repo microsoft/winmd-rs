@@ -1,4 +1,3 @@
-// TODO: remove these once Database is working.
 // #![allow(unused_variables)]
 // #![allow(dead_code)]
 
