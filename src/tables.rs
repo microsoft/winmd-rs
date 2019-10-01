@@ -1,4 +1,5 @@
 use crate::database::*;
+use crate::flags::*;
 
 #[derive(Copy, Clone)]
 pub struct TypeDef<'a> {
@@ -21,6 +22,9 @@ pub struct TypeDefRow<'a> {
 }
 
 impl<'a> TypeDefRow<'a> {
+    pub fn flags(&self) -> std::io::Result<TypeAttributes> {
+        Ok(TypeAttributes(self.db.u32(&self.db.type_def, self.index, 0)?))
+    }
     pub fn name(&self) -> std::io::Result<&'a str> {
         self.db.string(&self.db.type_def, self.index, 1)
     }

@@ -326,12 +326,12 @@ impl Database {
             None => Err(unexpected_eof()),
             Some(last) => match std::str::from_utf8(&self.bytes[offset..offset + last]) {
                 Ok(string) => Ok(string),
-                Err(_) => Err(invalid_data("Bytes are not valid UTF-8")),
+                Err(_) => Err(invalid_data("Bytes not valid UTF-8")),
             },
         }
     }
 
-    fn u32(&self, table: &Table, row: u32, column: u32) -> std::io::Result<u32> {
+    pub(crate) fn u32(&self, table: &Table, row: u32, column: u32) -> std::io::Result<u32> {
         let offset = table.data + row * table.row_size + table.columns[column as usize].0;
 
         match table.columns[column as usize].1 {
