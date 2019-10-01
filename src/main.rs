@@ -2,6 +2,7 @@
 // #![allow(dead_code)]
 
 mod database;
+mod enums;
 mod flags;
 mod tables;
 
@@ -17,10 +18,17 @@ fn run() -> std::io::Result<()> {
     let db = Database::new(r"c:\windows\system32\winmetadata\Windows.Foundation.winmd")?;
 
     for type_def in db.type_def() {
-        if !type_def.flags()?.windows_runtime() {
+        let flags = type_def.flags()?;
+
+        if !flags.windows_runtime() {
             continue;
         }
-        println!("{}.{}", type_def.namespace()?, type_def.name()?);
+
+        if flags.interface() {
+            print!("interface");
+        }
+
+        println!(" {}.{}", type_def.namespace()?, type_def.name()?);
     }
 
     Ok(())
