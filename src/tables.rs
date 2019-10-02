@@ -29,34 +29,6 @@ pub struct TypeDefRow<'a> {
     pub(crate) db: &'a Database,
     pub(crate) index: u32,
 }
-impl<'a> TypeDefRow<'a> {
-    pub fn flags(&self) -> Result<TypeAttributes> {
-        Ok(TypeAttributes(self.db.u32(&self.db.type_def, self.index, 0)?))
-    }
-    pub fn name(&self) -> Result<&'a str> {
-        self.db.string(&self.db.type_def, self.index, 1)
-    }
-    pub fn namespace(&self) -> Result<&'a str> {
-        self.db.string(&self.db.type_def, self.index, 2)
-    }
-    pub fn extends(&self) -> Result<TypeDefOrRef> {
-        Ok(TypeDefOrRef::decode(&self.db, self.db.u32(&self.db.type_def, self.index, 3)?))
-    }
-    pub fn category(&self) -> Result<Category> {
-        if self.flags()?.interface() {
-            return Ok(Category::Interface);
-        }
-        match self.extends()?.name()? {
-            "Enum" => Ok(Category::Enum),
-            "ValueType" => {
-                // TODO: check when it has ApiContractAttribute and then return Category::Contract
-                Ok(Category::Struct)},
-            "MulticastDelegate" => Ok(Category::Delegate),
-            "Attribute" => Ok(Category::Attribute),
-            _ => Ok(Category::Class),
-        }
-    }
-}
 impl<'a> Iterator for TypeDefRow<'a> {
     type Item = TypeDefRow<'a>;
     fn next(&mut self) -> Option<TypeDefRow<'a>> {
@@ -66,6 +38,44 @@ impl<'a> Iterator for TypeDefRow<'a> {
         let result = Some(*self);
         self.index += 1;
         result
+    }
+}
+impl<'a> TypeDefRow<'a> {
+    fn u32(&self, column: u32) -> Result<u32> {
+        self.db.u32(&self.db.type_def, self.index, column)
+    }
+    fn str(&self, column: u32) -> Result<&'a str> {
+        self.db.str(&self.db.type_def, self.index, column)
+    }
+}
+
+impl<'a> TypeDefRow<'a> {
+    pub fn flags(&self) -> Result<TypeAttributes> {
+        Ok(TypeAttributes(self.u32(0)?))
+    }
+    pub fn name(&self) -> Result<&'a str> {
+        self.str(1)
+    }
+    pub fn namespace(&self) -> Result<&'a str> {
+        self.str(2)
+    }
+    pub fn extends(&self) -> Result<TypeDefOrRef> {
+        Ok(TypeDefOrRef::decode(&self.db, self.u32(3)?))
+    }
+    pub fn category(&self) -> Result<Category> {
+        if self.flags()?.interface() {
+            return Ok(Category::Interface);
+        }
+        match self.extends()?.name()? {
+            "Enum" => Ok(Category::Enum),
+            "ValueType" => {
+                // TODO: check when it has ApiContractAttribute and then return Category::Contract
+                Ok(Category::Struct)
+            }
+            "MulticastDelegate" => Ok(Category::Delegate),
+            "Attribute" => Ok(Category::Attribute),
+            _ => Ok(Category::Class),
+        }
     }
 }
 
@@ -87,10 +97,10 @@ pub struct TypeRefRow<'a> {
 }
 impl<'a> TypeRefRow<'a> {
     pub fn name(&self) -> Result<&'a str> {
-        self.db.string(&self.db.type_ref, self.index, 1)
+        self.db.str(&self.db.type_ref, self.index, 1)
     }
     pub fn namespace(&self) -> Result<&'a str> {
-        self.db.string(&self.db.type_ref, self.index, 2)
+        self.db.str(&self.db.type_ref, self.index, 2)
     }
 }
 impl<'a> Iterator for TypeRefRow<'a> {

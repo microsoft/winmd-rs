@@ -293,7 +293,7 @@ impl Database {
 
         Ok(db)
     }
-    pub(crate) fn string(&self, table: &Table, row: u32, column: u32) -> Result<&str> {
+    pub(crate) fn str(&self, table: &Table, row: u32, column: u32) -> Result<&str> {
         let offset = (self.strings + self.u32(table, row, column)?) as usize;
         match self.bytes[offset..].iter().position(|c| *c == b'\0') {
             None => Err(unexpected_eof()),

@@ -29,8 +29,7 @@ fn run() -> std::io::Result<()> {
             continue;
         }
 
-        match type_def.category()?
-        {
+        match type_def.category()? {
             Category::Interface => print!("interface"),
             Category::Class => print!("class"),
             Category::Enum => print!("enum"),
