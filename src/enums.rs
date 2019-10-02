@@ -1,42 +1,39 @@
 use crate::database::*;
 use crate::tables::*;
+use std::io::Result;
 
-pub trait CodedIndex {
-    // fn bits(&self) -> u32;
-    fn decode<'a>(db: &'a Database, index: u32) -> TypeDefOrRef<'a>;
+fn decode(bits: u32, code: u32) -> (u32, u32) {
+    (code & ((1 << bits) - 1), (code >> bits) - 1)
 }
 
 pub enum TypeDefOrRef<'a> {
     TypeDef(TypeDefRow<'a>),
     TypeRef(TypeRefRow<'a>),
-    // TypeSpec,
+    // TODO: TypeSpec,
 }
+
+use TypeDefOrRef::*;
 
 impl<'a> TypeDefOrRef<'a> {
-    pub fn name(&self) -> std::io::Result<&'a str> {
-        match self {
-            TypeDefOrRef::TypeDef(row) => row.name(),
-            TypeDefOrRef::TypeRef(row) => row.name(),
-            _ => panic!(),
+    pub fn decode(db: &'a Database, code: u32) -> TypeDefOrRef<'a> {
+        let code = decode(2, code);
+        match code.0 {
+            0 => TypeDef(TypeDefRow { db: db, index: code.1 }),
+            _ => TypeRef(TypeRefRow { db: db, index: code.1 }),
         }
     }
-        pub fn namespace(&self) -> std::io::Result<&'a str> {
+    pub fn name(&self) -> Result<&'a str> {
         match self {
-            TypeDefOrRef::TypeDef(row) => row.namespace(),
-            TypeDefOrRef::TypeRef(row) => row.namespace(),
-            _ => panic!(),
+            TypeDef(row) => row.name(),
+            TypeRef(row) => row.name(),
+            _ => panic!("Cannot call name() function on a TypeSpec"),
         }
     }
-}
-
-impl CodedIndex for TypeDefOrRef<'_> {
-    fn decode<'a>(db: &'a Database, code: u32) -> TypeDefOrRef<'a> {
-        const BITS: u32 = 2;
-        let index = (code >> BITS) - 1;
-
-        match code & ((1 << BITS) - 1) {
-            0 => TypeDefOrRef::TypeDef(TypeDefRow { db: db, index: index }),
-            _ => TypeDefOrRef::TypeRef(TypeRefRow { db: db, index: index }),
+    pub fn namespace(&self) -> Result<&'a str> {
+        match self {
+            TypeDef(row) => row.namespace(),
+            TypeRef(row) => row.namespace(),
+            _ => panic!("Cannot call namespace() function on a TypeSpec"),
         }
     }
 }

@@ -15,11 +15,9 @@ impl TypeAttributes {
     pub fn windows_runtime(&self) -> bool {
         self.0 & 0b100000000000000 != 0
     }
-
     pub fn interface(&self) -> bool {
         self.0 & 0b100000 != 0
     }
-
     // fn visibility(&self) -> TypeVisibility {
     //     match self.0 & 0b111 {
     //         1 => TypeVisibility::Public,

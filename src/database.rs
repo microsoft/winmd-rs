@@ -1,4 +1,5 @@
 use crate::tables::*;
+use std::io::Result;
 
 #[derive(Default)]
 pub struct Table {
@@ -12,7 +13,6 @@ impl Table {
     pub fn rows(&self) -> u32 {
         self.row_count
     }
-
     fn index_size(&self) -> u32 {
         if self.row_count < (1 << 16) {
             2
@@ -20,11 +20,9 @@ impl Table {
             4
         }
     }
-
     fn set_columns(&mut self, a: u32, b: u32, c: u32, d: u32, e: u32, f: u32) {
         self.row_size = (a + b + c + d + e + f).into();
         self.columns[0] = (0, a);
-
         if b != 0 {
             self.columns[1] = ((a), b);
         }
@@ -41,7 +39,6 @@ impl Table {
             self.columns[5] = ((a + b + c + d + e), f);
         }
     }
-
     fn set_data(&mut self, data: &mut u32) {
         if self.row_count != 0 {
             let next = *data + self.row_count * self.row_size;
@@ -54,7 +51,6 @@ impl Table {
 #[derive(Default)]
 pub struct Database {
     bytes: std::vec::Vec<u8>,
-
     strings: u32,
     blobs: u32,
     guids: u32,
@@ -100,53 +96,41 @@ pub struct Database {
 }
 
 impl Database {
-    pub fn new<P: AsRef<std::path::Path>>(filename: P) -> std::io::Result<Database> {
+    pub fn new<P: AsRef<std::path::Path>>(filename: P) -> Result<Database> {
         let mut db = Database { bytes: std::fs::read(filename)?, ..Default::default() };
         let dos = db.bytes.view_as::<ImageDosHeader>(0)?;
-
         if dos.signature != IMAGE_DOS_SIGNATURE {
             return Err(invalid_data("Invalid DOS signature"));
         }
-
         let pe = db.bytes.view_as::<ImageNtHeader>(dos.lfanew as u32)?;
         let com_virtual_address: u32;
         let sections: &[ImageSectionHeader];
-
         match pe.optional_header.magic {
             MAGIC_PE32 => {
                 com_virtual_address = pe.optional_header.data_directory[IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR as usize].virtual_address;
                 sections = db.bytes.view_as_slice_of::<ImageSectionHeader>(dos.lfanew as u32 + sizeof::<ImageNtHeader>(), pe.file_header.number_of_sections as u32)?;
             }
-
             MAGIC_PE32PLUS => {
                 com_virtual_address = db.bytes.view_as::<ImageNtHeaderPlus>(dos.lfanew as u32)?.optional_header.data_directory[IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR as usize].virtual_address;
                 sections = db.bytes.view_as_slice_of::<ImageSectionHeader>(dos.lfanew as u32 + sizeof::<ImageNtHeaderPlus>(), pe.file_header.number_of_sections as u32)?;
             }
-
             _ => return Err(invalid_data("Invalid optional header magic value")),
         };
-
         let cli = db.bytes.view_as::<ImageCorHeader>(offset_from_rva(section_from_rva(sections, com_virtual_address)?, com_virtual_address))?;
-
         if cli.cb != sizeof::<ImageCorHeader>() {
             return Err(invalid_data("Invalid CLI header"));
         }
-
         let cli_offset = offset_from_rva(section_from_rva(sections, cli.meta_data.virtual_address)?, cli.meta_data.virtual_address);
-
         if *db.bytes.view_as::<u32>(cli_offset)? != STORAGE_MAGIC_SIG {
             return Err(invalid_data("CLI metadata magic signature not found"));
         }
-
         let version_length = *db.bytes.view_as::<u32>(cli_offset + 12)?;
         let mut view = cli_offset + version_length + 20;
         let mut tables_data: (u32, u32) = (0, 0);
-
         for _ in 0..*db.bytes.view_as::<u16>(cli_offset + version_length + 18)? {
             let stream_offset = *db.bytes.view_as::<u32>(view)?;
             let stream_size = *db.bytes.view_as::<u32>(view + 4)?;
             let stream_name = db.bytes.view_as_str(view + 8)?;
-
             match stream_name {
                 b"#Strings" => db.strings = cli_offset + stream_offset,
                 b"#Blob" => db.blobs = cli_offset + stream_offset,
@@ -155,31 +139,24 @@ impl Database {
                 b"#US" => {}
                 _ => return Err(invalid_data("Unknown metadata stream")),
             }
-
             let mut padding = 4 - stream_name.len() % 4;
-
             if padding == 0 {
                 padding = 4;
             }
-
             view = view + (8 + stream_name.len() + padding) as u32;
         }
-
         let heap_sizes = *db.bytes.view_as::<u8>(tables_data.0 + 6)?;
         let string_index_size = if (heap_sizes & 1) == 1 { 4 } else { 2 };
         let guid_index_size = if (heap_sizes >> 1 & 1) == 1 { 4 } else { 2 };
         let blob_index_size = if (heap_sizes >> 2 & 1) == 1 { 4 } else { 2 };
         let valid_bits = *db.bytes.view_as::<u64>(tables_data.0 + 8)?;
         view = tables_data.0 + 24;
-
         for i in 0..64 {
             if (valid_bits >> i & 1) == 0 {
                 continue;
             }
-
             let row_count = *db.bytes.view_as::<u32>(view)?;
             view = view + 4;
-
             match i {
                 0x00 => db.module.row_count = row_count,
                 0x01 => db.type_ref.row_count = row_count,
@@ -222,7 +199,6 @@ impl Database {
                 _ => return Err(invalid_data("Unknown metadata table")),
             };
         }
-
         let empty_table = Table::default();
         let has_constant = composite_index_size(&[&db.field, &db.param, &db.property]);
         let type_def_or_ref = composite_index_size(&[&db.type_def, &db.type_ref, &db.type_spec]);
@@ -318,10 +294,8 @@ impl Database {
 
         Ok(db)
     }
-
-    pub(crate) fn string(&self, table: &Table, row: u32, column: u32) -> std::io::Result<&str> {
+    pub(crate) fn string(&self, table: &Table, row: u32, column: u32) -> Result<&str> {
         let offset = (self.strings + self.u32(table, row, column)?) as usize;
-
         match self.bytes[offset..].iter().position(|c| *c == b'\0') {
             None => Err(unexpected_eof()),
             Some(last) => match std::str::from_utf8(&self.bytes[offset..offset + last]) {
@@ -330,10 +304,8 @@ impl Database {
             },
         }
     }
-
-    pub(crate) fn u32(&self, table: &Table, row: u32, column: u32) -> std::io::Result<u32> {
+    pub(crate) fn u32(&self, table: &Table, row: u32, column: u32) -> Result<u32> {
         let offset = table.data + row * table.row_size + table.columns[column as usize].0;
-
         match table.columns[column as usize].1 {
             1 => Ok(*(self.bytes.view_as::<u8>(offset)?) as u32),
             2 => Ok(*(self.bytes.view_as::<u16>(offset)?) as u32),
@@ -341,12 +313,10 @@ impl Database {
             _ => Ok(*(self.bytes.view_as::<u64>(offset)?) as u32),
         }
     }
-
     pub fn type_def(&self) -> TypeDef {
         TypeDef { db: self }
     }
-
-        pub fn type_ref(&self) -> TypeRef {
+    pub fn type_ref(&self) -> TypeRef {
         TypeRef { db: self }
     }
 }
@@ -359,7 +329,7 @@ fn unexpected_eof() -> std::io::Error {
     std::io::Error::from(std::io::ErrorKind::UnexpectedEof)
 }
 
-fn section_from_rva(sections: &[ImageSectionHeader], rva: u32) -> std::io::Result<&ImageSectionHeader> {
+fn section_from_rva(sections: &[ImageSectionHeader], rva: u32) -> Result<&ImageSectionHeader> {
     sections.iter().find(|&s| rva >= s.virtual_address && rva < s.virtual_address + s.physical_address_or_virtual_size).ok_or_else(|| invalid_data("Section containing RVA not found"))
 }
 
@@ -375,26 +345,19 @@ fn composite_index_size(tables: &[&Table]) -> u32 {
     fn small(row_count: u32, bits: u8) -> bool {
         (row_count as u64) < (1u64 << (16 - bits))
     }
-
     fn bits_needed(value: usize) -> u8 {
         let mut value = value - 1;
         let mut bits: u8 = 1;
-
         loop {
             value = value >> 1;
-
             if value == 0 {
                 break;
             }
-
             bits += 1;
         }
-
         bits
     }
-
     let bits_needed = bits_needed(tables.len());
-
     if tables.iter().all(|table| small(table.row_count, bits_needed)) {
         2
     } else {
@@ -403,42 +366,36 @@ fn composite_index_size(tables: &[&Table]) -> u32 {
 }
 
 trait View {
-    fn view_as<T>(&self, cli_offset: u32) -> std::io::Result<&T>;
-    fn view_as_slice_of<T>(&self, cli_offset: u32, len: u32) -> std::io::Result<&[T]>;
-    fn view_as_str(&self, cli_offset: u32) -> std::io::Result<&[u8]>;
-    fn view_offset(&self, cli_offset: u32) -> std::io::Result<&[u8]>;
-    fn view_subslice(&self, cli_offset: u32, size: u32) -> std::io::Result<&[u8]>;
+    fn view_as<T>(&self, cli_offset: u32) -> Result<&T>;
+    fn view_as_slice_of<T>(&self, cli_offset: u32, len: u32) -> Result<&[T]>;
+    fn view_as_str(&self, cli_offset: u32) -> Result<&[u8]>;
+    fn view_offset(&self, cli_offset: u32) -> Result<&[u8]>;
+    fn view_subslice(&self, cli_offset: u32, size: u32) -> Result<&[u8]>;
 }
 
 impl View for [u8] {
-    fn view_as<T>(&self, cli_offset: u32) -> std::io::Result<&T> {
+    fn view_as<T>(&self, cli_offset: u32) -> Result<&T> {
         if cli_offset + sizeof::<T>() > self.len() as u32 {
             return Err(unexpected_eof());
         }
-
         unsafe { Ok(&*(&self[cli_offset as usize] as *const u8 as *const T)) }
     }
-
-    fn view_as_slice_of<T>(&self, cli_offset: u32, len: u32) -> std::io::Result<&[T]> {
+    fn view_as_slice_of<T>(&self, cli_offset: u32, len: u32) -> Result<&[T]> {
         if cli_offset + sizeof::<T>() * len > self.len() as u32 {
             return Err(unexpected_eof());
         }
-
         unsafe { Ok(std::slice::from_raw_parts(&self[cli_offset as usize] as *const u8 as *const T, len as usize)) }
     }
-
-    fn view_as_str(&self, cli_offset: u32) -> std::io::Result<&[u8]> {
+    fn view_as_str(&self, cli_offset: u32) -> Result<&[u8]> {
         match self.view_offset(cli_offset)?.iter().position(|c| *c == b'\0') {
             Some(index) => Ok(&self[cli_offset as usize..cli_offset as usize + index]),
             None => Err(unexpected_eof()),
         }
     }
-
-    fn view_offset(&self, cli_offset: u32) -> std::io::Result<&[u8]> {
+    fn view_offset(&self, cli_offset: u32) -> Result<&[u8]> {
         self.get(cli_offset as usize..).ok_or_else(|| unexpected_eof())
     }
-
-    fn view_subslice(&self, cli_offset: u32, size: u32) -> std::io::Result<&[u8]> {
+    fn view_subslice(&self, cli_offset: u32, size: u32) -> Result<&[u8]> {
         self.get(cli_offset as usize..(cli_offset + size) as usize).ok_or_else(|| unexpected_eof())
     }
 }

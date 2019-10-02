@@ -35,11 +35,10 @@ fn run() -> std::io::Result<()> {
 
         print!(" {}.{}\n", type_def.namespace()?, type_def.name()?);
 
-        if !flags.interface()
-        {
-        let extends = type_def.extends()?;
+        if !flags.interface() {
+            let extends = type_def.extends()?;
 
-        println!("     ({}.{})", extends.namespace()?, extends.name()?);
+            println!("     ({}.{})", extends.namespace()?, extends.name()?);
         }
     }
 
