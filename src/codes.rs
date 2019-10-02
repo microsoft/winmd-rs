@@ -1,6 +1,7 @@
 use crate::database::*;
 use crate::tables::*;
 use std::io::Result;
+use TypeDefOrRef::*;
 
 fn decode(bits: u32, code: u32) -> (u32, u32) {
     (code & ((1 << bits) - 1), (code >> bits) - 1)
@@ -11,9 +12,6 @@ pub enum TypeDefOrRef<'a> {
     TypeRef(TypeRefRow<'a>),
     // TODO: TypeSpec,
 }
-
-use TypeDefOrRef::*;
-
 impl<'a> TypeDefOrRef<'a> {
     pub fn decode(db: &'a Database, code: u32) -> TypeDefOrRef<'a> {
         let code = decode(2, code);
@@ -37,3 +35,29 @@ impl<'a> TypeDefOrRef<'a> {
         }
     }
 }
+
+// pub enum HasCustomAttribute<'a>
+// {
+//     MethodDef,
+//     Field,
+//     TypeRef,
+//     TypeDef,
+//     Param,
+//     InterfaceImpl,
+//     MemberRef,
+//     Module,
+//     Permission,
+//     Property,
+//     Event,
+//     StandAloneSig,
+//     ModuleRef,
+//     TypeSpec,
+//     Assembly,
+//     AssemblyRef,
+//     File,
+//     ExportedType,
+//     ManifestResource,
+//     GenericParam,
+//     GenericParamConstraint,
+//     MethodSpec,
+// }

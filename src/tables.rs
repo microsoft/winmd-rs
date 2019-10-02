@@ -1,17 +1,22 @@
+use crate::codes::*;
 use crate::database::*;
-use crate::enums::*;
 use crate::flags::*;
 use std::io::Result;
 
-//
-// TypeDef
-//
+pub enum Category {
+    Interface,
+    Class,
+    Enum,
+    Struct,
+    Delegate,
+    Attribute,
+    Contract,
+}
 
 #[derive(Copy, Clone)]
 pub struct TypeDef<'a> {
     pub(crate) db: &'a Database,
 }
-
 impl<'a> IntoIterator for TypeDef<'a> {
     type Item = TypeDefRow<'a>;
     type IntoIter = TypeDefRow<'a>;
@@ -19,13 +24,11 @@ impl<'a> IntoIterator for TypeDef<'a> {
         TypeDefRow { db: self.db, index: 0 }
     }
 }
-
 #[derive(Copy, Clone)]
 pub struct TypeDefRow<'a> {
     pub(crate) db: &'a Database,
     pub(crate) index: u32,
 }
-
 impl<'a> TypeDefRow<'a> {
     pub fn flags(&self) -> Result<TypeAttributes> {
         Ok(TypeAttributes(self.db.u32(&self.db.type_def, self.index, 0)?))
@@ -39,8 +42,21 @@ impl<'a> TypeDefRow<'a> {
     pub fn extends(&self) -> Result<TypeDefOrRef> {
         Ok(TypeDefOrRef::decode(&self.db, self.db.u32(&self.db.type_def, self.index, 3)?))
     }
+    pub fn category(&self) -> Result<Category> {
+        if self.flags()?.interface() {
+            return Ok(Category::Interface);
+        }
+        match self.extends()?.name()? {
+            "Enum" => Ok(Category::Enum),
+            "ValueType" => {
+                // TODO: check when it has ApiContractAttribute and then return Category::Contract
+                Ok(Category::Struct)},
+            "MulticastDelegate" => Ok(Category::Delegate),
+            "Attribute" => Ok(Category::Attribute),
+            _ => Ok(Category::Class),
+        }
+    }
 }
-
 impl<'a> Iterator for TypeDefRow<'a> {
     type Item = TypeDefRow<'a>;
     fn next(&mut self) -> Option<TypeDefRow<'a>> {
@@ -53,15 +69,10 @@ impl<'a> Iterator for TypeDefRow<'a> {
     }
 }
 
-//
-// TypeRef
-//
-
 #[derive(Copy, Clone)]
 pub struct TypeRef<'a> {
     pub(crate) db: &'a Database,
 }
-
 impl<'a> IntoIterator for TypeRef<'a> {
     type Item = TypeRefRow<'a>;
     type IntoIter = TypeRefRow<'a>;
@@ -69,13 +80,11 @@ impl<'a> IntoIterator for TypeRef<'a> {
         TypeRefRow { db: self.db, index: 0 }
     }
 }
-
 #[derive(Copy, Clone)]
 pub struct TypeRefRow<'a> {
     pub(crate) db: &'a Database,
     pub(crate) index: u32,
 }
-
 impl<'a> TypeRefRow<'a> {
     pub fn name(&self) -> Result<&'a str> {
         self.db.string(&self.db.type_ref, self.index, 1)
@@ -84,7 +93,6 @@ impl<'a> TypeRefRow<'a> {
         self.db.string(&self.db.type_ref, self.index, 2)
     }
 }
-
 impl<'a> Iterator for TypeRefRow<'a> {
     type Item = TypeRefRow<'a>;
     fn next(&mut self) -> Option<TypeRefRow<'a>> {

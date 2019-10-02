@@ -1,12 +1,12 @@
 // #![allow(unused_variables)]
 // #![allow(dead_code)]
 
+mod codes;
 mod database;
-mod enums;
 mod flags;
 mod tables;
-
 use database::*;
+use tables::*;
 
 fn main() {
     if let Err(e) = run() {
@@ -29,17 +29,18 @@ fn run() -> std::io::Result<()> {
             continue;
         }
 
-        if flags.interface() {
-            print!("interface");
+        match type_def.category()?
+        {
+            Category::Interface => print!("interface"),
+            Category::Class => print!("class"),
+            Category::Enum => print!("enum"),
+            Category::Struct => print!("struct"),
+            Category::Delegate => print!("delegate"),
+            Category::Attribute => print!("attribute"),
+            Category::Contract => print!("contract"),
         }
 
         print!(" {}.{}\n", type_def.namespace()?, type_def.name()?);
-
-        if !flags.interface() {
-            let extends = type_def.extends()?;
-
-            println!("     ({}.{})", extends.namespace()?, extends.name()?);
-        }
     }
 
     Ok(())
