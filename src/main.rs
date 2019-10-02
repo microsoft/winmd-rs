@@ -17,6 +17,11 @@ fn main() {
 fn run() -> std::io::Result<()> {
     let db = Database::new(r"c:\windows\system32\winmetadata\Windows.Foundation.winmd")?;
 
+    // for type_ref in db.type_ref()
+    // {
+    //     println!(" {}.{}", type_ref.namespace()?, type_ref.name()?);
+    // }
+
     for type_def in db.type_def() {
         let flags = type_def.flags()?;
 
@@ -28,7 +33,14 @@ fn run() -> std::io::Result<()> {
             print!("interface");
         }
 
-        println!(" {}.{}", type_def.namespace()?, type_def.name()?);
+        print!(" {}.{}\n", type_def.namespace()?, type_def.name()?);
+
+        if !flags.interface()
+        {
+        let extends = type_def.extends()?;
+
+        println!("     ({}.{})", extends.namespace()?, extends.name()?);
+        }
     }
 
     Ok(())

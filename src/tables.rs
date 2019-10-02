@@ -1,4 +1,5 @@
 use crate::database::*;
+use crate::enums::*;
 use crate::flags::*;
 
 //
@@ -21,8 +22,8 @@ impl<'a> IntoIterator for TypeDef<'a> {
 
 #[derive(Copy, Clone)]
 pub struct TypeDefRow<'a> {
-    db: &'a Database,
-    index: u32,
+    pub(crate) db: &'a Database,
+    pub(crate) index: u32,
 }
 
 impl<'a> TypeDefRow<'a> {
@@ -34,6 +35,9 @@ impl<'a> TypeDefRow<'a> {
     }
     pub fn namespace(&self) -> std::io::Result<&'a str> {
         self.db.string(&self.db.type_def, self.index, 2)
+    }
+    pub fn extends(&self) -> std::io::Result<TypeDefOrRef> {
+        Ok(TypeDefOrRef::decode(&self.db, self.db.u32(&self.db.type_def, self.index, 3)?))
     }
 }
 
@@ -71,16 +75,16 @@ impl<'a> IntoIterator for TypeRef<'a> {
 
 #[derive(Copy, Clone)]
 pub struct TypeRefRow<'a> {
-    db: &'a Database,
-    index: u32,
+    pub(crate) db: &'a Database,
+    pub(crate) index: u32,
 }
 
 impl<'a> TypeRefRow<'a> {
     pub fn name(&self) -> std::io::Result<&'a str> {
-        self.db.string(&self.db.type_def, self.index, 1)
+        self.db.string(&self.db.type_ref, self.index, 1)
     }
     pub fn namespace(&self) -> std::io::Result<&'a str> {
-        self.db.string(&self.db.type_def, self.index, 2)
+        self.db.string(&self.db.type_ref, self.index, 2)
     }
 }
 
@@ -88,7 +92,7 @@ impl<'a> Iterator for TypeRefRow<'a> {
     type Item = TypeRefRow<'a>;
 
     fn next(&mut self) -> Option<TypeRefRow<'a>> {
-        if self.index >= self.db.type_def.rows() {
+        if self.index >= self.db.type_ref.rows() {
             return None;
         }
 

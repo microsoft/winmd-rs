@@ -59,7 +59,7 @@ pub struct Database {
     blobs: u32,
     guids: u32,
 
-    type_ref: Table,
+    pub(crate) type_ref: Table,
     generic_param_constraint: Table,
     type_spec: Table,
     pub(crate) type_def: Table,
@@ -344,6 +344,10 @@ impl Database {
 
     pub fn type_def(&self) -> TypeDef {
         TypeDef { db: self }
+    }
+
+        pub fn type_ref(&self) -> TypeRef {
+        TypeRef { db: self }
     }
 }
 
