@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use crate::codes::*;
 use crate::database::*;
 use crate::flags::*;
