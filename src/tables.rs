@@ -25,31 +25,40 @@ macro_rules! table {
             type Item = $row<'a>;
             type IntoIter = $row<'a>;
             fn into_iter(self) -> $row<'a> {
-                $row { db: self.db, index: 0 }
+                $row::range(self.db, 0, self.db.$snake.rows())
             }
         }
         #[derive(Copy, Clone)]
         pub struct $row<'a> {
-            pub(crate) db: &'a Database,
-            pub(crate) index: u32,
+            db: &'a Database,
+            first: u32,
+            last: u32,
         }
         impl<'a> Iterator for $row<'a> {
             type Item = $row<'a>;
             fn next(&mut self) -> Option<$row<'a>> {
-                if self.index >= self.db.$snake.rows() {
+                if self.first >= self.last {
                     return None;
                 }
                 let result = Some(*self);
-                self.index += 1;
+                self.first += 1;
                 result
             }
         }
         impl<'a> $row<'a> {
+            pub(crate) fn new(db:&'a Database, index:u32) -> $row<'a>
+            {
+                $row { db: db, first: index, last: index + 1 }
+            }
+            pub(crate) fn range(db:&'a Database, first:u32, last:u32) -> $row<'a>
+            {
+                $row { db: db, first: first, last: last }
+            }
             fn u32(&self, column: u32) -> Result<u32> {
-                self.db.u32(&self.db.$snake, self.index, column)
+                self.db.u32(&self.db.$snake, self.first, column)
             }
             fn str(&self, column: u32) -> Result<&'a str> {
-                self.db.str(&self.db.$snake, self.index, column)
+                self.db.str(&self.db.$snake, self.first, column)
             }
         }
     };
@@ -82,6 +91,8 @@ impl<'a> TypeDefRow<'a> {
     pub fn extends(&self) -> Result<TypeDefOrRef> {
         Ok(TypeDefOrRef::decode(&self.db, self.u32(3)?))
     }
+    // pub fn fields(&self) -> Result<FieldRowIterator>
+
     pub fn category(&self) -> Result<Category> {
         if self.flags()?.interface() {
             return Ok(Category::Interface);
@@ -100,8 +111,22 @@ impl<'a> TypeDefRow<'a> {
 }
 
 table!(custom_attribute, CustomAttribute, CustomAttributeRow);
+impl<'a> CustomAttributeRow<'a> {
+    pub fn parent(&self) -> Result<HasCustomAttribute> {
+        Ok(HasCustomAttribute::decode(&self.db, self.u32(0)?))
+    }
+    pub fn member(&self) -> Result<CustomAttributeType>
+    {
+        Ok(CustomAttributeType::decode(&self.db, self.u32(1)?))
+    }
+    // value() -> Result<CustomAttributeSig>
+    // full_name() -> Result<(&str, &str)>
+}
+
 table!(method_def, MethodDef, MethodDefRow);
+
 table!(member_ref, MemberRef, MemberRefRow);
+
 table!(module, Module, ModuleRow);
 table!(param, Param, ParamRow);
 table!(interface_impl, InterfaceImpl, InterfaceImplRow);
