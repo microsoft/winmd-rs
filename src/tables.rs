@@ -16,8 +16,9 @@ pub enum Category {
 }
 
 trait TableRange<'a> {
-    type Item;
-    fn range(db: &'a Database, first: u32, last: u32) -> Self::Item;
+    // TODO: maybe use Rust's range parameter syntax here to combine these into one function
+    fn range(db: &'a Database, first: u32, last: u32) -> Self;
+    fn rest(db: &'a Database, first: u32) -> Self;
     //fn range();
 }
 
@@ -31,7 +32,7 @@ macro_rules! table {
             type Item = $row<'a>;
             type IntoIter = $row<'a>;
             fn into_iter(self) -> $row<'a> {
-                $row::range(self.db, 0, self.db.$snake.rows())
+                $row::rest(self.db, 0)
             }
         }
         #[derive(Copy, Clone)]
@@ -52,17 +53,19 @@ macro_rules! table {
             }
         }
         impl<'a> TableRange<'a> for $row<'a> {
-            type Item = $row<'a>;
             fn range(db: &'a Database, first: u32, last: u32) -> $row<'a> {
-                $row { db: db, first: first, last: last }
+                $row { db, first, last }
             }
-        }
+            fn rest(db: &'a Database, first: u32) -> $row<'a> {
+                $row { db, first, last: db.$snake.rows() }
+            }
+                    }
         impl<'a> $row<'a> {
             pub(crate) fn new(db: &'a Database, index: u32) -> $row<'a> {
-                $row { db: db, first: index, last: index + 1 }
+                $row { db, first: index, last: index + 1 }
             }
             fn range(db: &'a Database, first: u32, last: u32) -> $row<'a> {
-                $row { db: db, first: first, last: last }
+                $row { db, first, last }
             }
             fn u32(&self, column: u32) -> Result<u32> {
                 self.db.u32(&self.db.$snake, self.first, column)
@@ -70,10 +73,19 @@ macro_rules! table {
             fn str(&self, column: u32) -> Result<&'a str> {
                 self.db.str(&self.db.$snake, self.first, column)
             }
-            // fn list<T: TableRange>(&self, column: u32) -> Result<T>
-            // {
-            //     T::range(self.db, 0, 0)
-            // }
+            fn list<T: TableRange<'a>>(&self, column: u32) -> Result<T>
+            {
+                let first = self.u32(column)? - 1;
+
+                if self.first + 1 < self.db.$snake.rows()
+                {
+                    Ok(T::range(self.db, first, self.db.u32(&self.db.$snake, self.first + 1, column)? - 1))
+                }
+                else
+                {
+                    Ok(T::rest(self.db, first))
+                }
+            }            
         }
     };
 }
@@ -105,7 +117,10 @@ impl<'a> TypeDefRow<'a> {
     pub fn extends(&self) -> Result<TypeDefOrRef> {
         Ok(TypeDefOrRef::decode(&self.db, self.u32(3)?))
     }
-    // pub fn fields(&self) -> Result<FieldRowIterator>
+    pub fn methods(&self) -> Result<MethodDefRow>
+    {
+        self.list::<MethodDefRow>(5)
+    }
 
     pub fn category(&self) -> Result<Category> {
         if self.flags()?.interface() {
@@ -137,6 +152,11 @@ impl<'a> CustomAttributeRow<'a> {
 }
 
 table!(method_def, MethodDef, MethodDefRow);
+impl<'a> MethodDefRow<'a> {
+    pub fn name(&self) -> Result<&'a str> {
+        self.str(3)
+    }
+}
 
 table!(member_ref, MemberRef, MemberRefRow);
 

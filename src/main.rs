@@ -29,18 +29,25 @@ fn run() -> std::io::Result<()> {
             continue;
         }
 
-        match type_def.category()? {
-            Category::Interface => print!("interface"),
-            Category::Class => print!("class"),
-            Category::Enum => print!("enum"),
-            Category::Struct => print!("struct"),
-            Category::Delegate => print!("delegate"),
-            Category::Attribute => print!("attribute"),
-            Category::Contract => print!("contract"),
+        // match type_def.category()? {
+        //     Category::Interface => print!("interface"),
+        //     Category::Class => print!("class"),
+        //     Category::Enum => print!("enum"),
+        //     Category::Struct => print!("struct"),
+        //     Category::Delegate => print!("delegate"),
+        //     Category::Attribute => print!("attribute"),
+        //     Category::Contract => print!("contract"),
+        // }
+
+        // println!(" {}.{}", type_def.namespace()?, type_def.name()?);
+
+        if type_def.name()? == "IVector`1" // "WwwFormUrlDecoderEntry"
+        {
+            for method in type_def.methods()?
+            {
+                println!("  {}", method.name()?);
+            }
         }
-
-        print!(" {}.{}\n", type_def.namespace()?, type_def.name()?);
     }
-
     Ok(())
 }
