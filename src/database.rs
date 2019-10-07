@@ -312,6 +312,58 @@ impl Database {
             _ => Ok(*(self.bytes.view_as::<u64>(offset)?) as u32),
         }
     }
+    pub(crate) fn lower_bound(&self, table: &Table, mut first: u32, last: u32, column: u32, value: u32) -> Result<u32> {
+        let mut count = last - first;
+        while count > 0 {
+            let count2 = count / 2;
+            let middle = first + count2;
+            if self.u32(table, middle, column)? < value {
+                first = middle + 1;
+                count -= count2 + 1;
+            } else {
+                count = count2;
+            }
+        }
+        Ok(first)
+    }
+    pub(crate) fn upper_bound(&self, table: &Table, mut first: u32, last: u32, column: u32, value: u32) -> Result<u32> {
+        let mut count = last - first;
+        while count > 0 {
+            let count2 = count / 2;
+            let middle = first + count2;
+            if value < self.u32(table, middle, column)? {
+                count = count2
+            } else {
+                first = middle + 1;
+                count -= count2 + 1;
+            }
+        }
+        Ok(first)
+    }
+    pub(crate) fn equal_range(&self, table: &Table, mut first: u32, mut last: u32, column: u32, value: u32) -> Result<(u32, u32)> {
+        let mut count = last - first;
+        loop {
+            if count <= 0 {
+                break;
+            }
+            let count2 = count / 2;
+            let middle = first + count2;
+            let middle_value = self.u32(table, middle, column)?;
+            if middle_value < value {
+                first = middle + 1;
+                count -= count2 + 1;
+            } else if value < middle_value {
+                count = count2;
+            } else {
+                let first2 = self.lower_bound(table, first, middle, column, value)?;
+                first += count;
+                last = self.upper_bound(table, middle + 1, first, column, value)?;
+                first = first2;
+                break;
+            }
+        }
+        Ok((first, last))
+    }
     pub fn type_def(&self) -> TypeDef {
         TypeDef { db: self }
     }

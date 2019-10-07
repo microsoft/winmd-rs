@@ -5,6 +5,7 @@ use crate::database::*;
 use crate::flags::*;
 use std::io::Result;
 
+#[derive(PartialEq)]
 pub enum Category {
     Interface,
     Class,
@@ -19,7 +20,6 @@ trait TableRange<'a> {
     // TODO: maybe use Rust's range parameter syntax here to combine these into one function
     fn range(db: &'a Database, first: u32, last: u32) -> Self;
     fn rest(db: &'a Database, first: u32) -> Self;
-    //fn range();
 }
 
 macro_rules! table {
@@ -27,6 +27,12 @@ macro_rules! table {
         #[derive(Copy, Clone)]
         pub struct $camel<'a> {
             pub(crate) db: &'a Database,
+        }
+        impl<'a> $camel<'a> {
+            pub(crate) fn new(db: &'a Database, index: u32) -> $row<'a> {
+                $row { db, first: index, last: index + 1 }
+            }
+            //fn upper_bound
         }
         impl<'a> IntoIterator for $camel<'a> {
             type Item = $row<'a>;
@@ -37,8 +43,8 @@ macro_rules! table {
         }
         #[derive(Copy, Clone)]
         pub struct $row<'a> {
-            db: &'a Database,
-            first: u32,
+            pub(crate) db: &'a Database,
+            pub(crate) first: u32,
             last: u32,
         }
         impl<'a> Iterator for $row<'a> {
@@ -59,13 +65,10 @@ macro_rules! table {
             fn rest(db: &'a Database, first: u32) -> $row<'a> {
                 $row { db, first, last: db.$snake.rows() }
             }
-                    }
+        }
         impl<'a> $row<'a> {
-            pub(crate) fn new(db: &'a Database, index: u32) -> $row<'a> {
-                $row { db, first: index, last: index + 1 }
-            }
-            fn range(db: &'a Database, first: u32, last: u32) -> $row<'a> {
-                $row { db, first, last }
+            fn len(&self) -> u32 {
+                self.last - self.first
             }
             fn u32(&self, column: u32) -> Result<u32> {
                 self.db.u32(&self.db.$snake, self.first, column)
@@ -73,19 +76,15 @@ macro_rules! table {
             fn str(&self, column: u32) -> Result<&'a str> {
                 self.db.str(&self.db.$snake, self.first, column)
             }
-            fn list<T: TableRange<'a>>(&self, column: u32) -> Result<T>
-            {
+            fn list<T: TableRange<'a>>(&self, column: u32) -> Result<T> {
                 let first = self.u32(column)? - 1;
 
-                if self.first + 1 < self.db.$snake.rows()
-                {
+                if self.first + 1 < self.db.$snake.rows() {
                     Ok(T::range(self.db, first, self.db.u32(&self.db.$snake, self.first + 1, column)? - 1))
-                }
-                else
-                {
+                } else {
                     Ok(T::rest(self.db, first))
                 }
-            }            
+            }
         }
     };
 }
@@ -117,8 +116,7 @@ impl<'a> TypeDefRow<'a> {
     pub fn extends(&self) -> Result<TypeDefOrRef> {
         Ok(TypeDefOrRef::decode(&self.db, self.u32(3)?))
     }
-    pub fn methods(&self) -> Result<MethodDefRow>
-    {
+    pub fn methods(&self) -> Result<MethodDefRow> {
         self.list::<MethodDefRow>(5)
     }
 
@@ -144,11 +142,63 @@ impl<'a> CustomAttributeRow<'a> {
     pub fn parent(&self) -> Result<HasCustomAttribute> {
         Ok(HasCustomAttribute::decode(&self.db, self.u32(0)?))
     }
-    pub fn member(&self) -> Result<CustomAttributeType> {
+    pub fn class(&self) -> Result<CustomAttributeType> {
         Ok(CustomAttributeType::decode(&self.db, self.u32(1)?))
     }
     // value() -> Result<CustomAttributeSig>
-    // full_name() -> Result<(&str, &str)>
+
+    // pub fn with_parent(parent: &'a HasCustomAttribute) -> Result<CustomAttributeRow<'a>>
+    // {
+    //     // TODO: generalize this to reuse this code
+
+    //     let db = parent.database();
+    //     let expected = parent.encode();
+    //     let mut count = db.custom_attribute.rows();
+    //     let mut result = CustomAttributeRow::rest(db, 0);
+
+    //     loop
+    //     {
+    //         if count <= 0
+    //         {
+    //             break;
+    //         }
+
+    //         let count2 = count / 2;
+    //         let middle = result.first + count2;
+    //         let actual = db.u32(db.type_def, middle, 0);
+
+    //         if actual < expected // 0 is parent column
+    //         {
+    //             result.first = middle + 1;
+    //             count -= count2 + 1;
+    //         }
+    //         else if expected < actual{
+    //             count = coun2;
+    //         }
+    //         else{
+    //             let first2 = lower_bound
+    //         }
+    //     }
+
+    //     Ok(result)
+    // }
+
+    // pub fn full_name(&self) -> Result<(&str, &str)>
+    // {
+    //     Ok(match self.class()?
+    //     {
+    //         CustomAttributeType::MethodDef(row) => {
+    //             let parent = row.parent()?;
+    //             (parent.namespace()?, parent.name()?)
+    //         },
+    //         CustomAttributeType::MemberRef(row) =>
+    //             match row.class()?
+    //             {
+    //                 MemberRefParent::TypeDef(row) => (row.namespace()?, row.name()?)
+    //             },
+
+    //     })
+    // }
 }
 
 table!(method_def, MethodDef, MethodDefRow);
@@ -156,9 +206,22 @@ impl<'a> MethodDefRow<'a> {
     pub fn name(&self) -> Result<&'a str> {
         self.str(3)
     }
+    // pub fn parent(&self) -> Result<TypeDefRow>
+    // {
+    //     5
+    // }
 }
 
 table!(member_ref, MemberRef, MemberRefRow);
+impl<'a> MemberRefRow<'a> {
+    pub fn class(&self) -> Result<MemberRefParent> {
+        Ok(MemberRefParent::decode(&self.db, self.u32(0)?))
+    }
+    pub fn name(&self) -> Result<&'a str> {
+        self.str(1)
+    }
+    // pub fun signature(&self) {}
+}
 
 table!(module, Module, ModuleRow);
 table!(param, Param, ParamRow);
