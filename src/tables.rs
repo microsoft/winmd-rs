@@ -15,6 +15,12 @@ pub enum Category {
     Contract,
 }
 
+trait TableRange<'a> {
+    type Item;
+    fn range(db: &'a Database, first: u32, last: u32) -> Self::Item;
+    //fn range();
+}
+
 macro_rules! table {
     ($snake:ident, $camel:ident, $row:ident) => {
         #[derive(Copy, Clone)]
@@ -45,13 +51,17 @@ macro_rules! table {
                 result
             }
         }
+        impl<'a> TableRange<'a> for $row<'a> {
+            type Item = $row<'a>;
+            fn range(db: &'a Database, first: u32, last: u32) -> $row<'a> {
+                $row { db: db, first: first, last: last }
+            }
+        }
         impl<'a> $row<'a> {
-            pub(crate) fn new(db:&'a Database, index:u32) -> $row<'a>
-            {
+            pub(crate) fn new(db: &'a Database, index: u32) -> $row<'a> {
                 $row { db: db, first: index, last: index + 1 }
             }
-            pub(crate) fn range(db:&'a Database, first:u32, last:u32) -> $row<'a>
-            {
+            fn range(db: &'a Database, first: u32, last: u32) -> $row<'a> {
                 $row { db: db, first: first, last: last }
             }
             fn u32(&self, column: u32) -> Result<u32> {
@@ -60,6 +70,10 @@ macro_rules! table {
             fn str(&self, column: u32) -> Result<&'a str> {
                 self.db.str(&self.db.$snake, self.first, column)
             }
+            // fn list<T: TableRange>(&self, column: u32) -> Result<T>
+            // {
+            //     T::range(self.db, 0, 0)
+            // }
         }
     };
 }
@@ -115,8 +129,7 @@ impl<'a> CustomAttributeRow<'a> {
     pub fn parent(&self) -> Result<HasCustomAttribute> {
         Ok(HasCustomAttribute::decode(&self.db, self.u32(0)?))
     }
-    pub fn member(&self) -> Result<CustomAttributeType>
-    {
+    pub fn member(&self) -> Result<CustomAttributeType> {
         Ok(CustomAttributeType::decode(&self.db, self.u32(1)?))
     }
     // value() -> Result<CustomAttributeSig>
