@@ -29,6 +29,11 @@ fn run() -> std::io::Result<()> {
             continue;
         }
 
+        if type_def.name()? != "IStringable"
+        {
+            continue;
+        }
+
         let category = type_def.category()?;
 
         match category {
@@ -48,6 +53,13 @@ fn run() -> std::io::Result<()> {
                 println!("  {}", method.name()?);
             }
         }
+
+        let a = type_def.attributes();
+
+        for attribute in a{
+            println!("at {} {}", attribute.first, attribute.last);
+        }
+
     }
     Ok(())
 }

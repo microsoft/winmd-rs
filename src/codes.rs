@@ -6,7 +6,7 @@ fn decode(bits: u32, code: u32) -> (u32, u32) {
     (code & ((1 << bits) - 1), (code >> bits) - 1)
 }
 fn encode(bits: u32, enumerator: u32, index: u32) -> u32 {
-    0
+    ((index + 1) << bits) | enumerator
 }
 
 pub enum TypeDefOrRef<'a> {

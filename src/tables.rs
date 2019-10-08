@@ -45,7 +45,7 @@ macro_rules! table {
         pub struct $row<'a> {
             pub(crate) db: &'a Database,
             pub(crate) first: u32,
-            last: u32,
+            pub(crate) last: u32,
         }
         impl<'a> Iterator for $row<'a> {
             type Item = $row<'a>;
@@ -118,6 +118,13 @@ impl<'a> TypeDefRow<'a> {
     }
     pub fn methods(&self) -> Result<MethodDefRow> {
         self.list::<MethodDefRow>(5)
+    }
+
+    pub fn attributes(&self) -> Result<CustomAttributeRow<'a>>
+    {
+        let parent = HasCustomAttribute::TypeDef(*self);
+        let (first, last) = self.db.equal_range(&self.db.custom_attribute, 0, self.db.custom_attribute.rows(), 0, parent.encode())?;
+        Ok(CustomAttributeRow::range(self.db, first, last))
     }
 
     pub fn category(&self) -> Result<Category> {
