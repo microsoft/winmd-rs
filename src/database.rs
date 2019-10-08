@@ -1,3 +1,4 @@
+use crate::error::*;
 use crate::tables::*;
 use std::io::Result;
 
@@ -370,10 +371,6 @@ impl Database {
     pub fn type_ref(&self) -> TypeRef {
         TypeRef { db: self }
     }
-}
-
-fn invalid_data(message: &str) -> std::io::Error {
-    std::io::Error::new(std::io::ErrorKind::InvalidData, message)
 }
 
 fn unexpected_eof() -> std::io::Error {

@@ -2,6 +2,7 @@
 
 use crate::codes::*;
 use crate::database::*;
+use crate::error::*;
 use crate::flags::*;
 use std::io::Result;
 
@@ -120,8 +121,7 @@ impl<'a> TypeDefRow<'a> {
         self.list::<MethodDefRow>(5)
     }
 
-    pub fn attributes(&self) -> Result<CustomAttributeRow<'a>>
-    {
+    pub fn attributes(&self) -> Result<CustomAttributeRow<'a>> {
         let parent = HasCustomAttribute::TypeDef(*self);
         let (first, last) = self.db.equal_range(&self.db.custom_attribute, 0, self.db.custom_attribute.rows(), 0, parent.encode())?;
         Ok(CustomAttributeRow::range(self.db, first, last))
@@ -154,58 +154,20 @@ impl<'a> CustomAttributeRow<'a> {
     }
     // value() -> Result<CustomAttributeSig>
 
-    // pub fn with_parent(parent: &'a HasCustomAttribute) -> Result<CustomAttributeRow<'a>>
-    // {
-    //     // TODO: generalize this to reuse this code
-
-    //     let db = parent.database();
-    //     let expected = parent.encode();
-    //     let mut count = db.custom_attribute.rows();
-    //     let mut result = CustomAttributeRow::rest(db, 0);
-
-    //     loop
-    //     {
-    //         if count <= 0
-    //         {
-    //             break;
-    //         }
-
-    //         let count2 = count / 2;
-    //         let middle = result.first + count2;
-    //         let actual = db.u32(db.type_def, middle, 0);
-
-    //         if actual < expected // 0 is parent column
-    //         {
-    //             result.first = middle + 1;
-    //             count -= count2 + 1;
-    //         }
-    //         else if expected < actual{
-    //             count = coun2;
-    //         }
-    //         else{
-    //             let first2 = lower_bound
-    //         }
-    //     }
-
-    //     Ok(result)
-    // }
-
-    // pub fn full_name(&self) -> Result<(&str, &str)>
-    // {
-    //     Ok(match self.class()?
-    //     {
-    //         CustomAttributeType::MethodDef(row) => {
-    //             let parent = row.parent()?;
-    //             (parent.namespace()?, parent.name()?)
-    //         },
-    //         CustomAttributeType::MemberRef(row) =>
-    //             match row.class()?
-    //             {
-    //                 MemberRefParent::TypeDef(row) => (row.namespace()?, row.name()?)
-    //             },
-
-    //     })
-    // }
+    pub fn has_name(&self, namespace: &str, name: &str) -> Result<bool> {
+        Ok(match self.class()? {
+            CustomAttributeType::MethodDef(row) => {
+                 let parent = row.parent()?;
+                 name == parent.name()? && namespace == parent.namespace()?
+            },
+            CustomAttributeType::MemberRef(row) => match row.class()? {
+                MemberRefParent::TypeDef(row) => name == row.name()? && namespace == row.namespace()?,
+                MemberRefParent::TypeRef(row) => name == row.name()? && namespace == row.namespace()?,
+                _ => false,
+            },
+            _ => false,
+        })
+    }
 }
 
 table!(method_def, MethodDef, MethodDefRow);
@@ -213,10 +175,11 @@ impl<'a> MethodDefRow<'a> {
     pub fn name(&self) -> Result<&'a str> {
         self.str(3)
     }
-    // pub fn parent(&self) -> Result<TypeDefRow>
-    // {
-    //     5
-    // }
+    pub fn parent(&self) -> Result<TypeDefRow> {
+        let last = self.db.type_def.rows();
+        let first = self.db.upper_bound(&self.db.type_def, 0, last, 6, self.first)?;
+        Ok(TypeDefRow::range(self.db, first, last))
+    }
 }
 
 table!(member_ref, MemberRef, MemberRefRow);

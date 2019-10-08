@@ -3,6 +3,7 @@
 
 mod codes;
 mod database;
+mod error;
 mod flags;
 mod tables;
 use database::*;
@@ -29,8 +30,7 @@ fn run() -> std::io::Result<()> {
             continue;
         }
 
-        if type_def.name()? != "IStringable"
-        {
+        if type_def.name()? != "IStringable" {
             continue;
         }
 
@@ -54,12 +54,19 @@ fn run() -> std::io::Result<()> {
             }
         }
 
-        let a = type_def.attributes();
+        let a = type_def.attributes()?;
 
-        for attribute in a{
+        for attribute in a {
             println!("at {} {}", attribute.first, attribute.last);
+            if attribute.has_name("Windows.Foundation.Metadata", "GuidAttribute")?
+            {
+            println!("guid");
+            }
+            if attribute.has_name("Windows.Foundation.Metadata", "ContractVersionAttribute")?
+            {
+            println!("contract");
+            }
         }
-
     }
     Ok(())
 }
