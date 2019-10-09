@@ -2,7 +2,7 @@
 
 use crate::codes::*;
 use crate::database::*;
-use crate::error::*;
+//use crate::error::*;
 use crate::flags::*;
 use std::io::Result;
 
@@ -160,7 +160,6 @@ impl<'a> CustomAttribute<'a> {
                 MemberRefParent::TypeRef(row) => name == row.name()? && namespace == row.namespace()?,
                 _ => false,
             },
-            _ => false,
         })
     }
 }

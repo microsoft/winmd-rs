@@ -6,6 +6,7 @@ mod database;
 mod error;
 mod flags;
 mod tables;
+mod cache;
 use database::*;
 use tables::*;
 

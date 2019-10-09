@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use crate::error::*;
 use crate::tables::*;
 use std::io::Result;
