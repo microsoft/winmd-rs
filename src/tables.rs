@@ -129,6 +129,14 @@ impl<'a> TypeDef<'a> {
             _ => Ok(Category::Class),
         }
     }
+    pub fn has_attribute(&self, namespace: &str, name: &str) -> Result<bool> {
+        for attribute in self.attributes()? {
+            if attribute.has_name(namespace, name)? {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
 }
 
 table!(custom_attribute, CustomAttribute);
@@ -144,9 +152,9 @@ impl<'a> CustomAttribute<'a> {
     pub fn has_name(&self, namespace: &str, name: &str) -> Result<bool> {
         Ok(match self.class()? {
             CustomAttributeType::MethodDef(row) => {
-                 let parent = row.parent()?;
-                 name == parent.name()? && namespace == parent.namespace()?
-            },
+                let parent = row.parent()?;
+                name == parent.name()? && namespace == parent.namespace()?
+            }
             CustomAttributeType::MemberRef(row) => match row.class()? {
                 MemberRefParent::TypeDef(row) => name == row.name()? && namespace == row.namespace()?,
                 MemberRefParent::TypeRef(row) => name == row.name()? && namespace == row.namespace()?,

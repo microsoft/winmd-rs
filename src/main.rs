@@ -30,9 +30,9 @@ fn run() -> std::io::Result<()> {
             continue;
         }
 
-        if type_def.name()? != "IStringable" {
-            continue;
-        }
+        // if type_def.name()? != "IStringable" {
+        //     continue;
+        // }
 
         let category = type_def.category()?;
 
@@ -48,25 +48,25 @@ fn run() -> std::io::Result<()> {
 
         println!(" {}.{}", type_def.namespace()?, type_def.name()?);
 
-        if category == Category::Interface {
-            for method in type_def.methods()? {
-                println!("  {}", method.name()?);
-            }
-        }
+        // if category == Category::Interface {
+        //     for method in type_def.methods()? {
+        //         println!("  {}", method.name()?);
+        //     }
+        // }
 
-        let a = type_def.attributes()?;
+        // let a = type_def.attributes()?;
 
-        for attribute in a {
-            println!("at {} {}", attribute.first, attribute.last);
-            if attribute.has_name("Windows.Foundation.Metadata", "GuidAttribute")?
-            {
-            println!("guid");
-            }
-            if attribute.has_name("Windows.Foundation.Metadata", "ContractVersionAttribute")?
-            {
-            println!("contract");
-            }
-        }
+        // for attribute in a {
+        //     println!("at {} {}", attribute.first, attribute.last);
+        //     if attribute.has_name("Windows.Foundation.Metadata", "GuidAttribute")?
+        //     {
+        //     println!("guid");
+        //     }
+        //     if attribute.has_name("Windows.Foundation.Metadata", "ContractVersionAttribute")?
+        //     {
+        //     println!("contract");
+        //     }
+        // }
     }
     Ok(())
 }
