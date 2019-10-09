@@ -10,9 +10,9 @@ fn encode(bits: u32, enumerator: u32, index: u32) -> u32 {
 }
 
 pub enum TypeDefOrRef<'a> {
-    TypeDef(TypeDefRow<'a>),
-    TypeRef(TypeRefRow<'a>),
-    TypeSpec(TypeSpecRow<'a>),
+    TypeDef(TypeDef<'a>),
+    TypeRef(TypeRef<'a>),
+    TypeSpec(TypeSpec<'a>),
 }
 impl<'a> TypeDefOrRef<'a> {
     pub fn decode(db: &'a Database, code: u32) -> TypeDefOrRef<'a> {
@@ -48,28 +48,28 @@ impl<'a> TypeDefOrRef<'a> {
 }
 
 pub enum HasCustomAttribute<'a> {
-    MethodDef(MethodDefRow<'a>),
-    Field(FieldRow<'a>),
-    TypeRef(TypeRefRow<'a>),
-    TypeDef(TypeDefRow<'a>),
-    Param(ParamRow<'a>),
-    InterfaceImpl(InterfaceImplRow<'a>),
-    MemberRef(MemberRefRow<'a>),
-    Module(ModuleRow<'a>),
+    MethodDef(MethodDef<'a>),
+    Field(Field<'a>),
+    TypeRef(TypeRef<'a>),
+    TypeDef(TypeDef<'a>),
+    Param(Param<'a>),
+    InterfaceImpl(InterfaceImpl<'a>),
+    MemberRef(MemberRef<'a>),
+    Module(Module<'a>),
     // Permission
-    Property(PropertyRow<'a>),
-    Event(EventRow<'a>),
-    StandaloneSig(StandaloneSigRow<'a>),
-    ModuleRef(ModuleRefRow<'a>),
-    TypeSpec(TypeSpecRow<'a>),
-    Assembly(AssemblyRow<'a>),
-    AssemblyRef(AssemblyRefRow<'a>),
-    File(FileRow<'a>),
-    ExportedType(ExportedTypeRow<'a>),
-    ManifestResource(ManifestResourceRow<'a>),
-    GenericParam(GenericParamRow<'a>),
-    GenericParamConstraint(GenericParamConstraintRow<'a>),
-    MethodSpec(MethodSpecRow<'a>),
+    Property(Property<'a>),
+    Event(Event<'a>),
+    StandaloneSig(StandaloneSig<'a>),
+    ModuleRef(ModuleRef<'a>),
+    TypeSpec(TypeSpec<'a>),
+    Assembly(Assembly<'a>),
+    AssemblyRef(AssemblyRef<'a>),
+    File(File<'a>),
+    ExportedType(ExportedType<'a>),
+    ManifestResource(ManifestResource<'a>),
+    GenericParam(GenericParam<'a>),
+    GenericParamConstraint(GenericParamConstraint<'a>),
+    MethodSpec(MethodSpec<'a>),
 }
 impl<'a> HasCustomAttribute<'a> {
     pub fn decode(db: &'a Database, code: u32) -> HasCustomAttribute<'a> {
@@ -155,8 +155,8 @@ impl<'a> HasCustomAttribute<'a> {
 }
 
 pub enum CustomAttributeType<'a> {
-    MethodDef(MethodDefRow<'a>),
-    MemberRef(MemberRefRow<'a>),
+    MethodDef(MethodDef<'a>),
+    MemberRef(MemberRef<'a>),
 }
 impl<'a> CustomAttributeType<'a> {
     pub fn decode(db: &'a Database, code: u32) -> CustomAttributeType<'a> {
@@ -170,11 +170,11 @@ impl<'a> CustomAttributeType<'a> {
 }
 
 pub enum MemberRefParent<'a> {
-    TypeDef(TypeDefRow<'a>),
-    TypeRef(TypeRefRow<'a>),
-    ModuleRef(ModuleRefRow<'a>),
-    MethodDef(MethodDefRow<'a>),
-    TypeSpec(TypeSpecRow<'a>),
+    TypeDef(TypeDef<'a>),
+    TypeRef(TypeRef<'a>),
+    ModuleRef(ModuleRef<'a>),
+    MethodDef(MethodDef<'a>),
+    TypeSpec(TypeSpec<'a>),
 }
 impl<'a> MemberRefParent<'a> {
     pub fn decode(db: &'a Database, code: u32) -> MemberRefParent<'a> {

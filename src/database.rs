@@ -366,10 +366,10 @@ impl Database {
         Ok((first, last))
     }
     pub fn type_def(&self) -> TypeDef {
-        TypeDef { db: self }
+        TypeDef::rest(self, 0)
     }
     pub fn type_ref(&self) -> TypeRef {
-        TypeRef { db: self }
+        TypeRef::rest(self, 0)
     }
 }
 

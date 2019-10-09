@@ -17,6 +17,7 @@ pub enum Category {
     Contract,
 }
 
+// TOOD: should just be the table trait
 trait TableRange<'a> {
     // TODO: maybe use Rust's range parameter syntax here to combine these into one function
     fn range(db: &'a Database, first: u32, last: u32) -> Self;
@@ -24,33 +25,16 @@ trait TableRange<'a> {
 }
 
 macro_rules! table {
-    ($snake:ident, $camel:ident, $row:ident) => {
+    ($snake:ident, $camel:ident) => {
         #[derive(Copy, Clone)]
         pub struct $camel<'a> {
-            pub(crate) db: &'a Database,
-        }
-        impl<'a> $camel<'a> {
-            pub(crate) fn new(db: &'a Database, index: u32) -> $row<'a> {
-                $row { db, first: index, last: index + 1 }
-            }
-            //fn upper_bound
-        }
-        impl<'a> IntoIterator for $camel<'a> {
-            type Item = $row<'a>;
-            type IntoIter = $row<'a>;
-            fn into_iter(self) -> $row<'a> {
-                $row::rest(self.db, 0)
-            }
-        }
-        #[derive(Copy, Clone)]
-        pub struct $row<'a> {
             pub(crate) db: &'a Database,
             pub(crate) first: u32,
             pub(crate) last: u32,
         }
-        impl<'a> Iterator for $row<'a> {
-            type Item = $row<'a>;
-            fn next(&mut self) -> Option<$row<'a>> {
+        impl<'a> Iterator for $camel<'a> {
+            type Item = $camel<'a>;
+            fn next(&mut self) -> Option<$camel<'a>> {
                 if self.first >= self.last {
                     return None;
                 }
@@ -59,15 +43,24 @@ macro_rules! table {
                 result
             }
         }
-        impl<'a> TableRange<'a> for $row<'a> {
-            fn range(db: &'a Database, first: u32, last: u32) -> $row<'a> {
-                $row { db, first, last }
+        impl<'a> TableRange<'a> for $camel<'a> {
+            fn range(db: &'a Database, first: u32, last: u32) -> $camel<'a> {
+                $camel { db, first, last }
             }
-            fn rest(db: &'a Database, first: u32) -> $row<'a> {
-                $row { db, first, last: db.$snake.rows() }
+            fn rest(db: &'a Database, first: u32) -> $camel<'a> {
+                $camel { db, first, last: db.$snake.rows() }
             }
         }
-        impl<'a> $row<'a> {
+        impl<'a> $camel<'a> {
+            pub(crate) fn new(db: &'a Database, index: u32) -> $camel<'a> {
+                $camel { db, first: index, last: index + 1 }
+            }
+            pub(crate) fn range(db: &'a Database, first: u32, last: u32) -> $camel<'a> {
+                $camel { db, first, last }
+            }
+            pub(crate) fn rest(db: &'a Database, first: u32) -> $camel<'a> {
+                $camel { db, first, last: db.$snake.rows() }
+            }
             fn len(&self) -> u32 {
                 self.last - self.first
             }
@@ -90,8 +83,8 @@ macro_rules! table {
     };
 }
 
-table!(type_ref, TypeRef, TypeRefRow);
-impl<'a> TypeRefRow<'a> {
+table!(type_ref, TypeRef);
+impl<'a> TypeRef<'a> {
     pub fn name(&self) -> Result<&'a str> {
         self.str(1)
     }
@@ -100,11 +93,11 @@ impl<'a> TypeRefRow<'a> {
     }
 }
 
-table!(generic_param_constraint, GenericParamConstraint, GenericParamConstraintRow);
-table!(type_spec, TypeSpec, TypeSpecRow);
+table!(generic_param_constraint, GenericParamConstraint);
+table!(type_spec, TypeSpec);
 
-table!(type_def, TypeDef, TypeDefRow);
-impl<'a> TypeDefRow<'a> {
+table!(type_def, TypeDef);
+impl<'a> TypeDef<'a> {
     pub fn flags(&self) -> Result<TypeAttributes> {
         Ok(TypeAttributes(self.u32(0)?))
     }
@@ -117,14 +110,14 @@ impl<'a> TypeDefRow<'a> {
     pub fn extends(&self) -> Result<TypeDefOrRef> {
         Ok(TypeDefOrRef::decode(&self.db, self.u32(3)?))
     }
-    pub fn methods(&self) -> Result<MethodDefRow> {
-        self.list::<MethodDefRow>(5)
+    pub fn methods(&self) -> Result<MethodDef> {
+        self.list::<MethodDef>(5)
     }
 
-    pub fn attributes(&self) -> Result<CustomAttributeRow<'a>> {
+    pub fn attributes(&self) -> Result<CustomAttribute<'a>> {
         let parent = HasCustomAttribute::TypeDef(*self);
         let (first, last) = self.db.equal_range(&self.db.custom_attribute, 0, self.db.custom_attribute.rows(), 0, parent.encode())?;
-        Ok(CustomAttributeRow::range(self.db, first, last))
+        Ok(CustomAttribute::range(self.db, first, last))
     }
 
     pub fn category(&self) -> Result<Category> {
@@ -144,8 +137,8 @@ impl<'a> TypeDefRow<'a> {
     }
 }
 
-table!(custom_attribute, CustomAttribute, CustomAttributeRow);
-impl<'a> CustomAttributeRow<'a> {
+table!(custom_attribute, CustomAttribute);
+impl<'a> CustomAttribute<'a> {
     pub fn parent(&self) -> Result<HasCustomAttribute> {
         Ok(HasCustomAttribute::decode(&self.db, self.u32(0)?))
     }
@@ -170,20 +163,20 @@ impl<'a> CustomAttributeRow<'a> {
     }
 }
 
-table!(method_def, MethodDef, MethodDefRow);
-impl<'a> MethodDefRow<'a> {
+table!(method_def, MethodDef);
+impl<'a> MethodDef<'a> {
     pub fn name(&self) -> Result<&'a str> {
         self.str(3)
     }
-    pub fn parent(&self) -> Result<TypeDefRow> {
+    pub fn parent(&self) -> Result<TypeDef> {
         let last = self.db.type_def.rows();
         let first = self.db.upper_bound(&self.db.type_def, 0, last, 6, self.first)?;
-        Ok(TypeDefRow::range(self.db, first, last))
+        Ok(TypeDef::range(self.db, first, last))
     }
 }
 
-table!(member_ref, MemberRef, MemberRefRow);
-impl<'a> MemberRefRow<'a> {
+table!(member_ref, MemberRef);
+impl<'a> MemberRef<'a> {
     pub fn class(&self) -> Result<MemberRefParent> {
         Ok(MemberRefParent::decode(&self.db, self.u32(0)?))
     }
@@ -193,34 +186,34 @@ impl<'a> MemberRefRow<'a> {
     // pub fun signature(&self) {}
 }
 
-table!(module, Module, ModuleRow);
-table!(param, Param, ParamRow);
-table!(interface_impl, InterfaceImpl, InterfaceImplRow);
-table!(constant, Constant, ConstantRow);
-table!(field, Field, FieldRow);
-table!(field_marshal, FieldMarshal, FieldMarshalRow);
-table!(decl_security, DeclSecurity, DeclSecurityRow);
-table!(class_layout, ClassLayout, ClassLayoutRow);
-table!(field_layout, FieldLayout, FieldLayoutRow);
-table!(standalone_sig, StandaloneSig, StandaloneSigRow);
-table!(event_map, EventMap, EventMapRow);
-table!(event, Event, EventRow);
-table!(property_map, PropertyMap, PropertyMapRow);
-table!(property, Property, PropertyRow);
-table!(method_semantics, MethodSemantics, MethodSemanticsRow);
-table!(method_impl, MethodImpl, MethodImplRow);
-table!(module_ref, ModuleRef, ModuleRefRow);
-table!(impl_map, ImplMap, ImplMapRow);
-table!(field_rva, FieldRva, FieldRvaRow);
-table!(assembly, Assembly, AssemblyRow);
-table!(assembly_processor, AssemblyProcessor, AssemblyProcessorRow);
-table!(assembly_os, AssemblyOs, AssemblyOsRow);
-table!(assembly_ref, AssemblyRef, AssemblyRefRow);
-table!(assembly_ref_processor, AssemblyRefProcessor, AssemblyRefProcessorRow);
-table!(assembly_ref_os, AssemblyRefOs, AssemblyRefOsRow);
-table!(file, File, FileRow);
-table!(exported_type, ExportedType, ExportedTypeRow);
-table!(manifest_resource, ManifestResource, ManifestResourceRow);
-table!(nested_class, NestedClass, NestedClassRow);
-table!(generic_param, GenericParam, GenericParamRow);
-table!(method_spec, MethodSpec, MethodSpecRow);
+table!(module, Module);
+table!(param, Param);
+table!(interface_impl, InterfaceImpl);
+table!(constant, Constant);
+table!(field, Field);
+table!(field_marshal, FieldMarshal);
+table!(decl_security, DeclSecurity);
+table!(class_layout, ClassLayout);
+table!(field_layout, FieldLayout);
+table!(standalone_sig, StandaloneSig);
+table!(event_map, EventMap);
+table!(event, Event);
+table!(property_map, PropertyMap);
+table!(property, Property);
+table!(method_semantics, MethodSemantics);
+table!(method_impl, MethodImpl);
+table!(module_ref, ModuleRef);
+table!(impl_map, ImplMap);
+table!(field_rva, FieldRva);
+table!(assembly, Assembly);
+table!(assembly_processor, AssemblyProcessor);
+table!(assembly_os, AssemblyOs);
+table!(assembly_ref, AssemblyRef);
+table!(assembly_ref_processor, AssemblyRefProcessor);
+table!(assembly_ref_os, AssemblyRefOs);
+table!(file, File);
+table!(exported_type, ExportedType);
+table!(manifest_resource, ManifestResource);
+table!(nested_class, NestedClass);
+table!(generic_param, GenericParam);
+table!(method_spec, MethodSpec);
