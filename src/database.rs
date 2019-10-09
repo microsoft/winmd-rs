@@ -3,14 +3,14 @@ use crate::tables::*;
 use std::io::Result;
 
 #[derive(Default)]
-pub struct Table {
+pub struct TableInfo {
     data: u32,
     row_count: u32,
     row_size: u32,
     columns: [(u32, u32); 6],
 }
 
-impl Table {
+impl TableInfo {
     pub fn rows(&self) -> u32 {
         self.row_count
     }
@@ -56,44 +56,44 @@ pub struct Database {
     blobs: u32,
     guids: u32,
 
-    pub(crate) type_ref: Table,
-    pub(crate) generic_param_constraint: Table,
-    pub(crate) type_spec: Table,
-    pub(crate) type_def: Table,
-    pub(crate) custom_attribute: Table,
-    pub(crate) method_def: Table,
-    pub(crate) member_ref: Table,
-    pub(crate) module: Table,
-    pub(crate) param: Table,
-    pub(crate) interface_impl: Table,
-    pub(crate) constant: Table,
-    pub(crate) field: Table,
-    pub(crate) field_marshal: Table,
-    pub(crate) decl_security: Table,
-    pub(crate) class_layout: Table,
-    pub(crate) field_layout: Table,
-    pub(crate) standalone_sig: Table,
-    pub(crate) event_map: Table,
-    pub(crate) event: Table,
-    pub(crate) property_map: Table,
-    pub(crate) property: Table,
-    pub(crate) method_semantics: Table,
-    pub(crate) method_impl: Table,
-    pub(crate) module_ref: Table,
-    pub(crate) impl_map: Table,
-    pub(crate) field_rva: Table,
-    pub(crate) assembly: Table,
-    pub(crate) assembly_processor: Table,
-    pub(crate) assembly_os: Table,
-    pub(crate) assembly_ref: Table,
-    pub(crate) assembly_ref_processor: Table,
-    pub(crate) assembly_ref_os: Table,
-    pub(crate) file: Table,
-    pub(crate) exported_type: Table,
-    pub(crate) manifest_resource: Table,
-    pub(crate) nested_class: Table,
-    pub(crate) generic_param: Table,
-    pub(crate) method_spec: Table,
+    pub(crate) type_ref: TableInfo,
+    pub(crate) generic_param_constraint: TableInfo,
+    pub(crate) type_spec: TableInfo,
+    pub(crate) type_def: TableInfo,
+    pub(crate) custom_attribute: TableInfo,
+    pub(crate) method_def: TableInfo,
+    pub(crate) member_ref: TableInfo,
+    pub(crate) module: TableInfo,
+    pub(crate) param: TableInfo,
+    pub(crate) interface_impl: TableInfo,
+    pub(crate) constant: TableInfo,
+    pub(crate) field: TableInfo,
+    pub(crate) field_marshal: TableInfo,
+    pub(crate) decl_security: TableInfo,
+    pub(crate) class_layout: TableInfo,
+    pub(crate) field_layout: TableInfo,
+    pub(crate) standalone_sig: TableInfo,
+    pub(crate) event_map: TableInfo,
+    pub(crate) event: TableInfo,
+    pub(crate) property_map: TableInfo,
+    pub(crate) property: TableInfo,
+    pub(crate) method_semantics: TableInfo,
+    pub(crate) method_impl: TableInfo,
+    pub(crate) module_ref: TableInfo,
+    pub(crate) impl_map: TableInfo,
+    pub(crate) field_rva: TableInfo,
+    pub(crate) assembly: TableInfo,
+    pub(crate) assembly_processor: TableInfo,
+    pub(crate) assembly_os: TableInfo,
+    pub(crate) assembly_ref: TableInfo,
+    pub(crate) assembly_ref_processor: TableInfo,
+    pub(crate) assembly_ref_os: TableInfo,
+    pub(crate) file: TableInfo,
+    pub(crate) exported_type: TableInfo,
+    pub(crate) manifest_resource: TableInfo,
+    pub(crate) nested_class: TableInfo,
+    pub(crate) generic_param: TableInfo,
+    pub(crate) method_spec: TableInfo,
 }
 impl Database {
     pub fn new<P: AsRef<std::path::Path>>(filename: P) -> Result<Database> {
@@ -199,7 +199,7 @@ impl Database {
                 _ => return Err(invalid_data("Unknown metadata table")),
             };
         }
-        let empty_table = Table::default();
+        let empty_table = TableInfo::default();
         let has_constant = composite_index_size(&[&db.field, &db.param, &db.property]);
         let type_def_or_ref = composite_index_size(&[&db.type_def, &db.type_ref, &db.type_spec]);
         let has_custom_attribute = composite_index_size(&[&db.method_def, &db.field, &db.type_ref, &db.type_def, &db.param, &db.interface_impl, &db.member_ref, &db.module, &db.property, &db.event, &db.standalone_sig, &db.module_ref, &db.type_spec, &db.assembly, &db.assembly_ref, &db.file, &db.exported_type, &db.manifest_resource, &db.generic_param, &db.generic_param_constraint, &db.method_spec]);
@@ -294,7 +294,7 @@ impl Database {
 
         Ok(db)
     }
-    pub(crate) fn str(&self, table: &Table, row: u32, column: u32) -> Result<&str> {
+    pub(crate) fn str(&self, table: &TableInfo, row: u32, column: u32) -> Result<&str> {
         let offset = (self.strings + self.u32(table, row, column)?) as usize;
         match self.bytes[offset..].iter().position(|c| *c == b'\0') {
             None => Err(unexpected_eof()),
@@ -304,7 +304,7 @@ impl Database {
             },
         }
     }
-    pub(crate) fn u32(&self, table: &Table, row: u32, column: u32) -> Result<u32> {
+    pub(crate) fn u32(&self, table: &TableInfo, row: u32, column: u32) -> Result<u32> {
         let offset = table.data + row * table.row_size + table.columns[column as usize].0;
         match table.columns[column as usize].1 {
             1 => Ok(*(self.bytes.view_as::<u8>(offset)?) as u32),
@@ -313,7 +313,7 @@ impl Database {
             _ => Ok(*(self.bytes.view_as::<u64>(offset)?) as u32),
         }
     }
-    pub(crate) fn lower_bound(&self, table: &Table, mut first: u32, last: u32, column: u32, value: u32) -> Result<u32> {
+    pub(crate) fn lower_bound(&self, table: &TableInfo, mut first: u32, last: u32, column: u32, value: u32) -> Result<u32> {
         let mut count = last - first;
         while count > 0 {
             let count2 = count / 2;
@@ -327,7 +327,7 @@ impl Database {
         }
         Ok(first)
     }
-    pub(crate) fn upper_bound(&self, table: &Table, mut first: u32, last: u32, column: u32, value: u32) -> Result<u32> {
+    pub(crate) fn upper_bound(&self, table: &TableInfo, mut first: u32, last: u32, column: u32, value: u32) -> Result<u32> {
         let mut count = last - first;
         while count > 0 {
             let count2 = count / 2;
@@ -341,7 +341,7 @@ impl Database {
         }
         Ok(first)
     }
-    pub(crate) fn equal_range(&self, table: &Table, mut first: u32, mut last: u32, column: u32, value: u32) -> Result<(u32, u32)> {
+    pub(crate) fn equal_range(&self, table: &TableInfo, mut first: u32, mut last: u32, column: u32, value: u32) -> Result<(u32, u32)> {
         let mut count = last - first;
         loop {
             if count <= 0 {
@@ -389,7 +389,7 @@ fn sizeof<T>() -> u32 {
     std::mem::size_of::<T>() as u32
 }
 
-fn composite_index_size(tables: &[&Table]) -> u32 {
+fn composite_index_size(tables: &[&TableInfo]) -> u32 {
     fn small(row_count: u32, bits: u8) -> bool {
         (row_count as u64) < (1u64 << (16 - bits))
     }

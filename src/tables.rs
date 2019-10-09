@@ -18,7 +18,7 @@ pub enum Category {
 }
 
 // TOOD: should just be the table trait
-pub(crate) trait TableRange<'a> {
+pub(crate) trait Table<'a> {
     // TODO: maybe use Rust's range parameter syntax here to combine these into one function
     fn range(db: &'a Database, first: u32, last: u32) -> Self;
     fn rest(db: &'a Database, first: u32) -> Self;
@@ -43,7 +43,7 @@ macro_rules! table {
                 result
             }
         }
-        impl<'a> TableRange<'a> for $camel<'a> {
+        impl<'a> Table<'a> for $camel<'a> {
             fn range(db: &'a Database, first: u32, last: u32) -> $camel<'a> {
                 $camel { db, first, last }
             }
@@ -64,7 +64,7 @@ macro_rules! table {
             fn str(&self, column: u32) -> Result<&'a str> {
                 self.db.str(&self.db.$snake, self.first, column)
             }
-            fn list<T: TableRange<'a>>(&self, column: u32) -> Result<T> {
+            fn list<T: Table<'a>>(&self, column: u32) -> Result<T> {
                 let first = self.u32(column)? - 1;
 
                 if self.first + 1 < self.db.$snake.rows() {
