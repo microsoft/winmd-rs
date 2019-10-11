@@ -52,7 +52,7 @@ impl TableInfo {
 }
 
 #[derive(Default)]
-pub struct Database {
+pub(crate) struct Database {
     bytes: std::vec::Vec<u8>,
     strings: u32,
     blobs: u32,

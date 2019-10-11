@@ -17,7 +17,7 @@ pub enum TypeDefOrRef<'a> {
     TypeSpec(TypeSpec<'a>),
 }
 impl<'a> TypeDefOrRef<'a> {
-    pub fn decode(db: &'a Database, code: u32) -> TypeDefOrRef<'a> {
+    pub(crate) fn decode(db: &'a Database, code: u32) -> TypeDefOrRef<'a> {
         let code = decode(2, code);
         match code.0 {
             0 => TypeDefOrRef::TypeDef(TypeDef::new(db, code.1)),
@@ -74,7 +74,7 @@ pub enum HasCustomAttribute<'a> {
     MethodSpec(MethodSpec<'a>),
 }
 impl<'a> HasCustomAttribute<'a> {
-    pub fn decode(db: &'a Database, code: u32) -> HasCustomAttribute<'a> {
+    pub(crate) fn decode(db: &'a Database, code: u32) -> HasCustomAttribute<'a> {
         let code = decode(5, code);
         match code.0 {
             0 => HasCustomAttribute::MethodDef(MethodDef::new(db, code.1)),
@@ -128,7 +128,7 @@ impl<'a> HasCustomAttribute<'a> {
             HasCustomAttribute::MethodSpec(row) => encode(5, 21, row.first),
         }
     }
-    pub fn database(&self) -> &Database {
+    pub(crate) fn database(&self) -> &Database {
         match self {
             HasCustomAttribute::MethodDef(row) => row.db,
             HasCustomAttribute::Field(row) => row.db,
@@ -161,7 +161,7 @@ pub enum CustomAttributeType<'a> {
     MemberRef(MemberRef<'a>),
 }
 impl<'a> CustomAttributeType<'a> {
-    pub fn decode(db: &'a Database, code: u32) -> CustomAttributeType<'a> {
+    pub(crate) fn decode(db: &'a Database, code: u32) -> CustomAttributeType<'a> {
         let code = decode(3, code);
         match code.0 {
             2 => CustomAttributeType::MethodDef(MethodDef::new(db, code.1)),
@@ -179,7 +179,7 @@ pub enum MemberRefParent<'a> {
     TypeSpec(TypeSpec<'a>),
 }
 impl<'a> MemberRefParent<'a> {
-    pub fn decode(db: &'a Database, code: u32) -> MemberRefParent<'a> {
+    pub(crate) fn decode(db: &'a Database, code: u32) -> MemberRefParent<'a> {
         let code = decode(3, code);
         match code.0 {
             0 => MemberRefParent::TypeDef(TypeDef::new(db, code.1)),

@@ -55,6 +55,9 @@ macro_rules! table {
             pub(crate) fn new(db: &'a Database, index: u32) -> $camel<'a> {
                 $camel { db, first: index, last: index + 1 }
             }
+            pub(crate) fn index(&self) -> u32 {
+                self.first
+            }
             fn len(&self) -> u32 {
                 self.last - self.first
             }
