@@ -19,8 +19,18 @@ pub struct Reader {
     namespaces: std::collections::BTreeMap<String, Members>,
 }
 
+#[cfg(target_pointer_width = "64")]
+fn system32() -> &'static str {
+    "System32"
+}
+#[cfg(target_pointer_width = "32")]
+fn system32() -> &'static str {
+    "SysNative"
+}
+
 impl<'a> Reader {
-    pub fn new<P: AsRef<std::path::Path>>(filenames: &[P]) -> Result<Self> {
+    // TODO: Can't this be an iterator to avoid creating the collection in from_dir()?
+    pub fn from_files<P: AsRef<std::path::Path>>(filenames: &[P]) -> Result<Self> {
         let mut databases = std::vec::Vec::new();
         databases.reserve(filenames.len());
 
@@ -65,7 +75,26 @@ impl<'a> Reader {
 
         Ok(Self { databases, namespaces })
     }
-    // fn from_local()-> Result<Self> {
+    pub fn from_dir<P: AsRef<std::path::Path>>(directory: P) -> Result<Self> {
+        let files: Vec<std::path::PathBuf> = std::fs::read_dir(directory)?
+            .filter_map(|value| match value {
+                Ok(value) => Some(value.path()),
+                Err(_) => None,
+            })
+            .collect();
+        Self::from_files(&files)
+    }
+    pub fn from_local() -> Result<Self> {
+        let mut path = std::path::PathBuf::new();
+        path.push(match std::env::var("windir") {
+            Ok(value) => value,
+            Err(_) => return Err(std::io::Error::new(std::io::ErrorKind::NotFound, "WINDIR environment variable not found")),
+        });
+        path.push(system32());
+        path.push("winmetadata");
+        Self::from_dir(path)
+    }
+
     //     let files = std::fs::read_dir(r"c:\windows\system32\winmetadata")?
     //         .filter_map(Result::ok)
     //         .map(|entry|entry.path().as_path());

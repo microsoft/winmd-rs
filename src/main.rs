@@ -18,12 +18,39 @@ fn main() {
 }
 
 fn run() -> std::io::Result<()> {
+    //test(&vec![r"c:\windows\system32\winmetadata\Windows.Foundation.winmd"]);
 
-        for entry in std::fs::read_dir(r#"c:\windows\system32\winmetadata"#)? {
-            println!("{:?}", entry.unwrap().path().as_path());
+    //let files: Vec<std::path::PathBuf> = std::fs::read_dir(r"c:\windows\system32\winmetadata")?.filter_map(|result|result.ok()).map(|result|result.path()).collect();
 
-        }
+    //let files = ["files"];
 
+    //test(&files);
+
+    // let files: Vec<std::path::PathBuf> = std::fs::read_dir(r"c:\windows\system32\winmetadata")?.filter_map(|value|match value{
+    //     Ok(value) => Some(value.path()),
+    //     Err(_) => None,
+    // }).collect();
+
+    // for file in &files{
+    //     println!("{}", file.display());
+    // }
+
+    let reader = Reader::from_local()?;
+
+    // //let reader = Reader::new(&[r"c:\windows\system32\winmetadata\Windows.Data.winmd"])?;
+
+    // if let Some(t) = reader.find("Windows.Foundation", "IStringable") {
+    //     println!(" {}.{}", t.namespace()?, t.name()?);
+    // }
+
+    // for entry in std::fs::read_dir(r#"c:\windows\system32\winmetadata"#)? {
+    //     println!("{:?}", entry.unwrap().path().as_path());
+
+    // }
+
+    // let files = std::fs::read_dir(r"c:\windows\system32\winmetadata")?
+    //     .filter_map(Result::ok)
+    //     .map(|entry|entry.path().as_path());
 
     // let reader = Reader::new(&[r"c:\windows\system32\winmetadata\Windows.Foundation.winmd"])?;
 
