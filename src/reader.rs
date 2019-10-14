@@ -3,8 +3,8 @@ use crate::tables::*;
 use std::io::Result;
 
 #[derive(Default)]
-pub struct Namespace {
-    types: std::collections::BTreeMap<String, (u32, u32)>,
+pub struct Types {
+    index: std::collections::BTreeMap<String, (u32, u32)>,
     interfaces: std::vec::Vec<(u32, u32)>,
     classes: std::vec::Vec<(u32, u32)>,
     enums: std::vec::Vec<(u32, u32)>,
@@ -16,7 +16,7 @@ pub struct Namespace {
 
 pub struct Reader {
     databases: std::vec::Vec<Database>,
-    namespaces: std::collections::BTreeMap<String, Namespace>,
+    namespaces: std::collections::BTreeMap<String, Types>,
 }
 
 impl<'a> Reader {
@@ -35,30 +35,30 @@ impl<'a> Reader {
                     continue;
                 }
 
-                let namespace = namespaces.entry(t.namespace()?.to_string()).or_insert_with(|| Namespace { ..Default::default() });
-                namespace.types.entry(t.name()?.to_string()).or_insert((databases.len() as u32, t.index()));
+                let types = namespaces.entry(t.namespace()?.to_string()).or_insert_with(|| Types { ..Default::default() });
+                types.index.entry(t.name()?.to_string()).or_insert((databases.len() as u32, t.index()));
             }
 
             databases.push(db);
 
-            for (_, namespace) in &mut namespaces {
-                for (_, index) in &namespace.types {
+            for (_, types) in &mut namespaces {
+                for (_, index) in &types.index {
                     let t = TypeDef::new(&databases[index.0 as usize], index.1);
 
                     if t.flags()?.interface() {
-                        namespace.interfaces.push(*index);
+                        types.interfaces.push(*index);
                         continue;
                     }
                     match t.extends()?.name()? {
-                        "Enum" => namespace.enums.push(*index),
-                        "MulticastDelegate" => namespace.delegates.push(*index),
+                        "Enum" => types.enums.push(*index),
+                        "MulticastDelegate" => types.delegates.push(*index),
                         "Attribute" => {}
                         "ValueType" => {
                             if !t.has_attribute("Windows.Foundation.Metadata", "ApiContractAttribute")? {
-                                namespace.structs.push(*index);
+                                types.structs.push(*index);
                             }
                         }
-                        _ => namespace.classes.push(*index),
+                        _ => types.classes.push(*index),
                     }
                 }
             }
@@ -88,7 +88,9 @@ impl<'a> Reader {
     pub fn namespaces(&self) -> std::vec::Vec<String> {
        self.namespaces.keys().cloned().collect()
     }
-
+    pub fn types(&self, namespace: &str) -> Option<&Types>{
+        self.namespaces.get(namespace)
+    }
 
 
     // TODO: from_sdk
@@ -96,7 +98,7 @@ impl<'a> Reader {
     // types (namespace)
     pub fn find(&self, namespace: &str, name: &str) -> Option<TypeDef> {
         match self.namespaces.get(namespace) {
-            Some(namespace) => match namespace.types.get(name) {
+            Some(types) => match types.index.get(name) {
                 Some(index) => Some(TypeDef::new(&self.databases[index.0 as usize], index.1)),
                 None => None,
             },
