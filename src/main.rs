@@ -43,6 +43,11 @@ fn run() -> std::io::Result<()> {
         println!(" {}.{}", t.namespace()?, t.name()?);
     }
 
+    for ns in reader.namespaces()
+    {
+        println!("{}", ns);
+    }
+
     // for entry in std::fs::read_dir(r#"c:\windows\system32\winmetadata"#)? {
     //     println!("{:?}", entry.unwrap().path().as_path());
 
