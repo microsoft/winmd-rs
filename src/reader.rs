@@ -48,9 +48,11 @@ impl<'a> Reader {
                 members.types.entry(t.name()?.to_string()).or_insert((databases.len() as u32, t.index()));
             }
 
+            databases.push(db);
+
             for (_, members) in &mut namespaces {
                 for (_, index) in &members.types {
-                    let t = TypeDef::new(&db, index.1);
+                    let t = TypeDef::new(&databases[index.0 as usize], index.1);
 
                     if t.flags()?.interface() {
                         members.interfaces.push(*index);
@@ -69,8 +71,6 @@ impl<'a> Reader {
                     }
                 }
             }
-
-            databases.push(db);
         }
 
         Ok(Self { databases, namespaces })

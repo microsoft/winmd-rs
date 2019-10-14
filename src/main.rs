@@ -39,9 +39,9 @@ fn run() -> std::io::Result<()> {
 
     // //let reader = Reader::new(&[r"c:\windows\system32\winmetadata\Windows.Data.winmd"])?;
 
-    // if let Some(t) = reader.find("Windows.Foundation", "IStringable") {
-    //     println!(" {}.{}", t.namespace()?, t.name()?);
-    // }
+    if let Some(t) = reader.find("Windows.Foundation", "IStringable") {
+        println!(" {}.{}", t.namespace()?, t.name()?);
+    }
 
     // for entry in std::fs::read_dir(r#"c:\windows\system32\winmetadata"#)? {
     //     println!("{:?}", entry.unwrap().path().as_path());
