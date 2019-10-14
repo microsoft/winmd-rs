@@ -20,7 +20,7 @@ pub struct Reader {
 }
 
 impl<'a> Reader {
-    pub fn new<P: AsRef<std::path::Path>>(filenames: &[P]) -> Result<Reader> {
+    pub fn new<P: AsRef<std::path::Path>>(filenames: &[P]) -> Result<Self> {
         let mut databases = std::vec::Vec::new();
         databases.reserve(filenames.len());
 
@@ -63,17 +63,24 @@ impl<'a> Reader {
             databases.push(db);
         }
 
-        Ok(Reader { databases, namespaces })
+        Ok(Self { databases, namespaces })
     }
-    pub fn find(&self, namespace: &str, name: &str) -> Option<TypeDef>
-    {
-        match self.namespaces.get(namespace)
-        {
-            Some(members) => match members.types.get(name)
-            {
+    // fn from_local()-> Result<Self> {
+    //     let files = std::fs::read_dir(r"c:\windows\system32\winmetadata")?
+    //         .filter_map(Result::ok)
+    //         .map(|entry|entry.path().as_path());
+    //     Self::new(files)
+    // }
+    // from_local
+    // from_sdk
+    // namespaces (iterator)
+    // types (members)
+    pub fn find(&self, namespace: &str, name: &str) -> Option<TypeDef> {
+        match self.namespaces.get(namespace) {
+            Some(members) => match members.types.get(name) {
                 Some(index) => Some(TypeDef::new(&self.databases[index.0 as usize], index.1)),
                 None => None,
-            }
+            },
             None => None,
         }
     }

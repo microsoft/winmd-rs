@@ -98,8 +98,8 @@ pub(crate) struct Database {
     pub(crate) method_spec: TableInfo,
 }
 impl Database {
-    pub fn new<P: AsRef<std::path::Path>>(filename: P) -> Result<Database> {
-        let mut db = Database { bytes: std::fs::read(filename)?, ..Default::default() };
+    pub fn new<P: AsRef<std::path::Path>>(filename: P) -> Result<Self> {
+        let mut db = Self { bytes: std::fs::read(filename)?, ..Default::default() };
         let dos = db.bytes.view_as::<ImageDosHeader>(0)?;
         if dos.signature != IMAGE_DOS_SIGNATURE {
             return Err(invalid_data("Invalid DOS signature"));

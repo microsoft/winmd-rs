@@ -8,8 +8,8 @@ mod flags;
 pub mod reader;
 mod tables;
 use database::*;
-use tables::*;
 use reader::*;
+use tables::*;
 
 fn main() {
     if let Err(e) = run() {
@@ -19,12 +19,17 @@ fn main() {
 
 fn run() -> std::io::Result<()> {
 
-    let reader = Reader::new(&[r"c:\windows\system32\winmetadata\Windows.Foundation.winmd"])?;
+        for entry in std::fs::read_dir(r#"c:\windows\system32\winmetadata"#)? {
+            println!("{:?}", entry.unwrap().path().as_path());
 
-    if let Some(t) = reader.find("Windows.Foundation", "IStringable")
-    {
-    println!(" {}.{}", t.namespace()?, t.name()?);
-    }
+        }
+
+
+    // let reader = Reader::new(&[r"c:\windows\system32\winmetadata\Windows.Foundation.winmd"])?;
+
+    // if let Some(t) = reader.find("Windows.Foundation", "IStringable") {
+    //     println!(" {}.{}", t.namespace()?, t.name()?);
+    // }
 
     // let db = Database::new(r"c:\windows\system32\winmetadata\Windows.Foundation.winmd")?;
 

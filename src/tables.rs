@@ -33,8 +33,8 @@ macro_rules! table {
             pub(crate) last: u32,
         }
         impl<'a> Iterator for $camel<'a> {
-            type Item = $camel<'a>;
-            fn next(&mut self) -> Option<$camel<'a>> {
+            type Item = Self;
+            fn next(&mut self) -> Option<Self> {
                 if self.first >= self.last {
                     return None;
                 }
@@ -44,15 +44,15 @@ macro_rules! table {
             }
         }
         impl<'a> Table<'a> for $camel<'a> {
-            fn range(db: &'a Database, first: u32, last: u32) -> $camel<'a> {
+            fn range(db: &'a Database, first: u32, last: u32) -> Self {
                 $camel { db, first, last }
             }
-            fn rest(db: &'a Database, first: u32) -> $camel<'a> {
+            fn rest(db: &'a Database, first: u32) -> Self {
                 $camel { db, first, last: db.$snake.rows() }
             }
         }
         impl<'a> $camel<'a> {
-            pub(crate) fn new(db: &'a Database, index: u32) -> $camel<'a> {
+            pub(crate) fn new(db: &'a Database, index: u32) -> Self {
                 $camel { db, first: index, last: index + 1 }
             }
             pub(crate) fn index(&self) -> u32 {
