@@ -24,6 +24,9 @@ pub(crate) trait Table<'a> {
     fn rest(db: &'a Database, first: u32) -> Self;
 }
 
+// TODO: remove all this iterator goo - its not something we want to expose directly
+// rather consumers should just use the Reader class.
+
 macro_rules! table {
     ($snake:ident, $camel:ident) => {
         #[derive(Copy, Clone)]

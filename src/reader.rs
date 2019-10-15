@@ -2,21 +2,57 @@ use crate::database::*;
 use crate::tables::*;
 use std::io::Result;
 
+pub struct TypeIterator<'a> {
+    reader: &'a Reader,
+    iter: std::slice::Iter<'a, (u32, u32)>,
+}
+
+impl<'a> Iterator for TypeIterator<'a> {
+    type Item = TypeDef<'a>;
+    fn next(&mut self) -> Option<TypeDef<'a>> {
+        match self.iter.next() {
+            None => None,
+            Some(value) => Some(TypeDef::new(&self.reader.databases[value.0 as usize], value.1)),
+        }
+    }
+}
+
 #[derive(Default)]
-pub struct Types {
+struct TypeIndex {
     index: std::collections::BTreeMap<String, (u32, u32)>,
     interfaces: std::vec::Vec<(u32, u32)>,
     classes: std::vec::Vec<(u32, u32)>,
     enums: std::vec::Vec<(u32, u32)>,
     structs: std::vec::Vec<(u32, u32)>,
     delegates: std::vec::Vec<(u32, u32)>,
-    attributes: std::vec::Vec<(u32, u32)>,
-    contracts: std::vec::Vec<(u32, u32)>,
+}
+
+pub struct Types<'a> {
+    reader: &'a Reader,
+    types: &'a TypeIndex,
+}
+
+impl<'a> Types<'a> {
+    pub fn interfaces(&self) -> TypeIterator {
+        TypeIterator { reader: self.reader, iter: self.types.interfaces.iter() }
+    }
+    pub fn classes(&self) -> TypeIterator {
+        TypeIterator { reader: self.reader, iter: self.types.classes.iter() }
+    }
+    pub fn enums(&self) -> TypeIterator {
+        TypeIterator { reader: self.reader, iter: self.types.enums.iter() }
+    }
+    pub fn structs(&self) -> TypeIterator {
+        TypeIterator { reader: self.reader, iter: self.types.structs.iter() }
+    }
+    pub fn delegates(&self) -> TypeIterator {
+        TypeIterator { reader: self.reader, iter: self.types.delegates.iter() }
+    }
 }
 
 pub struct Reader {
     databases: std::vec::Vec<Database>,
-    namespaces: std::collections::BTreeMap<String, Types>,
+    namespaces: std::collections::BTreeMap<String, TypeIndex>,
 }
 
 impl<'a> Reader {
@@ -35,31 +71,31 @@ impl<'a> Reader {
                     continue;
                 }
 
-                let types = namespaces.entry(t.namespace()?.to_string()).or_insert_with(|| Types { ..Default::default() });
+                let types = namespaces.entry(t.namespace()?.to_string()).or_insert_with(|| TypeIndex { ..Default::default() });
                 types.index.entry(t.name()?.to_string()).or_insert((databases.len() as u32, t.index()));
             }
 
             databases.push(db);
+        }
 
-            for (_, types) in &mut namespaces {
-                for (_, index) in &types.index {
-                    let t = TypeDef::new(&databases[index.0 as usize], index.1);
+        for (_, types) in &mut namespaces {
+            for (_, index) in &types.index {
+                let t = TypeDef::new(&databases[index.0 as usize], index.1);
 
-                    if t.flags()?.interface() {
-                        types.interfaces.push(*index);
-                        continue;
-                    }
-                    match t.extends()?.name()? {
-                        "Enum" => types.enums.push(*index),
-                        "MulticastDelegate" => types.delegates.push(*index),
-                        "Attribute" => {}
-                        "ValueType" => {
-                            if !t.has_attribute("Windows.Foundation.Metadata", "ApiContractAttribute")? {
-                                types.structs.push(*index);
-                            }
+                if t.flags()?.interface() {
+                    types.interfaces.push(*index);
+                    continue;
+                }
+                match t.extends()?.name()? {
+                    "Enum" => types.enums.push(*index),
+                    "MulticastDelegate" => types.delegates.push(*index),
+                    "Attribute" => {}
+                    "ValueType" => {
+                        if !t.has_attribute("Windows.Foundation.Metadata", "ApiContractAttribute")? {
+                            types.structs.push(*index);
                         }
-                        _ => types.classes.push(*index),
                     }
+                    _ => types.classes.push(*index),
                 }
             }
         }
@@ -86,12 +122,14 @@ impl<'a> Reader {
         Self::from_dir(path)
     }
     pub fn namespaces(&self) -> std::vec::Vec<String> {
-       self.namespaces.keys().cloned().collect()
+        self.namespaces.keys().cloned().collect()
     }
-    pub fn types(&self, namespace: &str) -> Option<&Types>{
-        self.namespaces.get(namespace)
+    pub fn types(&self, namespace: &str) -> Option<Types> {
+        match self.namespaces.get(namespace) {
+            None => None,
+            Some(value) => Some(Types { reader: self, types: value }),
+        }
     }
-
 
     // TODO: from_sdk
     // namespaces (iterator)
