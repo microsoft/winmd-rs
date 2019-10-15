@@ -2,11 +2,23 @@ use crate::database::*;
 use crate::tables::*;
 use std::io::Result;
 
+pub struct NamespaceIterator<'a> {
+    iter: std::collections::btree_map::Keys<'a, String, TypeIndex>,
+}
+impl<'a> Iterator for NamespaceIterator<'a> {
+    type Item = &'a str;
+    fn next(&mut self) -> Option<&'a str> {
+        match self.iter.next() {
+            None => None,
+            Some(value) => Some(value),
+        }
+    }
+}
+
 pub struct TypeIterator<'a> {
     reader: &'a Reader,
     iter: std::slice::Iter<'a, (u32, u32)>,
 }
-
 impl<'a> Iterator for TypeIterator<'a> {
     type Item = TypeDef<'a>;
     fn next(&mut self) -> Option<TypeDef<'a>> {
@@ -31,7 +43,6 @@ pub struct Types<'a> {
     reader: &'a Reader,
     types: &'a TypeIndex,
 }
-
 impl<'a> Types<'a> {
     pub fn interfaces(&self) -> TypeIterator {
         TypeIterator { reader: self.reader, iter: self.types.interfaces.iter() }
@@ -54,34 +65,26 @@ pub struct Reader {
     databases: std::vec::Vec<Database>,
     namespaces: std::collections::BTreeMap<String, TypeIndex>,
 }
-
 impl<'a> Reader {
     // TODO: Can't this be an iterator to avoid creating the collection in from_dir()?
     pub fn from_files<P: AsRef<std::path::Path>>(filenames: &[P]) -> Result<Self> {
         let mut databases = std::vec::Vec::new();
         databases.reserve(filenames.len());
-
         let mut namespaces = std::collections::BTreeMap::new();
-
         for filename in filenames {
             let db = Database::new(filename)?;
-
             for t in db.type_def() {
                 if !t.flags()?.windows_runtime() {
                     continue;
                 }
-
                 let types = namespaces.entry(t.namespace()?.to_string()).or_insert_with(|| TypeIndex { ..Default::default() });
                 types.index.entry(t.name()?.to_string()).or_insert((databases.len() as u32, t.index()));
             }
-
             databases.push(db);
         }
-
         for (_, types) in &mut namespaces {
             for (_, index) in &types.index {
                 let t = TypeDef::new(&databases[index.0 as usize], index.1);
-
                 if t.flags()?.interface() {
                     types.interfaces.push(*index);
                     continue;
@@ -99,7 +102,6 @@ impl<'a> Reader {
                 }
             }
         }
-
         Ok(Self { databases, namespaces })
     }
     pub fn from_dir<P: AsRef<std::path::Path>>(directory: P) -> Result<Self> {
@@ -111,7 +113,7 @@ impl<'a> Reader {
             .collect();
         Self::from_files(&files)
     }
-    pub fn from_local() -> Result<Self> {
+    pub fn from_os() -> Result<Self> {
         let mut path = std::path::PathBuf::new();
         path.push(match std::env::var("windir") {
             Ok(value) => value,
@@ -121,8 +123,8 @@ impl<'a> Reader {
         path.push("winmetadata");
         Self::from_dir(path)
     }
-    pub fn namespaces(&self) -> std::vec::Vec<String> {
-        self.namespaces.keys().cloned().collect()
+    pub fn namespaces(&self) -> NamespaceIterator {
+        NamespaceIterator { iter: self.namespaces.keys() }
     }
     pub fn types(&self, namespace: &str) -> Option<Types> {
         match self.namespaces.get(namespace) {
@@ -130,10 +132,7 @@ impl<'a> Reader {
             Some(value) => Some(Types { reader: self, types: value }),
         }
     }
-
     // TODO: from_sdk
-    // namespaces (iterator)
-    // types (namespace)
     pub fn find(&self, namespace: &str, name: &str) -> Option<TypeDef> {
         match self.namespaces.get(namespace) {
             Some(types) => match types.index.get(name) {

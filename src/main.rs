@@ -16,15 +16,15 @@ fn main() {
 }
 
 fn run() -> std::io::Result<()> {
-    let reader = Reader::from_local()?;
+    let reader = Reader::from_os()?;
     if let Some(t) = reader.find("Windows.Foundation", "IStringable") {
         println!(" {}.{}", t.namespace()?, t.name()?);
     }
-    for name in &reader.namespaces() {
-        if name != "Windows.Foundation.Collections" {
+    for name in reader.namespaces() {
+        if name != "Windows.Foundation.Collections" && name != "Windows.Foundation" {
             continue;
         }
-        println!("\n\nnamespace {}", name);
+        println!("\nnamespace {}", name);
         if let Some(types) = reader.types(name) {
             for t in types.interfaces() {
                 println!("    interface {}", t.name()?);
