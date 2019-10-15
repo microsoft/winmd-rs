@@ -28,6 +28,10 @@ fn run() -> std::io::Result<()> {
         if let Some(types) = reader.types(name) {
             for t in types.interfaces() {
                 println!("    interface {}", t.name()?);
+                for m in t.methods()
+                {
+                    println!("        {}", m.name()?);
+                }
             }
             for t in types.classes() {
                 println!("    class {}", t.name()?);

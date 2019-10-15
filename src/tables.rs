@@ -6,17 +6,6 @@ use crate::database::*;
 use crate::flags::*;
 use std::io::Result;
 
-#[derive(PartialEq)]
-pub enum Category {
-    Interface,
-    Class,
-    Enum,
-    Struct,
-    Delegate,
-    Attribute,
-    Contract,
-}
-
 // TOOD: should just be the table trait
 pub(crate) trait Table<'a> {
     // TODO: maybe use Rust's range parameter syntax here to combine these into one function
@@ -118,22 +107,6 @@ impl<'a> TypeDef<'a> {
         let parent = HasCustomAttribute::TypeDef(*self);
         let (first, last) = self.db.equal_range(&self.db.custom_attribute, 0, self.db.custom_attribute.rows(), 0, parent.encode())?;
         Ok(CustomAttribute::range(self.db, first, last))
-    }
-
-    pub fn category(&self) -> Result<Category> {
-        if self.flags()?.interface() {
-            return Ok(Category::Interface);
-        }
-        match self.extends()?.name()? {
-            "Enum" => Ok(Category::Enum),
-            "ValueType" => {
-                // TODO: check when it has ApiContractAttribute and then return Category::Contract
-                Ok(Category::Struct)
-            }
-            "MulticastDelegate" => Ok(Category::Delegate),
-            "Attribute" => Ok(Category::Attribute),
-            _ => Ok(Category::Class),
-        }
     }
     pub fn has_attribute(&self, namespace: &str, name: &str) -> Result<bool> {
         for attribute in self.attributes()? {
