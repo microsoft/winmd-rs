@@ -7,7 +7,7 @@ use crate::flags::*;
 use std::io::Result;
 
 // TOOD: should just be the table trait
-pub(crate) trait Table<'a> {
+pub(crate) trait TableTemp<'a> {
     // TODO: maybe use Rust's range parameter syntax here to combine these into one function
     fn range(db: &'a Database, first: u32, last: u32) -> Self;
     fn rest(db: &'a Database, first: u32) -> Self;
@@ -35,7 +35,7 @@ macro_rules! table {
                 result
             }
         }
-        impl<'a> Table<'a> for $camel<'a> {
+        impl<'a> TableTemp<'a> for $camel<'a> {
             fn range(db: &'a Database, first: u32, last: u32) -> Self {
                 $camel { db, first, last }
             }
@@ -59,7 +59,7 @@ macro_rules! table {
             fn str(&self, column: u32) -> Result<&'a str> {
                 self.db.str(&self.db.$snake, self.first, column)
             }
-            fn list<T: Table<'a>>(&self, column: u32) -> Result<T> {
+            fn list<T: TableTemp<'a>>(&self, column: u32) -> Result<T> {
                 let first = self.u32(column)? - 1;
 
                 if self.first + 1 < self.db.$snake.rows() {
@@ -85,8 +85,8 @@ impl<'a> TypeRef<'a> {
 table!(generic_param_constraint, GenericParamConstraint);
 table!(type_spec, TypeSpec);
 
-table!(type_def, TypeDef);
-impl<'a> TypeDef<'a> {
+table!(type_def, TypeDef2);
+impl<'a> TypeDef2<'a> {
     pub fn flags(&self) -> Result<TypeAttributes> {
         Ok(TypeAttributes(self.u32(0)?))
     }
@@ -104,7 +104,7 @@ impl<'a> TypeDef<'a> {
     }
 
     pub fn attributes(&self) -> Result<CustomAttribute<'a>> {
-        let parent = HasCustomAttribute::TypeDef(*self);
+        let parent = HasCustomAttribute::TypeDef2(*self);
         let (first, last) = self.db.equal_range(&self.db.custom_attribute, 0, self.db.custom_attribute.rows(), 0, parent.encode())?;
         Ok(CustomAttribute::range(self.db, first, last))
     }
@@ -135,7 +135,7 @@ impl<'a> CustomAttribute<'a> {
                 name == parent.name()? && namespace == parent.namespace()?
             }
             CustomAttributeType::MemberRef(row) => match row.class()? {
-                MemberRefParent::TypeDef(row) => name == row.name()? && namespace == row.namespace()?,
+                MemberRefParent::TypeDef2(row) => name == row.name()? && namespace == row.namespace()?,
                 MemberRefParent::TypeRef(row) => name == row.name()? && namespace == row.namespace()?,
                 _ => false,
             },
@@ -148,10 +148,10 @@ impl<'a> MethodDef<'a> {
     pub fn name(&self) -> Result<&'a str> {
         self.str(3)
     }
-    pub fn parent(&self) -> Result<TypeDef> {
+    pub fn parent(&self) -> Result<TypeDef2> {
         let last = self.db.type_def.rows();
         let first = self.db.upper_bound(&self.db.type_def, 0, last, 6, self.first)?;
-        Ok(TypeDef::range(self.db, first, last))
+        Ok(TypeDef2::range(self.db, first, last))
     }
 }
 

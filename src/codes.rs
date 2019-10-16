@@ -12,7 +12,7 @@ fn encode(bits: u32, enumerator: u32, index: u32) -> u32 {
 }
 
 pub enum TypeDefOrRef<'a> {
-    TypeDef(TypeDef<'a>),
+    TypeDef2(TypeDef2<'a>),
     TypeRef(TypeRef<'a>),
     TypeSpec(TypeSpec<'a>),
 }
@@ -20,7 +20,7 @@ impl<'a> TypeDefOrRef<'a> {
     pub(crate) fn decode(db: &'a Database, code: u32) -> Self {
         let code = decode(2, code);
         match code.0 {
-            0 => Self::TypeDef(TypeDef::new(db, code.1)),
+            0 => Self::TypeDef2(TypeDef2::new(db, code.1)),
             1 => Self::TypeRef(TypeRef::new(db, code.1)),
             2 => Self::TypeSpec(TypeSpec::new(db, code.1)),
             _ => panic!("Invalid TypeDefOrRef code"),
@@ -28,21 +28,21 @@ impl<'a> TypeDefOrRef<'a> {
     }
     pub fn encode(&self) -> u32 {
         match self {
-            Self::TypeDef(row) => encode(2, 0, row.first),
+            Self::TypeDef2(row) => encode(2, 0, row.first),
             Self::TypeRef(row) => encode(2, 1, row.first),
             Self::TypeSpec(row) => encode(2, 2, row.first),
         }
     }
     pub fn name(&self) -> Result<&'a str> {
         match self {
-            Self::TypeDef(row) => row.name(),
+            Self::TypeDef2(row) => row.name(),
             Self::TypeRef(row) => row.name(),
             Self::TypeSpec(_) => panic!("Cannot call name() function on a TypeSpec"),
         }
     }
     pub fn namespace(&self) -> Result<&'a str> {
         match self {
-            Self::TypeDef(row) => row.namespace(),
+            Self::TypeDef2(row) => row.namespace(),
             Self::TypeRef(row) => row.namespace(),
             Self::TypeSpec(_) => panic!("Cannot call namespace() function on a TypeSpec"),
         }
@@ -53,7 +53,7 @@ pub enum HasCustomAttribute<'a> {
     MethodDef(MethodDef<'a>),
     Field(Field<'a>),
     TypeRef(TypeRef<'a>),
-    TypeDef(TypeDef<'a>),
+    TypeDef2(TypeDef2<'a>),
     Param(Param<'a>),
     InterfaceImpl(InterfaceImpl<'a>),
     MemberRef(MemberRef<'a>),
@@ -80,7 +80,7 @@ impl<'a> HasCustomAttribute<'a> {
             0 => Self::MethodDef(MethodDef::new(db, code.1)),
             1 => Self::Field(Field::new(db, code.1)),
             2 => Self::TypeRef(TypeRef::new(db, code.1)),
-            3 => Self::TypeDef(TypeDef::new(db, code.1)),
+            3 => Self::TypeDef2(TypeDef2::new(db, code.1)),
             4 => Self::Param(Param::new(db, code.1)),
             5 => Self::InterfaceImpl(InterfaceImpl::new(db, code.1)),
             6 => Self::MemberRef(MemberRef::new(db, code.1)),
@@ -107,7 +107,7 @@ impl<'a> HasCustomAttribute<'a> {
             Self::MethodDef(row) => encode(5, 0, row.first),
             Self::Field(row) => encode(5, 1, row.first),
             Self::TypeRef(row) => encode(5, 2, row.first),
-            Self::TypeDef(row) => encode(5, 3, row.first),
+            Self::TypeDef2(row) => encode(5, 3, row.first),
             Self::Param(row) => encode(5, 4, row.first),
             Self::InterfaceImpl(row) => encode(5, 5, row.first),
             Self::MemberRef(row) => encode(5, 6, row.first),
@@ -133,7 +133,7 @@ impl<'a> HasCustomAttribute<'a> {
             Self::MethodDef(row) => row.db,
             Self::Field(row) => row.db,
             Self::TypeRef(row) => row.db,
-            Self::TypeDef(row) => row.db,
+            Self::TypeDef2(row) => row.db,
             Self::Param(row) => row.db,
             Self::InterfaceImpl(row) => row.db,
             Self::MemberRef(row) => row.db,
@@ -172,7 +172,7 @@ impl<'a> CustomAttributeType<'a> {
 }
 
 pub enum MemberRefParent<'a> {
-    TypeDef(TypeDef<'a>),
+    TypeDef2(TypeDef2<'a>),
     TypeRef(TypeRef<'a>),
     ModuleRef(ModuleRef<'a>),
     MethodDef(MethodDef<'a>),
@@ -182,7 +182,7 @@ impl<'a> MemberRefParent<'a> {
     pub(crate) fn decode(db: &'a Database, code: u32) -> Self {
         let code = decode(3, code);
         match code.0 {
-            0 => Self::TypeDef(TypeDef::new(db, code.1)),
+            0 => Self::TypeDef2(TypeDef2::new(db, code.1)),
             1 => Self::TypeRef(TypeRef::new(db, code.1)),
             2 => Self::ModuleRef(ModuleRef::new(db, code.1)),
             3 => Self::MethodDef(MethodDef::new(db, code.1)),

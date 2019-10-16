@@ -3,11 +3,11 @@ use crate::tables::*;
 use std::io::Result;
 
 pub struct NamespaceIterator<'a> {
-    iter: std::collections::btree_map::Keys<'a, String, TypeIndex>,
+    iter: std::collections::btree_map::Keys<'a, String, NamespaceData>,
 }
 impl<'a> Iterator for NamespaceIterator<'a> {
     type Item = &'a str;
-    fn next(&mut self) -> Option<&'a str> {
+    fn next(&mut self) -> Option<Self::Item> {
         match self.iter.next() {
             None => None,
             Some(value) => Some(value),
@@ -20,17 +20,17 @@ pub struct TypeIterator<'a> {
     iter: std::slice::Iter<'a, (u32, u32)>,
 }
 impl<'a> Iterator for TypeIterator<'a> {
-    type Item = TypeDef<'a>;
-    fn next(&mut self) -> Option<TypeDef<'a>> {
+    type Item = TypeDef2<'a>;
+    fn next(&mut self) -> Option<TypeDef2<'a>> {
         match self.iter.next() {
             None => None,
-            Some(&(db,index)) => Some(TypeDef::new(&self.reader.databases[db as usize], index)),
+            Some(&(db, index)) => Some(TypeDef2::new(&self.reader.databases[db as usize], index)),
         }
     }
 }
 
 #[derive(Default)]
-struct TypeIndex {
+struct NamespaceData {
     index: std::collections::BTreeMap<String, (u32, u32)>,
     interfaces: std::vec::Vec<(u32, u32)>,
     classes: std::vec::Vec<(u32, u32)>,
@@ -39,11 +39,12 @@ struct TypeIndex {
     delegates: std::vec::Vec<(u32, u32)>,
 }
 
-pub struct Types<'a> {
+pub struct Namespace<'a> {
+    // add name
     reader: &'a Reader,
-    types: &'a TypeIndex,
+    types: &'a NamespaceData,
 }
-impl<'a> Types<'a> {
+impl<'a> Namespace<'a> {
     pub fn interfaces(&self) -> TypeIterator {
         TypeIterator { reader: self.reader, iter: self.types.interfaces.iter() }
     }
@@ -63,7 +64,7 @@ impl<'a> Types<'a> {
 
 pub struct Reader {
     databases: std::vec::Vec<Database>,
-    namespaces: std::collections::BTreeMap<String, TypeIndex>,
+    namespaces: std::collections::BTreeMap<String, NamespaceData>,
 }
 impl<'a> Reader {
     // TODO: Can't this be an iterator to avoid creating the collection in from_dir()?
@@ -73,18 +74,18 @@ impl<'a> Reader {
         let mut namespaces = std::collections::BTreeMap::new();
         for filename in filenames {
             let db = Database::new(filename)?;
-            for t in db.type_def() {
+            for t in db.type_def2() {
                 if !t.flags()?.windows_runtime() {
                     continue;
                 }
-                let types = namespaces.entry(t.namespace()?.to_string()).or_insert_with(|| TypeIndex { ..Default::default() });
+                let types = namespaces.entry(t.namespace()?.to_string()).or_insert_with(|| NamespaceData { ..Default::default() });
                 types.index.entry(t.name()?.to_string()).or_insert((databases.len() as u32, t.index()));
             }
             databases.push(db);
         }
         for (_, types) in &mut namespaces {
             for (_, index) in &types.index {
-                let t = TypeDef::new(&databases[index.0 as usize], index.1);
+                let t = TypeDef2::new(&databases[index.0 as usize], index.1);
                 if t.flags()?.interface() {
                     types.interfaces.push(*index);
                     continue;
@@ -126,17 +127,17 @@ impl<'a> Reader {
     pub fn namespaces(&self) -> NamespaceIterator {
         NamespaceIterator { iter: self.namespaces.keys() }
     }
-    pub fn types(&self, namespace: &str) -> Option<Types> {
+    pub fn types(&self, namespace: &str) -> Option<Namespace> {
         match self.namespaces.get(namespace) {
             None => None,
-            Some(value) => Some(Types { reader: self, types: value }),
+            Some(value) => Some(Namespace { reader: self, types: value }),
         }
     }
     // TODO: from_sdk
-    pub fn find(&self, namespace: &str, name: &str) -> Option<TypeDef> {
+    pub fn find(&self, namespace: &str, name: &str) -> Option<TypeDef2> {
         match self.namespaces.get(namespace) {
             Some(types) => match types.index.get(name) {
-                Some(&(db, index)) => Some(TypeDef::new(&self.databases[db as usize], index)),
+                Some(&(db, index)) => Some(TypeDef2::new(&self.databases[db as usize], index)),
                 None => None,
             },
             None => None,

@@ -4,15 +4,173 @@ use crate::error::*;
 use crate::tables::*;
 use std::io::Result;
 
+pub trait FromRow<'a, T>
+{
+    fn new(row: Row<'a>) -> Self;
+}
+
+pub struct TypeDef<'a> {
+    pub(crate) row: Row<'a>,
+}
+// impl<'a> FromRow<TypeDef<'a>> for TypeDef<'a>{
+//     fn from_row<'b>(table: &'b Table,
+//     index: u32)->TypeDef<'b>{
+//         TypeDef::<'b>{row:Row::<'b>{table,index}}
+//     }
+// }
+impl<'a> FromRow<'a, TypeDef<'a>> for TypeDef<'a>
+{
+    fn new(row: Row<'a>) -> Self
+    {
+        Self{row}
+    }
+}
+impl<'a> TypeDef<'a> {
+    pub fn name(&self) -> Result<&str> {
+        self.row.str(1)
+    }
+    pub fn namespace(&self) -> Result<&str> {
+        self.row.str(2)
+    }
+}
+
+pub struct Row<'a> {
+    table: &'a Table<'a>,
+    index: u32,
+}
+impl<'a> Row<'a> {
+    pub fn str(&self, column: u32) -> Result<&str> {
+        self.table.str(self.index, column)
+    }
+    pub fn u32(&self, column: u32) -> Result<u32> {
+        self.table.u32(self.index, column)
+    }
+}
+
+pub struct RowIterator<'a> {
+    table: &'a Table<'a>,
+    first: u32,
+    last: u32,
+}
+impl<'a> Iterator for RowIterator<'a> {
+    type Item = Row<'a>;
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.first >= self.last {
+            return None;
+        }
+        self.first += 1;
+        Some(Row { table: self.table, index: self.first - 1 })
+    }
+}
+
+pub struct Table<'a> {
+    db: &'a Database,
+    data: &'a TableData,
+}
+impl<'a> Table<'a> {
+    pub fn iter(&self) -> RowIterator {
+        RowIterator { table: self, first: 0, last: self.data.row_count }
+    }
+    pub fn rows(&self, first:u32, last:u32) -> RowIterator {
+        RowIterator { table: self, first, last }
+    }
+    pub fn row(&self, index: u32) -> Row {
+        Row { table: self, index }
+    }
+    pub fn str(&self, row: u32, column: u32) -> Result<&str> {
+        let offset = (self.db.strings + self.u32(row, column)?) as usize;
+        match self.db.bytes[offset..].iter().position(|c| *c == b'\0') {
+            None => Err(unexpected_eof()),
+            Some(last) => match std::str::from_utf8(&self.db.bytes[offset..offset + last]) {
+                Ok(string) => Ok(string),
+                Err(_) => Err(invalid_data("Bytes not valid UTF-8")),
+            },
+        }
+    }
+    pub fn u32(&self, row: u32, column: u32) -> Result<u32> {
+        let offset = self.data.data + row * self.data.row_size + self.data.columns[column as usize].0;
+        match self.data.columns[column as usize].1 {
+            1 => Ok(*(self.db.bytes.view_as::<u8>(offset)?) as u32),
+            2 => Ok(*(self.db.bytes.view_as::<u16>(offset)?) as u32),
+            4 => Ok(*(self.db.bytes.view_as::<u32>(offset)?) as u32),
+            _ => Ok(*(self.db.bytes.view_as::<u64>(offset)?) as u32),
+        }
+    }
+    pub fn lower_bound(&self, column: u32, value: u32) -> Result<u32> {
+        self.lower_bound_of(0, self.data.row_count, column, value)
+    }
+    fn lower_bound_of(&self, mut first: u32, last: u32, column: u32, value: u32) -> Result<u32> {
+        let mut count = last - first;
+        while count > 0 {
+            let count2 = count / 2;
+            let middle = first + count2;
+            if self.u32(middle, column)? < value {
+                first = middle + 1;
+                count -= count2 + 1;
+            } else {
+                count = count2;
+            }
+        }
+        Ok(first)
+    }
+    pub fn upper_bound(&self, column: u32, value: u32) -> Result<u32> {
+        self.upper_bound_of(0, self.data.row_count, column, value)
+    }
+    fn upper_bound_of(&self, mut first: u32, last: u32, column: u32, value: u32) -> Result<u32> {
+        let mut count = last - first;
+        while count > 0 {
+            let count2 = count / 2;
+            let middle = first + count2;
+            if value < self.u32(middle, column)? {
+                count = count2
+            } else {
+                first = middle + 1;
+                count -= count2 + 1;
+            }
+        }
+        Ok(first)
+    }
+    pub fn equal_range(&self, column: u32, value: u32) -> Result<(u32, u32)> {
+        self.equal_range_of(0, self.data.row_count, column, value)
+    }
+    fn equal_range_of(&self, mut first: u32, mut last: u32, column: u32, value: u32) -> Result<(u32, u32)> {
+        let mut count = last - first;
+        loop {
+            if count <= 0 {
+                break;
+            }
+            let count2 = count / 2;
+            let middle = first + count2;
+            let middle_value = self.u32(middle, column)?;
+            if middle_value < value {
+                first = middle + 1;
+                count -= count2 + 1;
+            } else if value < middle_value {
+                count = count2;
+            } else {
+                let first2 = self.lower_bound_of(first, middle, column, value)?;
+                first += count;
+                last = self.upper_bound_of(middle + 1, first, column, value)?;
+                first = first2;
+                break;
+            }
+        }
+        Ok((first, last))
+    }
+}
+
 #[derive(Default)]
-pub struct TableInfo {
+pub struct TableData {
     data: u32,
     row_count: u32,
     row_size: u32,
     columns: [(u32, u32); 6],
 }
 
-impl TableInfo {
+impl TableData {
+    pub fn table<'a>(&'a self, db: &'a Database) -> Table<'a> {
+        Table { db, data: self }
+    }
     pub fn rows(&self) -> u32 {
         self.row_count
     }
@@ -52,50 +210,50 @@ impl TableInfo {
 }
 
 #[derive(Default)]
-pub(crate) struct Database {
+pub struct Database {
     bytes: std::vec::Vec<u8>,
     strings: u32,
     blobs: u32,
     guids: u32,
 
-    pub(crate) type_ref: TableInfo,
-    pub(crate) generic_param_constraint: TableInfo,
-    pub(crate) type_spec: TableInfo,
-    pub(crate) type_def: TableInfo,
-    pub(crate) custom_attribute: TableInfo,
-    pub(crate) method_def: TableInfo,
-    pub(crate) member_ref: TableInfo,
-    pub(crate) module: TableInfo,
-    pub(crate) param: TableInfo,
-    pub(crate) interface_impl: TableInfo,
-    pub(crate) constant: TableInfo,
-    pub(crate) field: TableInfo,
-    pub(crate) field_marshal: TableInfo,
-    pub(crate) decl_security: TableInfo,
-    pub(crate) class_layout: TableInfo,
-    pub(crate) field_layout: TableInfo,
-    pub(crate) standalone_sig: TableInfo,
-    pub(crate) event_map: TableInfo,
-    pub(crate) event: TableInfo,
-    pub(crate) property_map: TableInfo,
-    pub(crate) property: TableInfo,
-    pub(crate) method_semantics: TableInfo,
-    pub(crate) method_impl: TableInfo,
-    pub(crate) module_ref: TableInfo,
-    pub(crate) impl_map: TableInfo,
-    pub(crate) field_rva: TableInfo,
-    pub(crate) assembly: TableInfo,
-    pub(crate) assembly_processor: TableInfo,
-    pub(crate) assembly_os: TableInfo,
-    pub(crate) assembly_ref: TableInfo,
-    pub(crate) assembly_ref_processor: TableInfo,
-    pub(crate) assembly_ref_os: TableInfo,
-    pub(crate) file: TableInfo,
-    pub(crate) exported_type: TableInfo,
-    pub(crate) manifest_resource: TableInfo,
-    pub(crate) nested_class: TableInfo,
-    pub(crate) generic_param: TableInfo,
-    pub(crate) method_spec: TableInfo,
+    pub type_ref: TableData,
+    pub generic_param_constraint: TableData,
+    pub type_spec: TableData,
+    pub type_def: TableData,
+    pub custom_attribute: TableData,
+    pub method_def: TableData,
+    pub member_ref: TableData,
+    pub module: TableData,
+    pub param: TableData,
+    pub interface_impl: TableData,
+    pub constant: TableData,
+    pub field: TableData,
+    pub field_marshal: TableData,
+    pub decl_security: TableData,
+    pub class_layout: TableData,
+    pub field_layout: TableData,
+    pub standalone_sig: TableData,
+    pub event_map: TableData,
+    pub event: TableData,
+    pub property_map: TableData,
+    pub property: TableData,
+    pub method_semantics: TableData,
+    pub method_impl: TableData,
+    pub module_ref: TableData,
+    pub impl_map: TableData,
+    pub field_rva: TableData,
+    pub assembly: TableData,
+    pub assembly_processor: TableData,
+    pub assembly_os: TableData,
+    pub assembly_ref: TableData,
+    pub assembly_ref_processor: TableData,
+    pub assembly_ref_os: TableData,
+    pub file: TableData,
+    pub exported_type: TableData,
+    pub manifest_resource: TableData,
+    pub nested_class: TableData,
+    pub generic_param: TableData,
+    pub method_spec: TableData,
 }
 impl Database {
     pub fn new<P: AsRef<std::path::Path>>(filename: P) -> Result<Self> {
@@ -201,7 +359,7 @@ impl Database {
                 _ => return Err(invalid_data("Unknown metadata table")),
             };
         }
-        let empty_table = TableInfo::default();
+        let empty_table = TableData::default();
         let has_constant = composite_index_size(&[&db.field, &db.param, &db.property]);
         let type_def_or_ref = composite_index_size(&[&db.type_def, &db.type_ref, &db.type_spec]);
         let has_custom_attribute = composite_index_size(&[&db.method_def, &db.field, &db.type_ref, &db.type_def, &db.param, &db.interface_impl, &db.member_ref, &db.module, &db.property, &db.event, &db.standalone_sig, &db.module_ref, &db.type_spec, &db.assembly, &db.assembly_ref, &db.file, &db.exported_type, &db.manifest_resource, &db.generic_param, &db.generic_param_constraint, &db.method_spec]);
@@ -296,7 +454,7 @@ impl Database {
 
         Ok(db)
     }
-    pub(crate) fn str(&self, table: &TableInfo, row: u32, column: u32) -> Result<&str> {
+    pub fn str(&self, table: &TableData, row: u32, column: u32) -> Result<&str> {
         let offset = (self.strings + self.u32(table, row, column)?) as usize;
         match self.bytes[offset..].iter().position(|c| *c == b'\0') {
             None => Err(unexpected_eof()),
@@ -306,7 +464,7 @@ impl Database {
             },
         }
     }
-    pub(crate) fn u32(&self, table: &TableInfo, row: u32, column: u32) -> Result<u32> {
+    pub fn u32(&self, table: &TableData, row: u32, column: u32) -> Result<u32> {
         let offset = table.data + row * table.row_size + table.columns[column as usize].0;
         match table.columns[column as usize].1 {
             1 => Ok(*(self.bytes.view_as::<u8>(offset)?) as u32),
@@ -315,7 +473,7 @@ impl Database {
             _ => Ok(*(self.bytes.view_as::<u64>(offset)?) as u32),
         }
     }
-    pub(crate) fn lower_bound(&self, table: &TableInfo, mut first: u32, last: u32, column: u32, value: u32) -> Result<u32> {
+    pub fn lower_bound(&self, table: &TableData, mut first: u32, last: u32, column: u32, value: u32) -> Result<u32> {
         let mut count = last - first;
         while count > 0 {
             let count2 = count / 2;
@@ -329,7 +487,7 @@ impl Database {
         }
         Ok(first)
     }
-    pub(crate) fn upper_bound(&self, table: &TableInfo, mut first: u32, last: u32, column: u32, value: u32) -> Result<u32> {
+    pub fn upper_bound(&self, table: &TableData, mut first: u32, last: u32, column: u32, value: u32) -> Result<u32> {
         let mut count = last - first;
         while count > 0 {
             let count2 = count / 2;
@@ -343,7 +501,7 @@ impl Database {
         }
         Ok(first)
     }
-    pub(crate) fn equal_range(&self, table: &TableInfo, mut first: u32, mut last: u32, column: u32, value: u32) -> Result<(u32, u32)> {
+    pub fn equal_range(&self, table: &TableData, mut first: u32, mut last: u32, column: u32, value: u32) -> Result<(u32, u32)> {
         let mut count = last - first;
         loop {
             if count <= 0 {
@@ -367,11 +525,11 @@ impl Database {
         }
         Ok((first, last))
     }
-    pub fn type_def(&self) -> TypeDef {
-        TypeDef::rest(self, 0)
+    pub fn type_def2(&self) -> TypeDef2 {
+        TypeDef2::rest(self, 0)
     }
-    pub fn type_ref(&self) -> TypeRef {
-        TypeRef::rest(self, 0)
+    pub fn type_def(&self) -> Table {
+        self.type_def.table(self)
     }
 }
 
@@ -391,7 +549,7 @@ fn sizeof<T>() -> u32 {
     std::mem::size_of::<T>() as u32
 }
 
-fn composite_index_size(tables: &[&TableInfo]) -> u32 {
+fn composite_index_size(tables: &[&TableData]) -> u32 {
     fn small(row_count: u32, bits: u8) -> bool {
         (row_count as u64) < (1u64 << (16 - bits))
     }
