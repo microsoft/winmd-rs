@@ -24,7 +24,7 @@ impl<'a> Iterator for TypeIterator<'a> {
     fn next(&mut self) -> Option<TypeDef<'a>> {
         match self.iter.next() {
             None => None,
-            Some((db,index)) => Some(TypeDef::new(&self.reader.databases[*db as usize], *index)),
+            Some(&(db,index)) => Some(TypeDef::new(&self.reader.databases[db as usize], index)),
         }
     }
 }
@@ -136,7 +136,7 @@ impl<'a> Reader {
     pub fn find(&self, namespace: &str, name: &str) -> Option<TypeDef> {
         match self.namespaces.get(namespace) {
             Some(types) => match types.index.get(name) {
-                Some((db, index)) => Some(TypeDef::new(&self.databases[*db as usize], *index)),
+                Some(&(db, index)) => Some(TypeDef::new(&self.databases[db as usize], index)),
                 None => None,
             },
             None => None,
