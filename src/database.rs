@@ -3,29 +3,20 @@
 use crate::error::*;
 use crate::tables::*;
 use std::io::Result;
+use crate::flags::*;
 
-pub trait FromRow<'a, T>
-{
-    fn new(row: Row<'a>) -> Self;
-}
-
-pub struct TypeDef<'a> {
+pub struct TypeRef<'a> {
     pub(crate) row: Row<'a>,
 }
-// impl<'a> FromRow<TypeDef<'a>> for TypeDef<'a>{
-//     fn from_row<'b>(table: &'b Table,
-//     index: u32)->TypeDef<'b>{
-//         TypeDef::<'b>{row:Row::<'b>{table,index}}
-//     }
-// }
-impl<'a> FromRow<'a, TypeDef<'a>> for TypeDef<'a>
-{
-    fn new(row: Row<'a>) -> Self
+impl<'a> TypeRef<'a> {
+    pub(crate) fn from_row(row: Row<'a>) -> Self
     {
         Self{row}
     }
-}
-impl<'a> TypeDef<'a> {
+    pub(crate) fn from_rows(iter: RowIterator<'a>) -> TypeRefIterator<'a>
+    {
+TypeRefIterator{iter}
+    }
     pub fn name(&self) -> Result<&str> {
         self.row.str(1)
     }
@@ -34,9 +25,79 @@ impl<'a> TypeDef<'a> {
     }
 }
 
+pub struct TypeRefIterator<'a> {
+    pub(crate) iter: RowIterator<'a>,
+}
+impl<'a> Iterator for TypeRefIterator<'a> {
+    type Item = TypeRef<'a>;
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.iter.next() {
+            None => None,
+            Some(row) => Some(Self::Item{row}),
+        }
+    }
+}
+
+pub struct TypeDef<'a> {
+    pub(crate) row: Row<'a>,
+}
+impl<'a> TypeDef<'a> {
+    pub(crate) fn from_row(row: Row<'a>) -> Self
+    {
+        Self{row}
+    }
+    pub(crate) fn from_rows(iter: RowIterator<'a>) -> TypeDefIterator<'a>
+    {
+TypeDefIterator{iter}
+    }
+    pub fn flags(&self) -> Result<TypeAttributes> {
+        Ok(TypeAttributes(self.row.u32(0)?))
+    }
+
+    pub fn name(&self) -> Result<&str> {
+        self.row.str(1)
+    }
+    pub fn namespace(&self) -> Result<&str> {
+        self.row.str(2)
+    }
+    // pub fn extends(&self) -> Result<TypeDefOrRef> {
+    //     Ok(TypeDefOrRef::decode(&self.row.table.db, self.row.u32(3)?))
+    // }
+    // pub fn methods(&self) -> Result<MethodDef> {
+    //     self.list::<MethodDef>(5)
+    // }
+
+    // pub fn attributes(&self) -> Result<CustomAttribute<'a>> {
+    //     let parent = HasCustomAttribute::TypeDef2(*self);
+    //     let (first, last) = self.db.equal_range(&self.db.custom_attribute, 0, self.db.custom_attribute.rows(), 0, parent.encode())?;
+    //     Ok(CustomAttribute::range(self.db, first, last))
+    // }
+    // pub fn has_attribute(&self, namespace: &str, name: &str) -> Result<bool> {
+    //     for attribute in self.attributes()? {
+    //         if attribute.has_name(namespace, name)? {
+    //             return Ok(true);
+    //         }
+    //     }
+    //     Ok(false)
+    // }
+
+}
+pub struct TypeDefIterator<'a> {
+    pub(crate) iter: RowIterator<'a>,
+}
+impl<'a> Iterator for TypeDefIterator<'a> {
+    type Item = TypeDef<'a>;
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.iter.next() {
+            None => None,
+            Some(row) => Some(Self::Item{row}),
+        }
+    }
+}
+
 pub struct Row<'a> {
-    table: &'a Table<'a>,
-    index: u32,
+    pub(crate)     table: &'a Table<'a>,
+    pub(crate) index: u32,
 }
 impl<'a> Row<'a> {
     pub fn str(&self, column: u32) -> Result<&str> {

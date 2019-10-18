@@ -23,9 +23,8 @@ fn run() -> std::io::Result<()> {
 
     let types = db.type_def();
 
-    for row in types.iter()
+    for t in TypeDef::from_rows(types.iter())
     {
-        let t = TypeDef::new(row);
         println!("{}.{}", t.namespace()?, t.name()?);
 
     }

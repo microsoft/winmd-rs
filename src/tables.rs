@@ -72,8 +72,8 @@ macro_rules! table {
     };
 }
 
-table!(type_ref, TypeRef);
-impl<'a> TypeRef<'a> {
+table!(type_ref, TypeRef2);
+impl<'a> TypeRef2<'a> {
     pub fn name(&self) -> Result<&'a str> {
         self.str(1)
     }
