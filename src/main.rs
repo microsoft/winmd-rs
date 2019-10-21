@@ -3,7 +3,9 @@
 
 mod database;
 mod error;
+mod tables;
 use database::*;
+use tables::*;
 
 fn main() {
     if let Err(e) = run() {

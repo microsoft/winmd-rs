@@ -4,25 +4,25 @@ use crate::error::*;
 use std::io::Result;
 use std::marker::PhantomData;
 
-pub struct RowIterator<'a, R: Row<'a>> {
+pub struct RowIterator<'a, T: Row<'a>> {
     table: &'a Table<'a>,
     first: u32,
     last: u32,
-    phantom: PhantomData<R>,
+    phantom: PhantomData<T>,
 }
-impl<'a, R: Row<'a>> Iterator for RowIterator<'a, R> {
-    type Item = R;
-    fn next(&mut self) -> Option<Self::Item> {
+impl<'a, T: Row<'a>> Iterator for RowIterator<'a, T> {
+    type Item = T;
+    fn next(&mut self) -> Option<T> {
         if self.first >= self.last {
             return None;
         }
         self.first += 1;
-        Some(R::from_row(self.table, self.first - 1))
+        Some(T::new(self.table, self.first - 1))
     }
 }
 
 pub trait Row<'a> {
-    fn from_row(table: &'a Table<'a>, index: u32) -> Self;
+    fn new(table: &'a Table<'a>, index: u32) -> Self;
     fn from_rows(table: &'a Table<'a>, first: u32, last: u32) -> RowIterator<'a, Self>
     where
         Self: Sized,
@@ -31,7 +31,7 @@ pub trait Row<'a> {
     }
 }
 
-struct RowData<'a> {
+pub(crate) struct RowData<'a> {
     pub(crate) table: &'a Table<'a>,
     pub(crate) index: u32,
 }
@@ -42,23 +42,6 @@ impl<'a> RowData<'a> {
     }
     pub fn u32(&self, column: u32) -> Result<u32> {
         self.table.u32(self.index, column)
-    }
-}
-
-pub struct TypeDef<'a> {
-    data: RowData<'a>,
-}
-impl<'a> Row<'a> for TypeDef<'a> {
-    fn from_row(table: &'a Table<'a>, index: u32) -> Self {
-        Self { data: RowData { table, index } }
-    }
-}
-impl<'a> TypeDef<'a> {
-    pub fn name(&self) -> Result<&str> {
-        self.data.str(1)
-    }
-    pub fn namespace(&self) -> Result<&str> {
-        self.data.str(2)
     }
 }
 
@@ -74,8 +57,8 @@ impl<'a> Table<'a> {
     pub fn rows<T: Row<'a>>(&'a self, first: u32, last: u32) -> RowIterator<'a, T> {
         T::from_rows(self, first, last)
     }
-    pub fn row<R: Row<'a>>(&'a self, index: u32) -> R {
-        R::from_row(self, index)
+    pub fn row<T: Row<'a>>(&'a self, index: u32) -> T {
+        T::new(self, index)
     }
     pub fn str(&self, row: u32, column: u32) -> Result<&str> {
         let offset = (self.db.strings + self.u32(row, column)?) as usize;
