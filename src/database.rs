@@ -25,27 +25,19 @@ pub trait Row<'a> {
     fn from_row(table: &'a Table<'a>, index: u32) -> Self;
     fn from_rows(table: &'a Table<'a>, first: u32, last: u32) -> RowIterator<'a, Self>
     where
-        Self: Sized
-        {
-            RowIterator { table, first, last, phantom: PhantomData }
-        }
-}
-
-impl<'a> Row<'a> for TypeDef<'a> {
-    fn from_row(table: &'a Table<'a>, index: u32) -> Self {
-        Self { table, index }
+        Self: Sized,
+    {
+        RowIterator { table, first, last, phantom: PhantomData }
     }
-
 }
 
-struct RowData<'a>{
+struct RowData<'a> {
     pub(crate) table: &'a Table<'a>,
     pub(crate) index: u32,
 }
 
-impl<'a> RowData<'a>
-{
-        pub fn str(&self, column: u32) -> Result<&str> {
+impl<'a> RowData<'a> {
+    pub fn str(&self, column: u32) -> Result<&str> {
         self.table.str(self.index, column)
     }
     pub fn u32(&self, column: u32) -> Result<u32> {
@@ -54,21 +46,19 @@ impl<'a> RowData<'a>
 }
 
 pub struct TypeDef<'a> {
-    pub(crate) table: &'a Table<'a>,
-    pub(crate) index: u32,
+    data: RowData<'a>,
+}
+impl<'a> Row<'a> for TypeDef<'a> {
+    fn from_row(table: &'a Table<'a>, index: u32) -> Self {
+        Self { data: RowData { table, index } }
+    }
 }
 impl<'a> TypeDef<'a> {
-    pub fn str(&self, column: u32) -> Result<&str> {
-        self.table.str(self.index, column)
-    }
-    pub fn u32(&self, column: u32) -> Result<u32> {
-        self.table.u32(self.index, column)
-    }
     pub fn name(&self) -> Result<&str> {
-        self.str(1)
+        self.data.str(1)
     }
     pub fn namespace(&self) -> Result<&str> {
-        self.str(2)
+        self.data.str(2)
     }
 }
 
