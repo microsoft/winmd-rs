@@ -1,106 +1,51 @@
 #![allow(dead_code)]
 
 use crate::error::*;
-use crate::tables::*;
 use std::io::Result;
-use crate::flags::*;
+use std::marker::PhantomData;
 
-pub struct TypeRef<'a> {
-    pub(crate) row: Row<'a>,
+pub struct RowIterator<'a, R: Row<'a>> {
+    table: &'a Table<'a>,
+    first: u32,
+    last: u32,
+    phantom: PhantomData<R>,
 }
-impl<'a> TypeRef<'a> {
-    pub(crate) fn from_row(row: Row<'a>) -> Self
-    {
-        Self{row}
-    }
-    pub(crate) fn from_rows(iter: RowIterator<'a>) -> TypeRefIterator<'a>
-    {
-TypeRefIterator{iter}
-    }
-    pub fn name(&self) -> Result<&str> {
-        self.row.str(1)
-    }
-    pub fn namespace(&self) -> Result<&str> {
-        self.row.str(2)
-    }
-}
-
-pub struct TypeRefIterator<'a> {
-    pub(crate) iter: RowIterator<'a>,
-}
-impl<'a> Iterator for TypeRefIterator<'a> {
-    type Item = TypeRef<'a>;
+impl<'a, R: Row<'a>> Iterator for RowIterator<'a, R> {
+    type Item = R;
     fn next(&mut self) -> Option<Self::Item> {
-        match self.iter.next() {
-            None => None,
-            Some(row) => Some(Self::Item{row}),
+        if self.first >= self.last {
+            return None;
         }
+        self.first += 1;
+        Some(R::from_row(self.table, self.first - 1))
     }
 }
 
-pub struct TypeDef<'a> {
-    pub(crate) row: Row<'a>,
-}
-impl<'a> TypeDef<'a> {
-    pub(crate) fn from_row(row: Row<'a>) -> Self
-    {
-        Self{row}
-    }
-    pub(crate) fn from_rows(iter: RowIterator<'a>) -> TypeDefIterator<'a>
-    {
-TypeDefIterator{iter}
-    }
-    pub fn flags(&self) -> Result<TypeAttributes> {
-        Ok(TypeAttributes(self.row.u32(0)?))
-    }
-
-    pub fn name(&self) -> Result<&str> {
-        self.row.str(1)
-    }
-    pub fn namespace(&self) -> Result<&str> {
-        self.row.str(2)
-    }
-    // pub fn extends(&self) -> Result<TypeDefOrRef> {
-    //     Ok(TypeDefOrRef::decode(&self.row.table.db, self.row.u32(3)?))
-    // }
-    // pub fn methods(&self) -> Result<MethodDef> {
-    //     self.list::<MethodDef>(5)
-    // }
-
-    // pub fn attributes(&self) -> Result<CustomAttribute<'a>> {
-    //     let parent = HasCustomAttribute::TypeDef2(*self);
-    //     let (first, last) = self.db.equal_range(&self.db.custom_attribute, 0, self.db.custom_attribute.rows(), 0, parent.encode())?;
-    //     Ok(CustomAttribute::range(self.db, first, last))
-    // }
-    // pub fn has_attribute(&self, namespace: &str, name: &str) -> Result<bool> {
-    //     for attribute in self.attributes()? {
-    //         if attribute.has_name(namespace, name)? {
-    //             return Ok(true);
-    //         }
-    //     }
-    //     Ok(false)
-    // }
-
-}
-pub struct TypeDefIterator<'a> {
-    pub(crate) iter: RowIterator<'a>,
-}
-impl<'a> Iterator for TypeDefIterator<'a> {
-    type Item = TypeDef<'a>;
-    fn next(&mut self) -> Option<Self::Item> {
-        match self.iter.next() {
-            None => None,
-            Some(row) => Some(Self::Item{row}),
+pub trait Row<'a> {
+    fn from_row(table: &'a Table<'a>, index: u32) -> Self;
+    fn from_rows(table: &'a Table<'a>, first: u32, last: u32) -> RowIterator<'a, Self>
+    where
+        Self: Sized
+        {
+            RowIterator { table, first, last, phantom: PhantomData }
         }
-    }
 }
 
-pub struct Row<'a> {
-    pub(crate)     table: &'a Table<'a>,
+impl<'a> Row<'a> for TypeDef<'a> {
+    fn from_row(table: &'a Table<'a>, index: u32) -> Self {
+        Self { table, index }
+    }
+
+}
+
+struct RowData<'a>{
+    pub(crate) table: &'a Table<'a>,
     pub(crate) index: u32,
 }
-impl<'a> Row<'a> {
-    pub fn str(&self, column: u32) -> Result<&str> {
+
+impl<'a> RowData<'a>
+{
+        pub fn str(&self, column: u32) -> Result<&str> {
         self.table.str(self.index, column)
     }
     pub fn u32(&self, column: u32) -> Result<u32> {
@@ -108,19 +53,22 @@ impl<'a> Row<'a> {
     }
 }
 
-pub struct RowIterator<'a> {
-    table: &'a Table<'a>,
-    first: u32,
-    last: u32,
+pub struct TypeDef<'a> {
+    pub(crate) table: &'a Table<'a>,
+    pub(crate) index: u32,
 }
-impl<'a> Iterator for RowIterator<'a> {
-    type Item = Row<'a>;
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.first >= self.last {
-            return None;
-        }
-        self.first += 1;
-        Some(Row { table: self.table, index: self.first - 1 })
+impl<'a> TypeDef<'a> {
+    pub fn str(&self, column: u32) -> Result<&str> {
+        self.table.str(self.index, column)
+    }
+    pub fn u32(&self, column: u32) -> Result<u32> {
+        self.table.u32(self.index, column)
+    }
+    pub fn name(&self) -> Result<&str> {
+        self.str(1)
+    }
+    pub fn namespace(&self) -> Result<&str> {
+        self.str(2)
     }
 }
 
@@ -129,14 +77,15 @@ pub struct Table<'a> {
     data: &'a TableData,
 }
 impl<'a> Table<'a> {
-    pub fn iter(&self) -> RowIterator {
-        RowIterator { table: self, first: 0, last: self.data.row_count }
+    // TODO: make iter/rows/row work like slice.get
+    pub fn iter<T: Row<'a>>(&'a self) -> RowIterator<'a, T> {
+        T::from_rows(self, 0, self.data.row_count)
     }
-    pub fn rows(&self, first:u32, last:u32) -> RowIterator {
-        RowIterator { table: self, first, last }
+    pub fn rows<T: Row<'a>>(&'a self, first: u32, last: u32) -> RowIterator<'a, T> {
+        T::from_rows(self, first, last)
     }
-    pub fn row(&self, index: u32) -> Row {
-        Row { table: self, index }
+    pub fn row<R: Row<'a>>(&'a self, index: u32) -> R {
+        R::from_row(self, index)
     }
     pub fn str(&self, row: u32, column: u32) -> Result<&str> {
         let offset = (self.db.strings + self.u32(row, column)?) as usize;
@@ -585,9 +534,6 @@ impl Database {
             }
         }
         Ok((first, last))
-    }
-    pub fn type_def2(&self) -> TypeDef2 {
-        TypeDef2::rest(self, 0)
     }
     pub fn type_def(&self) -> Table {
         self.type_def.table(self)
