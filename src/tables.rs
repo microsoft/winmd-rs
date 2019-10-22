@@ -30,6 +30,9 @@ impl<'a> TypeDef<'a> {
     pub fn namespace(&self) -> Result<&str> {
         self.row.str(2)
     }
+    pub fn extends(&self) -> Result<TypeDefOrRef> {
+        Ok(TypeDefOrRef::decode(&self.row.table.db, self.row.u32(3)?))
+    }
     //     pub fn methods(&self) -> Result<MethodDef> {
     //         self.list::<MethodDef>(5)
     //     }
@@ -53,9 +56,6 @@ impl<'a> TypeRef<'a> {
     }
     pub fn namespace(&self) -> Result<&str> {
         self.row.str(2)
-    }
-    pub fn extends(&self) -> Result<TypeDefOrRef> {
-        Ok(TypeDefOrRef::decode(&self.row.table.db, self.row.u32(3)?))
     }
 }
 

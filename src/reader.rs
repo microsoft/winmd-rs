@@ -1,3 +1,6 @@
+#![allow(unused_variables)]
+#![allow(dead_code)]
+
 use crate::database::*;
 use crate::tables::*;
 use std::io::Result;
@@ -20,11 +23,11 @@ pub struct TypeIterator<'a> {
     iter: std::slice::Iter<'a, (u32, u32)>,
 }
 impl<'a> Iterator for TypeIterator<'a> {
-    type Item = TypeDef2<'a>;
-    fn next(&mut self) -> Option<TypeDef2<'a>> {
+    type Item = TypeDef<'a>;
+    fn next(&mut self) -> Option<TypeDef<'a>> {
         match self.iter.next() {
             None => None,
-            Some(&(db, index)) => Some(TypeDef2::new(&self.reader.databases[db as usize], index)),
+            Some(&(db, index)) => Some(TypeDef::new(&self.reader.databases[db as usize].type_def(), index)),
         }
     }
 }
@@ -74,18 +77,18 @@ impl<'a> Reader {
         let mut namespaces = std::collections::BTreeMap::new();
         for filename in filenames {
             let db = Database::new(filename)?;
-            for t in db.type_def2() {
+            for t in db.type_def().iter::<TypeDef>() {
                 if !t.flags()?.windows_runtime() {
                     continue;
                 }
                 let types = namespaces.entry(t.namespace()?.to_string()).or_insert_with(|| NamespaceData { ..Default::default() });
-                types.index.entry(t.name()?.to_string()).or_insert((databases.len() as u32, t.index()));
+                types.index.entry(t.name()?.to_string()).or_insert((databases.len() as u32, t.row.index));
             }
             databases.push(db);
         }
         for (_, types) in &mut namespaces {
             for (_, index) in &types.index {
-                let t = TypeDef2::new(&databases[index.0 as usize], index.1);
+                let t = TypeDef::new(&databases[index.0 as usize].type_def(), index.1);
                 if t.flags()?.interface() {
                     types.interfaces.push(*index);
                     continue;
@@ -134,10 +137,10 @@ impl<'a> Reader {
         }
     }
     // TODO: from_sdk
-    pub fn find(&self, namespace: &str, name: &str) -> Option<TypeDef2> {
+    pub fn find(&self, namespace: &str, name: &str) -> Option<TypeDef> {
         match self.namespaces.get(namespace) {
             Some(types) => match types.index.get(name) {
-                Some(&(db, index)) => Some(TypeDef2::new(&self.databases[db as usize], index)),
+                Some(&(db, index)) => Some(TypeDef::new(&self.databases[db as usize].type_def(), index)),
                 None => None,
             },
             None => None,
