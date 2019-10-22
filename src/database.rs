@@ -31,11 +31,11 @@ impl<'a, T: Row<'a>> Iterator for RowIterator<'a, T> {
 
 pub trait Row<'a> {
     fn new(table: &Table<'a>, index: u32) -> Self;
-    fn from_rows(table: &Table<'a>, range: (u32,u32)) -> RowIterator<'a, Self>
+    fn from_rows(table: &Table<'a>, range: (u32, u32)) -> RowIterator<'a, Self>
     where
         Self: Sized,
     {
-        RowIterator { table: *table, first:range.0, last:range.1, phantom: PhantomData }
+        RowIterator { table: *table, first: range.0, last: range.1, phantom: PhantomData }
     }
 }
 
@@ -89,9 +89,6 @@ impl<'a> Table<'a> {
             _ => Ok(*(self.db.bytes.view_as::<u64>(offset)?) as u32),
         }
     }
-    pub fn lower_bound(&self, column: u32, value: u32) -> Result<u32> {
-        self.lower_bound_of(0, self.data.row_count, column, value)
-    }
     fn lower_bound_of(&self, mut first: u32, last: u32, column: u32, value: u32) -> Result<u32> {
         let mut count = last - first;
         while count > 0 {
@@ -106,8 +103,12 @@ impl<'a> Table<'a> {
         }
         Ok(first)
     }
-    pub fn upper_bound(&self, column: u32, value: u32) -> Result<u32> {
-        self.upper_bound_of(0, self.data.row_count, column, value)
+    pub fn upper_bound<T: Row<'a>>(&self, column: u32, value: u32) -> Result<T> {
+        let index = self.upper_bound_of(0, self.data.row_count, column, value)?;
+        if index == self.data.row_count {
+            return Err(invalid_data("Invalid row index"));
+        }
+        Ok(T::new(self, index))
     }
     fn upper_bound_of(&self, mut first: u32, last: u32, column: u32, value: u32) -> Result<u32> {
         let mut count = last - first;

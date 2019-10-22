@@ -152,16 +152,16 @@ pub enum MemberRefParent<'a> {
     MethodDef(MethodDef<'a>),
     TypeSpec(TypeSpec<'a>),
 }
-// impl<'a> MemberRefParent<'a> {
-//     pub(crate) fn decode(db: &'a Database, code: u32) -> Self {
-//         let code = decode(3, code);
-//         match code.0 {
-//             0 => Self::TypeDef2(TypeDef2::new(db, code.1)),
-//             1 => Self::TypeRef(TypeRef::new(db, code.1)),
-//             2 => Self::ModuleRef(ModuleRef::new(db, code.1)),
-//             3 => Self::MethodDef(MethodDef::new(db, code.1)),
-//             4 => Self::TypeSpec(TypeSpec::new(db, code.1)),
-//             _ => panic!("Invalid MemberRefParent code"),
-//         }
-//     }
-// }
+impl<'a> MemberRefParent<'a> {
+    pub(crate) fn decode(db: &'a Database, code: u32) -> Self {
+        let code = decode(3, code);
+        match code.0 {
+            0 => Self::TypeDef(db.type_def().row(code.1)),
+            1 => Self::TypeRef(db.type_ref().row(code.1)),
+            2 => Self::ModuleRef(db.module_ref().row(code.1)),
+            3 => Self::MethodDef(db.method_def().row(code.1)),
+            4 => Self::TypeSpec(db.type_spec().row(code.1)),
+            _ => panic!("Invalid MemberRefParent code"),
+        }
+    }
+}
