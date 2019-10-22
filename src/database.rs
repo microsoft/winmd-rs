@@ -19,9 +19,8 @@ pub struct RowIterator<'a, T: Row<'a>> {
     phantom: PhantomData<T>,
 }
 impl<'a, T: Row<'a>> RowIterator<'a, T> {
-    pub fn new(table: &Table<'a>, first:u32, last:u32)-> RowIterator<'a, T>
-    {
-        RowIterator{ table: *table, first: first, last, phantom: PhantomData }
+    pub fn new(table: &Table<'a>, first: u32, last: u32) -> RowIterator<'a, T> {
+        RowIterator { table: *table, first: first, last, phantom: PhantomData }
     }
 }
 impl<'a, T: Row<'a>> Iterator for RowIterator<'a, T> {
@@ -41,7 +40,7 @@ pub trait Row<'a> {
     where
         Self: Sized,
     {
-        RowIterator::new(table,range.0, range.1)
+        RowIterator::new(table, range.0, range.1)
     }
 }
 
@@ -76,7 +75,7 @@ impl<'a> Table<'a> {
     pub fn row<T: Row<'a>>(&self, index: u32) -> T {
         T::new(self, index)
     }
-    pub fn len(&self) -> u32{
+    pub fn len(&self) -> u32 {
         self.data.row_count
     }
     pub fn str(&self, row: u32, column: u32) -> Result<&str> {
