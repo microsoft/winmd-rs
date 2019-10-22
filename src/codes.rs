@@ -28,22 +28,22 @@ impl<'a> TypeDefOrRef<'a> {
     }
     pub fn encode(&self) -> u32 {
         match &self {
-            Self::TypeDef(row) => encode(2, 0, row.data.index),
-            Self::TypeRef(row) => encode(2, 1, row.data.index),
-            Self::TypeSpec(row) => encode(2, 2, row.data.index),
+            Self::TypeDef(value) => encode(2, 0, value.row.index),
+            Self::TypeRef(value) => encode(2, 1, value.row.index),
+            Self::TypeSpec(value) => encode(2, 2, value.row.index),
         }
     }
     pub fn name(&'a self) -> Result<&'a str> {
         match self {
-            Self::TypeDef(row) => row.name(),
-            Self::TypeRef(row) => row.name(),
+            Self::TypeDef(value) => value.name(),
+            Self::TypeRef(value) => value.name(),
             Self::TypeSpec(_) => panic!("Cannot call name() function on a TypeSpec"),
         }
     }
     pub fn namespace(&'a self) -> Result<&'a str> {
         match self {
-            Self::TypeDef(row) => row.namespace(),
-            Self::TypeRef(row) => row.namespace(),
+            Self::TypeDef(value) => value.namespace(),
+            Self::TypeRef(value) => value.namespace(),
             Self::TypeSpec(_) => panic!("Cannot call namespace() function on a TypeSpec"),
         }
     }
@@ -78,82 +78,56 @@ impl<'a> HasCustomAttribute<'a> {
         let code = decode(5, code);
         match code.0 {
             0 => Self::MethodDef(db.method_def().row(code.1)),
-            // 1 => Self::Field(Field::new(db, code.1)),
-            // 2 => Self::TypeRef(TypeRef::new(db, code.1)),
-            // 3 => Self::TypeDef2(TypeDef2::new(db, code.1)),
-            // 4 => Self::Param(Param::new(db, code.1)),
-            // 5 => Self::InterfaceImpl(InterfaceImpl::new(db, code.1)),
-            // 6 => Self::MemberRef(MemberRef::new(db, code.1)),
-            // 7 => Self::Module(Module::new(db, code.1)),
-            // // Permission
-            // 9 => Self::Property(Property::new(db, code.1)),
-            // 10 => Self::Event(Event::new(db, code.1)),
-            // 11 => Self::StandaloneSig(StandaloneSig::new(db, code.1)),
-            // 12 => Self::ModuleRef(ModuleRef::new(db, code.1)),
-            // 13 => Self::TypeSpec(TypeSpec::new(db, code.1)),
-            // 14 => Self::Assembly(Assembly::new(db, code.1)),
-            // 15 => Self::AssemblyRef(AssemblyRef::new(db, code.1)),
-            // 16 => Self::File(File::new(db, code.1)),
-            // 17 => Self::ExportedType(ExportedType::new(db, code.1)),
-            // 18 => Self::ManifestResource(ManifestResource::new(db, code.1)),
-            // 19 => Self::GenericParam(GenericParam::new(db, code.1)),
-            // 20 => Self::GenericParamConstraint(GenericParamConstraint::new(db, code.1)),
-            // 21 => Self::MethodSpec(MethodSpec::new(db, code.1)),
+            1 => Self::Field(db.field().row(code.1)),
+            2 => Self::TypeRef(db.type_ref().row(code.1)),
+            3 => Self::TypeDef(db.type_def().row(code.1)),
+            4 => Self::Param(db.param().row(code.1)),
+            5 => Self::InterfaceImpl(db.interface_impl().row(code.1)),
+            6 => Self::MemberRef(db.member_ref().row(code.1)),
+            7 => Self::Module(db.module().row(code.1)),
+            // Permission
+            9 => Self::Property(db.property().row(code.1)),
+            10 => Self::Event(db.event().row(code.1)),
+            11 => Self::StandaloneSig(db.standalone_sig().row(code.1)),
+            12 => Self::ModuleRef(db.module_ref().row(code.1)),
+            13 => Self::TypeSpec(db.type_spec().row(code.1)),
+            14 => Self::Assembly(db.assembly().row(code.1)),
+            15 => Self::AssemblyRef(db.assembly_ref().row(code.1)),
+            16 => Self::File(db.file().row(code.1)),
+            17 => Self::ExportedType(db.exported_type().row(code.1)),
+            18 => Self::ManifestResource(db.manifest_resource().row(code.1)),
+            19 => Self::GenericParam(db.generic_param().row(code.1)),
+            20 => Self::GenericParamConstraint(db.generic_param_constraint().row(code.1)),
+            21 => Self::MethodSpec(db.method_spec().row(code.1)),
             _ => panic!("Invalid HasCustomAttribute code"),
         }
     }
-    //     pub fn encode(&self) -> u32 {
-    //         match self {
-    //             Self::MethodDef(row) => encode(5, 0, row.first),
-    //             Self::Field(row) => encode(5, 1, row.first),
-    //             Self::TypeRef(row) => encode(5, 2, row.first),
-    //             Self::TypeDef2(row) => encode(5, 3, row.first),
-    //             Self::Param(row) => encode(5, 4, row.first),
-    //             Self::InterfaceImpl(row) => encode(5, 5, row.first),
-    //             Self::MemberRef(row) => encode(5, 6, row.first),
-    //             Self::Module(row) => encode(5, 7, row.first),
-    //             // Permission
-    //             Self::Property(row) => encode(5, 9, row.first),
-    //             Self::Event(row) => encode(5, 10, row.first),
-    //             Self::StandaloneSig(row) => encode(5, 11, row.first),
-    //             Self::ModuleRef(row) => encode(5, 12, row.first),
-    //             Self::TypeSpec(row) => encode(5, 13, row.first),
-    //             Self::Assembly(row) => encode(5, 14, row.first),
-    //             Self::AssemblyRef(row) => encode(5, 15, row.first),
-    //             Self::File(row) => encode(5, 16, row.first),
-    //             Self::ExportedType(row) => encode(5, 17, row.first),
-    //             Self::ManifestResource(row) => encode(5, 18, row.first),
-    //             Self::GenericParam(row) => encode(5, 19, row.first),
-    //             Self::GenericParamConstraint(row) => encode(5, 20, row.first),
-    //             Self::MethodSpec(row) => encode(5, 21, row.first),
-    //         }
-    //     }
-    //     pub(crate) fn database(&self) -> &Database {
-    //         match self {
-    //             Self::MethodDef(row) => row.db,
-    //             Self::Field(row) => row.db,
-    //             Self::TypeRef(row) => row.db,
-    //             Self::TypeDef2(row) => row.db,
-    //             Self::Param(row) => row.db,
-    //             Self::InterfaceImpl(row) => row.db,
-    //             Self::MemberRef(row) => row.db,
-    //             Self::Module(row) => row.db,
-    //             // Permission
-    //             Self::Property(row) => row.db,
-    //             Self::Event(row) => row.db,
-    //             Self::StandaloneSig(row) => row.db,
-    //             Self::ModuleRef(row) => row.db,
-    //             Self::TypeSpec(row) => row.db,
-    //             Self::Assembly(row) => row.db,
-    //             Self::AssemblyRef(row) => row.db,
-    //             Self::File(row) => row.db,
-    //             Self::ExportedType(row) => row.db,
-    //             Self::ManifestResource(row) => row.db,
-    //             Self::GenericParam(row) => row.db,
-    //             Self::GenericParamConstraint(row) => row.db,
-    //             Self::MethodSpec(row) => row.db,
-    //         }
-    //     }
+    pub fn encode(&self) -> u32 {
+        match &self {
+            Self::MethodDef(value) => encode(5, 0, value.row.index),
+            Self::Field(value) => encode(5, 1, value.row.index),
+            Self::TypeRef(value) => encode(5, 2, value.row.index),
+            Self::TypeDef(value) => encode(5, 3, value.row.index),
+            Self::Param(value) => encode(5, 4, value.row.index),
+            Self::InterfaceImpl(value) => encode(5, 5, value.row.index),
+            Self::MemberRef(value) => encode(5, 6, value.row.index),
+            Self::Module(value) => encode(5, 7, value.row.index),
+            // Permission
+            Self::Property(value) => encode(5, 9, value.row.index),
+            Self::Event(value) => encode(5, 10, value.row.index),
+            Self::StandaloneSig(value) => encode(5, 11, value.row.index),
+            Self::ModuleRef(value) => encode(5, 12, value.row.index),
+            Self::TypeSpec(value) => encode(5, 13, value.row.index),
+            Self::Assembly(value) => encode(5, 14, value.row.index),
+            Self::AssemblyRef(value) => encode(5, 15, value.row.index),
+            Self::File(value) => encode(5, 16, value.row.index),
+            Self::ExportedType(value) => encode(5, 17, value.row.index),
+            Self::ManifestResource(value) => encode(5, 18, value.row.index),
+            Self::GenericParam(value) => encode(5, 19, value.row.index),
+            Self::GenericParamConstraint(value) => encode(5, 20, value.row.index),
+            Self::MethodSpec(value) => encode(5, 21, value.row.index),
+        }
+    }
 }
 
 pub enum CustomAttributeType<'a> {

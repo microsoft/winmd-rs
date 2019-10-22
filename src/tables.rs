@@ -8,11 +8,11 @@ use std::io::Result;
 macro_rules! table {
     ($name:ident) => {
         pub struct $name<'a> {
-            pub(crate) data: RowData<'a>,
+            pub(crate) row: RowData<'a>,
         }
         impl<'a> Row<'a> for $name<'a> {
             fn new(table: &Table<'a>, index: u32) -> Self {
-                Self { data: RowData { table: *table, index } }
+                Self { row: RowData { table: *table, index } }
             }
         }
     };
@@ -21,35 +21,21 @@ macro_rules! table {
 table!(TypeDef);
 impl<'a> TypeDef<'a> {
     pub fn flags(&self) -> Result<TypeAttributes> {
-        Ok(TypeAttributes(self.data.u32(0)?))
+        Ok(TypeAttributes(self.row.u32(0)?))
     }
     pub fn name(&self) -> Result<&str> {
-        self.data.str(1)
+        self.row.str(1)
     }
     pub fn namespace(&self) -> Result<&str> {
-        self.data.str(2)
-    }
-}
-
-table!(TypeRef);
-impl<'a> TypeRef<'a> {
-    pub fn name(&self) -> Result<&str> {
-        self.data.str(1)
-    }
-    pub fn namespace(&self) -> Result<&str> {
-        self.data.str(2)
-    }
-    pub fn extends(&self) -> Result<TypeDefOrRef> {
-        Ok(TypeDefOrRef::decode(&self.data.table.db, self.data.u32(3)?))
+        self.row.str(2)
     }
     //     pub fn methods(&self) -> Result<MethodDef> {
     //         self.list::<MethodDef>(5)
     //     }
-    //     pub fn attributes(&self) -> Result<CustomAttribute<'a>> {
-    //         let parent = HasCustomAttribute::TypeDef2(*self);
-    //         let (first, last) = self.db.equal_range(&self.db.custom_attribute, 0, self.db.custom_attribute.rows(), 0, parent.encode())?;
-    //         Ok(CustomAttribute::range(self.db, first, last))
-    //     }
+        // pub fn attributes(&self) -> Result<RowIterator<'a, CustomAttribute<'a>>> {
+        //     let parent = HasCustomAttribute::TypeDef(*self);
+        //     self.row.table.db.custom_attribute().equal_range(0, parent.encode())?;
+        // }
     //     pub fn has_attribute(&self, namespace: &str, name: &str) -> Result<bool> {
     //         for attribute in self.attributes()? {
     //             if attribute.has_name(namespace, name)? {
@@ -58,6 +44,19 @@ impl<'a> TypeRef<'a> {
     //         }
     //         Ok(false)
     //     }
+}
+
+table!(TypeRef);
+impl<'a> TypeRef<'a> {
+    pub fn name(&self) -> Result<&str> {
+        self.row.str(1)
+    }
+    pub fn namespace(&self) -> Result<&str> {
+        self.row.str(2)
+    }
+    pub fn extends(&self) -> Result<TypeDefOrRef> {
+        Ok(TypeDefOrRef::decode(&self.row.table.db, self.row.u32(3)?))
+    }
 }
 
 table!(TypeSpec);
