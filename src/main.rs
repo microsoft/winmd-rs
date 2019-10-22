@@ -3,7 +3,9 @@
 
 mod database;
 mod error;
+mod flags;
 mod tables;
+mod codes;
 use database::*;
 use tables::*;
 

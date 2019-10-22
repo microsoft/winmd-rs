@@ -46,7 +46,7 @@ impl<'a> RowData<'a> {
 }
 
 pub struct Table<'a> {
-    db: &'a Database,
+    pub(crate) db: &'a Database,
     data: &'a TableData,
 }
 impl<'a> Table<'a> {
@@ -510,6 +510,12 @@ impl Database {
     }
     pub fn type_def(&self) -> Table {
         self.type_def.table(self)
+    }
+        pub fn type_ref(&self) -> Table {
+        self.type_ref.table(self)
+    }
+        pub fn type_spec(&self) -> Table {
+        self.type_spec.table(self)
     }
 }
 

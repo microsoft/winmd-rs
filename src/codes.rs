@@ -20,17 +20,17 @@ impl<'a> TypeDefOrRef<'a> {
     pub(crate) fn decode(db: &'a Database, code: u32) -> Self {
         let code = decode(2, code);
         match code.0 {
-            0 => Self::TypeDef(TypeDef::from_row(db.type_def().row(code.1))),
-            // 1 => Self::TypeRef(TypeRef::from_row(db.type_ref().row(code.1))),
-            // 2 => Self::TypeSpec(TypeSpec::new(db, code.1)),
+            // 0 => Self::TypeDef(db.type_def().row(code.1)),
+            // 1 => Self::TypeRef(db.type_ref().row(code.1)),
+            // 2 => Self::TypeSpec(db.type_spec().row(code.1)),
             _ => panic!("Invalid TypeDefOrRef code"),
         }
     }
     pub fn encode(&self) -> u32 {
         match &self {
-            Self::TypeDef(row) => encode(2, 0, row.row.index),
-            Self::TypeRef(row) => encode(2, 1,  row.row.index),
-            Self::TypeSpec(row) => encode(2, 2, row.first),
+            Self::TypeDef(row) => encode(2, 0, row.data.index),
+            Self::TypeRef(row) => encode(2, 1,  row.data.index),
+            Self::TypeSpec(row) => encode(2, 2, row.data.index),
         }
     }
     // pub fn name(&self) -> Result<&'a str> {
