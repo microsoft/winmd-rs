@@ -5,7 +5,7 @@ use std::io::Result;
 use std::marker::PhantomData;
 
 pub struct RowIterator<'a, T: Row<'a>> {
-    table: &'a Table<'a>,
+    table: Table<'a>,
     first: u32,
     last: u32,
     phantom: PhantomData<T>,
@@ -17,22 +17,22 @@ impl<'a, T: Row<'a>> Iterator for RowIterator<'a, T> {
             return None;
         }
         self.first += 1;
-        Some(T::new(self.table, self.first - 1))
+        Some(T::new(&self.table, self.first - 1))
     }
 }
 
 pub trait Row<'a> {
-    fn new(table: &'a Table<'a>, index: u32) -> Self;
-    fn from_rows(table: &'a Table<'a>, first: u32, last: u32) -> RowIterator<'a, Self>
+    fn new(table: &Table<'a>, index: u32) -> Self;
+    fn from_rows(table: &Table<'a>, first: u32, last: u32) -> RowIterator<'a, Self>
     where
         Self: Sized,
     {
-        RowIterator { table, first, last, phantom: PhantomData }
+        RowIterator { table: *table, first, last, phantom: PhantomData }
     }
 }
 
 pub(crate) struct RowData<'a> {
-    pub(crate) table: &'a Table<'a>,
+    pub(crate) table: Table<'a>,
     pub(crate) index: u32,
 }
 
@@ -45,19 +45,20 @@ impl<'a> RowData<'a> {
     }
 }
 
+#[derive(Copy, Clone)]
 pub struct Table<'a> {
     pub(crate) db: &'a Database,
     data: &'a TableData,
 }
 impl<'a> Table<'a> {
     // TODO: make iter/rows/row work like slice.get
-    pub fn iter<T: Row<'a>>(&'a self) -> RowIterator<'a, T> {
+    pub fn iter<T: Row<'a>>(&self) -> RowIterator<'a, T> {
         T::from_rows(self, 0, self.data.row_count)
     }
-    pub fn rows<T: Row<'a>>(&'a self, first: u32, last: u32) -> RowIterator<'a, T> {
+    pub fn rows<T: Row<'a>>(&self, first: u32, last: u32) -> RowIterator<'a, T> {
         T::from_rows(self, first, last)
     }
-    pub fn row<T: Row<'a>>(&'a self, index: u32) -> T {
+    pub fn row<T: Row<'a>>(&self, index: u32) -> T {
         T::new(self, index)
     }
     pub fn str(&self, row: u32, column: u32) -> Result<&str> {

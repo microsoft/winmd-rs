@@ -11,8 +11,8 @@ macro_rules! table {
             pub(crate) data: RowData<'a>,
         }
         impl<'a> Row<'a> for $name<'a> {
-            fn new(table: &'a Table<'a>, index: u32) -> Self {
-                Self { data: RowData { table, index } }
+            fn new(table: &Table<'a>, index: u32) -> Self {
+                Self { data: RowData { table:*table, index } }
             }
         }
     };

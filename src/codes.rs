@@ -20,9 +20,9 @@ impl<'a> TypeDefOrRef<'a> {
     pub(crate) fn decode(db: &'a Database, code: u32) -> Self {
         let code = decode(2, code);
         match code.0 {
-            // 0 => Self::TypeDef(db.type_def().row(code.1)),
-            // 1 => Self::TypeRef(db.type_ref().row(code.1)),
-            // 2 => Self::TypeSpec(db.type_spec().row(code.1)),
+            0 => Self::TypeDef(db.type_def().row(code.1)),
+            1 => Self::TypeRef(db.type_ref().row(code.1)),
+            2 => Self::TypeSpec(db.type_spec().row(code.1)),
             _ => panic!("Invalid TypeDefOrRef code"),
         }
     }
