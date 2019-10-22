@@ -134,16 +134,16 @@ pub enum CustomAttributeType<'a> {
     MethodDef(MethodDef<'a>),
     MemberRef(MemberRef<'a>),
 }
-// impl<'a> CustomAttributeType<'a> {
-//     pub(crate) fn decode(db: &'a Database, code: u32) -> Self {
-//         let code = decode(3, code);
-//         match code.0 {
-//             2 => Self::MethodDef(MethodDef::new(db, code.1)),
-//             3 => Self::MemberRef(MemberRef::new(db, code.1)),
-//             _ => panic!("Invalid CustomAttributeType code"),
-//         }
-//     }
-// }
+impl<'a> CustomAttributeType<'a> {
+    pub(crate) fn decode(db: &'a Database, code: u32) -> Self {
+        let code = decode(3, code);
+        match code.0 {
+            2 => Self::MethodDef(db.method_def().row(code.1)),
+            3 => Self::MemberRef(db.member_ref().row(code.1)),
+            _ => panic!("Invalid CustomAttributeType code"),
+        }
+    }
+}
 
 pub enum MemberRefParent<'a> {
     TypeDef(TypeDef<'a>),

@@ -31,14 +31,15 @@ impl<'a, T: Row<'a>> Iterator for RowIterator<'a, T> {
 
 pub trait Row<'a> {
     fn new(table: &Table<'a>, index: u32) -> Self;
-    fn from_rows(table: &Table<'a>, first: u32, last: u32) -> RowIterator<'a, Self>
+    fn from_rows(table: &Table<'a>, range: (u32,u32)) -> RowIterator<'a, Self>
     where
         Self: Sized,
     {
-        RowIterator { table: *table, first, last, phantom: PhantomData }
+        RowIterator { table: *table, first:range.0, last:range.1, phantom: PhantomData }
     }
 }
 
+#[derive(Copy, Clone)]
 pub(crate) struct RowData<'a> {
     pub(crate) table: Table<'a>,
     pub(crate) index: u32,
@@ -61,10 +62,10 @@ pub struct Table<'a> {
 impl<'a> Table<'a> {
     // TODO: make iter/rows/row work like slice.get
     pub fn iter<T: Row<'a>>(&self) -> RowIterator<'a, T> {
-        T::from_rows(self, 0, self.data.row_count)
+        T::from_rows(self, (0, self.data.row_count))
     }
     pub fn rows<T: Row<'a>>(&self, first: u32, last: u32) -> RowIterator<'a, T> {
-        T::from_rows(self, first, last)
+        T::from_rows(self, (first, last))
     }
     pub fn row<T: Row<'a>>(&self, index: u32) -> T {
         T::new(self, index)
@@ -122,8 +123,8 @@ impl<'a> Table<'a> {
         }
         Ok(first)
     }
-    pub fn equal_range(&self, column: u32, value: u32) -> Result<(u32, u32)> {
-        self.equal_range_of(0, self.data.row_count, column, value)
+    pub fn equal_range<T: Row<'a>>(&self, column: u32, value: u32) -> Result<RowIterator<'a, T>> {
+        Ok(T::from_rows(self, self.equal_range_of(0, self.data.row_count, column, value)?))
     }
     fn equal_range_of(&self, mut first: u32, mut last: u32, column: u32, value: u32) -> Result<(u32, u32)> {
         let mut count = last - first;

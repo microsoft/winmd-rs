@@ -7,6 +7,7 @@ use std::io::Result;
 
 macro_rules! table {
     ($name:ident) => {
+        #[derive(Copy, Clone)]
         pub struct $name<'a> {
             pub(crate) row: RowData<'a>,
         }
@@ -32,10 +33,9 @@ impl<'a> TypeDef<'a> {
     //     pub fn methods(&self) -> Result<MethodDef> {
     //         self.list::<MethodDef>(5)
     //     }
-        // pub fn attributes(&self) -> Result<RowIterator<'a, CustomAttribute<'a>>> {
-        //     let parent = HasCustomAttribute::TypeDef(*self);
-        //     self.row.table.db.custom_attribute().equal_range(0, parent.encode())?;
-        // }
+    pub fn attributes(&self) -> Result<RowIterator<'a, CustomAttribute<'a>>> {
+        self.row.table.db.custom_attribute().equal_range(0, HasCustomAttribute::TypeDef(*self).encode())
+    }
     //     pub fn has_attribute(&self, namespace: &str, name: &str) -> Result<bool> {
     //         for attribute in self.attributes()? {
     //             if attribute.has_name(namespace, name)? {
@@ -62,41 +62,41 @@ impl<'a> TypeRef<'a> {
 table!(TypeSpec);
 
 table!(CustomAttribute);
-// impl<'a> CustomAttribute<'a> {
-//     pub fn parent(&self) -> Result<HasCustomAttribute> {
-//         Ok(HasCustomAttribute::decode(&self.db, self.u32(0)?))
-//     }
-//     pub fn class(&self) -> Result<CustomAttributeType> {
-//         Ok(CustomAttributeType::decode(&self.db, self.u32(1)?))
-//     }
+ impl<'a> CustomAttribute<'a> {
+    pub fn parent(&self) -> Result<HasCustomAttribute> {
+        Ok(HasCustomAttribute::decode(&self.row.table.db, self.row.u32(0)?))
+    }
+    pub fn class(&self) -> Result<CustomAttributeType> {
+        Ok(CustomAttributeType::decode(&self.row.table.db, self.row.u32(1)?))
+    }
 //     // value() -> Result<CustomAttributeSig>
 
-//     pub fn has_name(&self, namespace: &str, name: &str) -> Result<bool> {
-//         Ok(match self.class()? {
-//             CustomAttributeType::MethodDef(row) => {
-//                 let parent = row.parent()?;
-//                 name == parent.name()? && namespace == parent.namespace()?
-//             }
-//             CustomAttributeType::MemberRef(row) => match row.class()? {
-//                 MemberRefParent::TypeDef2(row) => name == row.name()? && namespace == row.namespace()?,
-//                 MemberRefParent::TypeRef(row) => name == row.name()? && namespace == row.namespace()?,
-//                 _ => false,
-//             },
-//         })
-//     }
-// }
+    // pub fn has_name(&self, namespace: &str, name: &str) -> Result<bool> {
+    //     Ok(match self.class()? {
+    //         CustomAttributeType::MethodDef(row) => {
+    //             let parent = row.parent()?;
+    //             name == parent.name()? && namespace == parent.namespace()?
+    //         }
+    //         CustomAttributeType::MemberRef(row) => match row.class()? {
+    //             MemberRefParent::TypeDef(row) => name == row.name()? && namespace == row.namespace()?,
+    //             MemberRefParent::TypeRef(row) => name == row.name()? && namespace == row.namespace()?,
+    //             _ => false,
+    //         },
+    //     })
+    // }
+ }
 
 table!(MethodDef);
-// impl<'a> MethodDef<'a> {
-//     pub fn name(&self) -> Result<&'a str> {
-//         self.str(3)
-//     }
+ impl<'a> MethodDef<'a> {
+    pub fn name(&self) -> Result<&str> {
+        self.row.str(3)
+    }
 //     pub fn parent(&self) -> Result<TypeDef2> {
 //         let last = self.db.type_def.rows();
 //         let first = self.db.upper_bound(&self.db.type_def, 0, last, 6, self.first)?;
 //         Ok(TypeDef2::range(self.db, first, last))
 //     }
-// }
+ }
 
 table!(MemberRef);
 // impl<'a> MemberRef<'a> {
