@@ -33,20 +33,20 @@ impl<'a> TypeDefOrRef<'a> {
             Self::TypeSpec(row) => encode(2, 2, row.data.index),
         }
     }
-    // pub fn name(&self) -> Result<&'a str> {
-    //     match &self {
-    //         Self::TypeDef(row) => row.name(),
-    //         //Self::TypeRef(row) => row.name(),
-    //         Self::TypeSpec(_) => panic!("Cannot call name() function on a TypeSpec"),
-    //     }
-    // }
-    // pub fn namespace(&self) -> Result<&'a str> {
-    //     match &self {
-    //         Self::TypeDef(row) => row.namespace(),
-    //         //Self::TypeRef(row) => row.namespace(),
-    //         Self::TypeSpec(_) => panic!("Cannot call namespace() function on a TypeSpec"),
-    //     }
-    // }
+    pub fn name(&'a self) -> Result<&'a str> {
+        match self {
+            Self::TypeDef(row) => row.name(),
+            Self::TypeRef(row) => row.name(),
+            Self::TypeSpec(_) => panic!("Cannot call name() function on a TypeSpec"),
+        }
+    }
+    pub fn namespace(&'a self) -> Result<&'a str> {
+        match self {
+            Self::TypeDef(row) => row.namespace(),
+            Self::TypeRef(row) => row.namespace(),
+            Self::TypeSpec(_) => panic!("Cannot call namespace() function on a TypeSpec"),
+        }
+    }
 }
 
 // pub enum HasCustomAttribute<'a> {
