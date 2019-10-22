@@ -4,6 +4,14 @@ use crate::error::*;
 use std::io::Result;
 use std::marker::PhantomData;
 
+macro_rules! table_fn {
+    ($name:ident) => {
+            pub fn $name(&self) -> Table {
+        self.$name.table(self)
+    }
+    };
+}
+
 pub struct RowIterator<'a, T: Row<'a>> {
     table: Table<'a>,
     first: u32,
@@ -200,44 +208,44 @@ pub struct Database {
     blobs: u32,
     guids: u32,
 
-    pub type_ref: TableData,
-    pub generic_param_constraint: TableData,
-    pub type_spec: TableData,
-    pub type_def: TableData,
-    pub custom_attribute: TableData,
-    pub method_def: TableData,
-    pub member_ref: TableData,
-    pub module: TableData,
-    pub param: TableData,
-    pub interface_impl: TableData,
-    pub constant: TableData,
-    pub field: TableData,
-    pub field_marshal: TableData,
-    pub decl_security: TableData,
-    pub class_layout: TableData,
-    pub field_layout: TableData,
-    pub standalone_sig: TableData,
-    pub event_map: TableData,
-    pub event: TableData,
-    pub property_map: TableData,
-    pub property: TableData,
-    pub method_semantics: TableData,
-    pub method_impl: TableData,
-    pub module_ref: TableData,
-    pub impl_map: TableData,
-    pub field_rva: TableData,
     pub assembly: TableData,
-    pub assembly_processor: TableData,
     pub assembly_os: TableData,
+    pub assembly_processor: TableData,
     pub assembly_ref: TableData,
-    pub assembly_ref_processor: TableData,
     pub assembly_ref_os: TableData,
-    pub file: TableData,
+    pub assembly_ref_processor: TableData,
+    pub class_layout: TableData,
+    pub constant: TableData,
+    pub custom_attribute: TableData,
+    pub decl_security: TableData,
+    pub event: TableData,
+    pub event_map: TableData,
     pub exported_type: TableData,
-    pub manifest_resource: TableData,
-    pub nested_class: TableData,
+    pub field: TableData,
+    pub field_layout: TableData,
+    pub field_marshal: TableData,
+    pub field_rva: TableData,
+    pub file: TableData,
     pub generic_param: TableData,
+    pub generic_param_constraint: TableData,
+    pub impl_map: TableData,
+    pub interface_impl: TableData,
+    pub manifest_resource: TableData,
+    pub member_ref: TableData,
+    pub method_def: TableData,
+    pub method_impl: TableData,
+    pub method_semantics: TableData,
     pub method_spec: TableData,
+    pub module: TableData,
+    pub module_ref: TableData,
+    pub nested_class: TableData,
+    pub param: TableData,
+    pub property: TableData,
+    pub property_map: TableData,
+    pub standalone_sig: TableData,
+    pub type_def: TableData,
+    pub type_ref: TableData,
+    pub type_spec: TableData,
 }
 impl Database {
     pub fn new<P: AsRef<std::path::Path>>(filename: P) -> Result<Self> {
@@ -509,15 +517,45 @@ impl Database {
         }
         Ok((first, last))
     }
-    pub fn type_def(&self) -> Table {
-        self.type_def.table(self)
-    }
-        pub fn type_ref(&self) -> Table {
-        self.type_ref.table(self)
-    }
-        pub fn type_spec(&self) -> Table {
-        self.type_spec.table(self)
-    }
+
+    table_fn!(assembly);
+    table_fn!(assembly_os);
+    table_fn!(assembly_processor);
+    table_fn!(assembly_ref);
+    table_fn!(assembly_ref_os);
+    table_fn!(assembly_ref_processor);
+    table_fn!(class_layout);
+    table_fn!(constant);
+    table_fn!(custom_attribute);
+    table_fn!(decl_security);
+    table_fn!(event);
+    table_fn!(event_map);
+    table_fn!(exported_type);
+    table_fn!(field);
+    table_fn!(field_layout);
+    table_fn!(field_marshal);
+    table_fn!(field_rva);
+    table_fn!(file);
+    table_fn!(generic_param);
+    table_fn!(generic_param_constraint);
+    table_fn!(impl_map);
+    table_fn!(interface_impl);
+    table_fn!(manifest_resource);
+    table_fn!(member_ref);
+    table_fn!(method_def);
+    table_fn!(method_impl);
+    table_fn!(method_semantics);
+    table_fn!(method_spec);
+    table_fn!(module);
+    table_fn!(module_ref);
+    table_fn!(nested_class);
+    table_fn!(param);
+    table_fn!(property);
+    table_fn!(property_map);
+    table_fn!(standalone_sig);
+    table_fn!(type_def);
+    table_fn!(type_ref);
+    table_fn!(type_spec);
 }
 
 fn unexpected_eof() -> std::io::Error {

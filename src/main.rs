@@ -1,11 +1,11 @@
 // #![allow(unused_variables)]
 // #![allow(dead_code)]
 
+mod codes;
 mod database;
 mod error;
 mod flags;
 mod tables;
-mod codes;
 use database::*;
 use tables::*;
 

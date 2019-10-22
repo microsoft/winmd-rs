@@ -1,8 +1,8 @@
 #![allow(dead_code)]
 
+use crate::codes::*;
 use crate::database::*;
 use crate::flags::*;
-use crate::codes::*;
 use std::io::Result;
 
 macro_rules! table {
@@ -12,7 +12,7 @@ macro_rules! table {
         }
         impl<'a> Row<'a> for $name<'a> {
             fn new(table: &Table<'a>, index: u32) -> Self {
-                Self { data: RowData { table:*table, index } }
+                Self { data: RowData { table: *table, index } }
             }
         }
     };
@@ -39,31 +39,30 @@ impl<'a> TypeRef<'a> {
     pub fn namespace(&self) -> Result<&str> {
         self.data.str(2)
     }
-     pub fn extends(&self) -> Result<TypeDefOrRef> {
-         Ok(TypeDefOrRef::decode(&self.data.table.db, self.data.u32(3)?))
-     }
-//     pub fn methods(&self) -> Result<MethodDef> {
-//         self.list::<MethodDef>(5)
-//     }
-//     pub fn attributes(&self) -> Result<CustomAttribute<'a>> {
-//         let parent = HasCustomAttribute::TypeDef2(*self);
-//         let (first, last) = self.db.equal_range(&self.db.custom_attribute, 0, self.db.custom_attribute.rows(), 0, parent.encode())?;
-//         Ok(CustomAttribute::range(self.db, first, last))
-//     }
-//     pub fn has_attribute(&self, namespace: &str, name: &str) -> Result<bool> {
-//         for attribute in self.attributes()? {
-//             if attribute.has_name(namespace, name)? {
-//                 return Ok(true);
-//             }
-//         }
-//         Ok(false)
-//     }
+    pub fn extends(&self) -> Result<TypeDefOrRef> {
+        Ok(TypeDefOrRef::decode(&self.data.table.db, self.data.u32(3)?))
+    }
+    //     pub fn methods(&self) -> Result<MethodDef> {
+    //         self.list::<MethodDef>(5)
+    //     }
+    //     pub fn attributes(&self) -> Result<CustomAttribute<'a>> {
+    //         let parent = HasCustomAttribute::TypeDef2(*self);
+    //         let (first, last) = self.db.equal_range(&self.db.custom_attribute, 0, self.db.custom_attribute.rows(), 0, parent.encode())?;
+    //         Ok(CustomAttribute::range(self.db, first, last))
+    //     }
+    //     pub fn has_attribute(&self, namespace: &str, name: &str) -> Result<bool> {
+    //         for attribute in self.attributes()? {
+    //             if attribute.has_name(namespace, name)? {
+    //                 return Ok(true);
+    //             }
+    //         }
+    //         Ok(false)
+    //     }
 }
 
 table!(TypeSpec);
 
-
-// table!(custom_attribute, CustomAttribute);
+table!(CustomAttribute);
 // impl<'a> CustomAttribute<'a> {
 //     pub fn parent(&self) -> Result<HasCustomAttribute> {
 //         Ok(HasCustomAttribute::decode(&self.db, self.u32(0)?))
@@ -88,7 +87,7 @@ table!(TypeSpec);
 //     }
 // }
 
-// table!(method_def, MethodDef);
+table!(MethodDef);
 // impl<'a> MethodDef<'a> {
 //     pub fn name(&self) -> Result<&'a str> {
 //         self.str(3)
@@ -100,7 +99,7 @@ table!(TypeSpec);
 //     }
 // }
 
-// table!(member_ref, MemberRef);
+table!(MemberRef);
 // impl<'a> MemberRef<'a> {
 //     pub fn class(&self) -> Result<MemberRefParent> {
 //         Ok(MemberRefParent::decode(&self.db, self.u32(0)?))
@@ -110,3 +109,36 @@ table!(TypeSpec);
 //     }
 //     // pub fun signature(&self) {}
 // }
+
+table!(GenericParamConstraint);
+table!(Module);
+table!(Param);
+table!(InterfaceImpl);
+table!(Constant);
+table!(Field);
+table!(FieldMarshal);
+table!(DeclSecurity);
+table!(ClassLayout);
+table!(FieldLayout);
+table!(StandaloneSig);
+table!(EventMap);
+table!(Event);
+table!(PropertyMap);
+table!(Property);
+table!(MethodSemantics);
+table!(MethodImpl);
+table!(ModuleRef);
+table!(ImplMap);
+table!(FieldRva);
+table!(Assembly);
+table!(AssemblyProcessor);
+table!(AssemblyOs);
+table!(AssemblyRef);
+table!(AssemblyRefProcessor);
+table!(AssemblyRefOs);
+table!(File);
+table!(ExportedType);
+table!(ManifestResource);
+table!(NestedClass);
+table!(GenericParam);
+table!(MethodSpec);
