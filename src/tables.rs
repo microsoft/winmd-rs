@@ -33,9 +33,18 @@ impl<'a> TypeDef<'a> {
     pub fn extends(&self) -> Result<TypeDefOrRef> {
         Ok(TypeDefOrRef::decode(&self.row.table.db, self.row.u32(3)?))
     }
-    //     pub fn methods(&self) -> Result<MethodDef> {
-    //         self.list::<MethodDef>(5)
-    //     }
+    pub fn methods(&self) -> Result<RowIterator<'a, MethodDef<'a>>> {
+        let first = self.row.u32(5)?;
+        let last = if self.row.index + 1 < self.row.table.len()
+        {
+            self.row.table.row::<TypeDef>(self.row.index + 1).row.u32(5)?
+        }
+        else
+        {
+            self.row.table.db.method_def().len()
+        };
+        Ok(RowIterator::new(&self.row.table.db.method_def(), first, last))
+    }
     pub fn attributes(&self) -> Result<RowIterator<'a, CustomAttribute<'a>>> {
         self.row.table.db.custom_attribute().equal_range(0, HasCustomAttribute::TypeDef(*self).encode())
     }

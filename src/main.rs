@@ -18,17 +18,17 @@ fn main() {
 }
 
 fn run() -> std::io::Result<()> {
-    // let db = Database::new(r"c:\windows\system32\WinMetadata\Windows.Foundation.winmd")?;
+    let db = Database::new(r"c:\windows\system32\WinMetadata\Windows.Foundation.winmd")?;
 
-    // let types = db.type_def();
+    let types = db.type_def();
 
-    // let tt = types.row::<TypeDef>(1);
+    let tt = types.row::<TypeDef>(1);
 
-    // println!("{}.{}", tt.namespace()?, tt.name()?);
+    println!("{}.{}", tt.namespace()?, tt.name()?);
 
-    // for t in types.iter::<TypeDef>() {
-    //     println!("{}.{}", t.namespace()?, t.name()?);
-    // }
+    for t in types.iter::<TypeDef>() {
+        println!("{}.{}", t.namespace()?, t.name()?);
+    }
 
     let reader = Reader::from_files(&[r"c:\windows\system32\WinMetadata\Windows.Foundation.winmd"])?;
 

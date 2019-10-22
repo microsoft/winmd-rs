@@ -18,6 +18,12 @@ pub struct RowIterator<'a, T: Row<'a>> {
     last: u32,
     phantom: PhantomData<T>,
 }
+impl<'a, T: Row<'a>> RowIterator<'a, T> {
+    pub fn new(table: &Table<'a>, first:u32, last:u32)-> RowIterator<'a, T>
+    {
+        RowIterator{ table: *table, first: first, last, phantom: PhantomData }
+    }
+}
 impl<'a, T: Row<'a>> Iterator for RowIterator<'a, T> {
     type Item = T;
     fn next(&mut self) -> Option<T> {
@@ -35,7 +41,7 @@ pub trait Row<'a> {
     where
         Self: Sized,
     {
-        RowIterator { table: *table, first: range.0, last: range.1, phantom: PhantomData }
+        RowIterator::new(table,range.0, range.1)
     }
 }
 
@@ -69,6 +75,9 @@ impl<'a> Table<'a> {
     }
     pub fn row<T: Row<'a>>(&self, index: u32) -> T {
         T::new(self, index)
+    }
+    pub fn len(&self) -> u32{
+        self.data.row_count
     }
     pub fn str(&self, row: u32, column: u32) -> Result<&str> {
         let offset = (self.db.strings + self.u32(row, column)?) as usize;
