@@ -125,7 +125,7 @@ impl<'a> Reader {
         let mut path = std::path::PathBuf::new();
         path.push(match std::env::var("windir") {
             Ok(value) => value,
-            Err(_) => return Err(std::io::Error::new(std::io::ErrorKind::NotFound, "WINDIR environment variable not found")),
+            Err(_) => return Err(std::io::Error::new(std::io::ErrorKind::NotFound, "'windir' environment variable not found")),
         });
         path.push(system32());
         path.push("winmetadata");

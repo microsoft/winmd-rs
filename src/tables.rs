@@ -80,6 +80,16 @@ impl<'a> CustomAttribute<'a> {
     }
 }
 
+impl<'a> Field<'a>{
+    // flags - FieldAttributes
+    // name
+    // signature
+
+    pub fn name(&self) -> Result<&str> {
+        self.row.str(1)
+    }
+}
+
 impl<'a> MemberRef<'a> {
     pub fn class(&self) -> Result<MemberRefParent> {
         Ok(MemberRefParent::decode(&self.row.table.db, self.row.u32(0)?))
@@ -110,6 +120,9 @@ impl<'a> TypeDef<'a> {
     }
     pub fn extends(&self) -> Result<TypeDefOrRef> {
         Ok(TypeDefOrRef::decode(&self.row.table.db, self.row.u32(3)?))
+    }
+    pub fn fields(&self) -> Result<RowIterator<'a, Field<'a>>> {
+        self.row.list(4, &self.row.table.db.field())
     }
     pub fn methods(&self) -> Result<RowIterator<'a, MethodDef<'a>>> {
         self.row.list(5, &self.row.table.db.method_def())

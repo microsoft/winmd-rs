@@ -59,7 +59,7 @@ impl<'a> RowData<'a> {
     }
     pub fn list<T: Row<'a>>(&self, column: u32, table: &Table<'a>) -> Result<RowIterator<'a, T>> {
         let first = self.u32(column)? - 1;
-        let last = if self.index + 1 < self.table.len() { RowData { table: self.table, index: self.index + 1 }.u32(5)? - 1 } else { table.len() };
+        let last = if self.index + 1 < self.table.len() { self.table.u32(self.index + 1, column)? - 1 } else { table.len() };
         Ok(RowIterator::new(table, first, last))
     }
 }
