@@ -8,6 +8,7 @@ mod flags;
 mod reader;
 mod tables;
 use reader::*;
+use tables::*;
 
 fn main() {
     if let Err(e) = run() {
@@ -21,15 +22,28 @@ fn run() -> std::io::Result<()> {
     // if let Some(t) = reader.find("Windows.Foundation", "AsyncStatus") {
     //     println!("{}.{}", t.namespace()?, t.name()?);
 
+    //     println!("rows: {}", t.row.table.db.constant().len());
+
     //     for f in t.fields()? {
     //         println!("    {}", f.name()?);
+    //         for f in t.fields()? {
+    //             for c in f.constants()? {
+    //                 match c.value()? {
+    //                 //     ConstantValue::U32(value) => {
+    //                 //         println!("        {} = {}", f.name()?, value);
+    //                 //     }
+    //                 //     ConstantValue::I32(value) => {
+    //                 //         println!("        {} = {}", f.name()?, value);
+    //                 //     }
+    //                 _ => {}
+    //                 }
+    //             }
+    //         }
     //     }
     // }
 
     for ns in reader.namespaces() {
-
-        if ns.name() != "Windows.Foundation"
-        {
+        if ns.name() != "Windows.Foundation" {
             continue;
         }
 
@@ -55,6 +69,9 @@ fn run() -> std::io::Result<()> {
 
         for t in ns.structs() {
             println!("    struct {}", t.name()?);
+            for f in t.fields()? {
+                println!("        {}", f.name()?);
+            }
         }
 
         for t in ns.delegates() {

@@ -2,6 +2,7 @@
 
 use crate::codes::*;
 use crate::database::*;
+use crate::error::*;
 use crate::flags::*;
 use std::io::Result;
 
@@ -58,6 +59,31 @@ table!(TypeDef);
 table!(TypeRef);
 table!(TypeSpec);
 
+pub enum ConstantValue {
+    I32(i32),
+    U32(u32),
+}
+
+impl<'a> Constant<'a> {
+    // type
+    // parent
+    pub fn value(&self) -> Result<ConstantValue> {
+        match self.row.u32(0)? {
+            0x08 =>
+            // i32
+            {
+                Ok(ConstantValue::I32(*self.row.blob_as::<i32>(2)?))
+            }
+            0x09 =>
+            // u32
+            {
+                Ok(ConstantValue::U32(*self.row.blob_as::<u32>(2)?))
+            }
+            _ => Err(invalid_data("Unsupported constant type")),
+        }
+    }
+}
+
 impl<'a> CustomAttribute<'a> {
     pub fn parent(&self) -> Result<HasCustomAttribute> {
         Ok(HasCustomAttribute::decode(&self.row.table.db, self.row.u32(0)?))
@@ -80,13 +106,16 @@ impl<'a> CustomAttribute<'a> {
     }
 }
 
-impl<'a> Field<'a>{
+impl<'a> Field<'a> {
     // flags - FieldAttributes
     // name
     // signature
 
     pub fn name(&self) -> Result<&str> {
         self.row.str(1)
+    }
+    pub fn constants(&self) -> Result<RowIterator<'a, Constant<'a>>> {
+        self.row.table.db.constant().equal_range(1, HasConstant::Field(*self).encode())
     }
 }
 

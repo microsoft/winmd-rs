@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+#![allow(exceeding_bitshifts)]
 
 use crate::error::*;
 use std::io::Result;
@@ -54,6 +55,12 @@ impl<'a> RowData<'a> {
     pub fn str(&self, column: u32) -> Result<&str> {
         self.table.str(self.index, column)
     }
+    pub fn blob(&self, column: u32) -> Result<&[u8]> {
+        self.table.blob(self.index, column)
+    }
+    pub fn blob_as<T>(&self, column: u32) -> Result<&T> {
+        self.blob(column)?.view_as::<T>(0)
+    }
     pub fn u32(&self, column: u32) -> Result<u32> {
         self.table.u32(self.index, column)
     }
@@ -92,6 +99,35 @@ impl<'a> Table<'a> {
                 Err(_) => Err(invalid_data("Bytes not valid UTF-8")),
             },
         }
+    }
+    pub fn blob(&self, row: u32, column: u32) -> Result<&[u8]> {
+        let offset = (self.db.blobs + self.u32(row, column)?) as usize;
+        let mut initial_byte = self.db.bytes[offset];
+        let blob_size_bytes;
+
+        match initial_byte >> 5 {
+            0..=3 => {
+                blob_size_bytes = 1;
+                initial_byte &= 0x7f;
+            }
+            4..=5 => {
+                blob_size_bytes = 2;
+                initial_byte &= 0x3f;
+            }
+            6 => {
+                blob_size_bytes = 4;
+                initial_byte &= 0x1f;
+            }
+            _ => return Err(invalid_data("Invalid blob encoding")),
+        };
+
+        let mut blob_size = initial_byte;
+
+        for byte in self.db.bytes[offset + 1..offset + blob_size_bytes - 1].iter() {
+            blob_size = (blob_size << 8) + byte;
+        }
+
+        Ok(&self.db.bytes[offset + blob_size_bytes..offset + blob_size_bytes + blob_size as usize])
     }
     pub fn u32(&self, row: u32, column: u32) -> Result<u32> {
         let offset = self.data.data + row * self.data.row_size + self.data.columns[column as usize].0;

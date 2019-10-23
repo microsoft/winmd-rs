@@ -165,3 +165,27 @@ impl<'a> MemberRefParent<'a> {
         }
     }
 }
+
+pub enum HasConstant<'a> {
+    Field(Field<'a>),
+    Param(Param<'a>),
+    Property(Property<'a>),
+}
+impl<'a> HasConstant<'a> {
+    pub(crate) fn decode(db: &'a Database, code: u32) -> Self {
+        let code = decode(2, code);
+        match code.0 {
+            0 => Self::Field(db.field().row(code.1)),
+            1 => Self::Param(db.param().row(code.1)),
+            2 => Self::Property(db.property().row(code.1)),
+            _ => panic!("Invalid HasConstant code"),
+        }
+    }
+    pub fn encode(&self) -> u32 {
+        match &self {
+            Self::Field(value) => encode(2, 0, value.row.index),
+            Self::Param(value) => encode(2, 1, value.row.index),
+            Self::Property(value) => encode(2, 2, value.row.index),
+        }
+    }
+}
