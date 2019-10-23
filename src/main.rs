@@ -7,9 +7,7 @@ mod error;
 mod flags;
 mod reader;
 mod tables;
-use database::*;
 use reader::*;
-use tables::*;
 
 fn main() {
     if let Err(e) = run() {
@@ -35,20 +33,32 @@ fn run() -> std::io::Result<()> {
         }
     }
 
-    for ns in reader.namespaces() {
-        println!("namespace {}", ns.name());
+    // for ns in reader.namespaces() {
+    //     println!("namespace {}", ns.name());
 
-        for t in ns.interfaces() {
-            println!("\n    interface {}", t.name()?);
-            for m in t.methods()? {
-                println!("        {}", m.name()?);
-            }
-        }
+    //     for t in ns.interfaces() {
+    //         println!("\n    interface {}", t.name()?);
+    //         for m in t.methods()? {
+    //             println!("        {}", m.name()?);
+    //         }
+    //     }
 
-        for t in ns.classes() {
-            println!("    class {}", t.name()?);
-        }
-    }
+    //     for t in ns.classes() {
+    //         println!("    class {}", t.name()?);
+    //     }
+
+    //     for t in ns.enums() {
+    //         println!("    enum {}", t.name()?);
+    //     }
+
+    //     for t in ns.structs() {
+    //         println!("    struct {}", t.name()?);
+    //     }
+
+    //     for t in ns.delegates() {
+    //         println!("    delegate {}", t.name()?);
+    //     }
+    // }
 
     Ok(())
 }

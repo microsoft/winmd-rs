@@ -6,9 +6,9 @@ use std::marker::PhantomData;
 
 macro_rules! table_fn {
     ($name:ident) => {
-            pub fn $name(&self) -> Table {
-        self.$name.table(self)
-    }
+        pub fn $name(&self) -> Table {
+            self.$name.table(self)
+        }
     };
 }
 
@@ -56,6 +56,11 @@ impl<'a> RowData<'a> {
     }
     pub fn u32(&self, column: u32) -> Result<u32> {
         self.table.u32(self.index, column)
+    }
+    pub fn list<T: Row<'a>>(&self, column: u32, table: &Table<'a>) -> Result<RowIterator<'a, T>> {
+        let first = self.u32(column)? - 1;
+        let last = if self.index + 1 < self.table.len() { RowData { table: self.table, index: self.index + 1 }.u32(5)? - 1 } else { table.len() };
+        Ok(RowIterator::new(table, first, last))
     }
 }
 
