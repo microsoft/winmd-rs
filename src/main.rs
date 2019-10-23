@@ -32,7 +32,7 @@ fn run() -> std::io::Result<()> {
 
     let reader = Reader::from_files(&[r"c:\windows\system32\WinMetadata\Windows.Foundation.winmd"])?;
 
-    if let Some(t) = reader.find("Windows.Foundation", "IStringable") {
+    if let Some(t) = reader.find("Windows.Foundation", "IUriRuntimeClass") {
         println!("{}.{}", t.namespace()?, t.name()?);
 
         for m in t.methods()? {
