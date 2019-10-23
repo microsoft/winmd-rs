@@ -39,6 +39,12 @@ fn run() -> std::io::Result<()> {
             println!("    {}", m.name()?);
         }
     }
+    if let Some(t) = reader.find("Windows.Foundation", "IStringable") {
+        println!("{}.{}", t.namespace()?, t.name()?);
 
+        for m in t.methods()? {
+            println!("    {}", m.name()?);
+        }
+    }
     Ok(())
 }

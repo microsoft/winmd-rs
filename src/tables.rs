@@ -16,6 +16,13 @@ macro_rules! table {
                 Self { row: RowData { table: *table, index } }
             }
         }
+        impl<'a> $name<'a> {
+            pub fn list<T: Row<'a>>(&self, column: u32, table: &Table<'a>) -> Result<RowIterator<'a, T>> {
+                let first = self.row.u32(column)? - 1;
+                let last = if self.row.index + 1 < self.row.table.len() { self.row.table.row::<$name>(self.row.index + 1).row.u32(5)? - 1 } else { table.len() };
+                Ok(RowIterator::new(table, first, last))
+            }
+        }
     };
 }
 
@@ -34,9 +41,7 @@ impl<'a> TypeDef<'a> {
         Ok(TypeDefOrRef::decode(&self.row.table.db, self.row.u32(3)?))
     }
     pub fn methods(&self) -> Result<RowIterator<'a, MethodDef<'a>>> {
-        let first = self.row.u32(5)? - 1;
-        let last = if self.row.index + 1 < self.row.table.len() { self.row.table.row::<TypeDef>(self.row.index + 1).row.u32(5)? - 1 } else { self.row.table.db.method_def().len() };
-        Ok(RowIterator::new(&self.row.table.db.method_def(), first, last))
+        self.list(5, &self.row.table.db.method_def())
     }
     pub fn attributes(&self) -> Result<RowIterator<'a, CustomAttribute<'a>>> {
         self.row.table.db.custom_attribute().equal_range(0, HasCustomAttribute::TypeDef(*self).encode())
