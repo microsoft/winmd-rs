@@ -63,6 +63,14 @@ pub enum ConstantValue {
     I32(i32),
     U32(u32),
 }
+impl std::fmt::Display for ConstantValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ConstantValue::U32(value) => write!(f, "{}", value),
+            ConstantValue::I32(value) => write!(f, "{}", value),
+        }
+    }
+}
 
 impl<'a> Constant<'a> {
     // type
