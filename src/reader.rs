@@ -6,14 +6,15 @@ use crate::tables::*;
 use std::io::Result;
 
 pub struct NamespaceIterator<'a> {
-    iter: std::collections::btree_map::Keys<'a, String, NamespaceData>,
+    reader: &'a Reader,
+    iter: std::collections::btree_map::Iter<'a, String, NamespaceData>,
 }
 impl<'a> Iterator for NamespaceIterator<'a> {
-    type Item = &'a str;
+    type Item = Namespace<'a>;
     fn next(&mut self) -> Option<Self::Item> {
         match self.iter.next() {
             None => None,
-            Some(value) => Some(value),
+            Some((key, value)) => Some(Namespace { reader: self.reader, name: key, types: value }),
         }
     }
 }
@@ -43,11 +44,14 @@ struct NamespaceData {
 }
 
 pub struct Namespace<'a> {
-    // add name
     reader: &'a Reader,
+    name: &'a str,
     types: &'a NamespaceData,
 }
 impl<'a> Namespace<'a> {
+    pub fn name(&self) -> &str {
+        self.name
+    }
     pub fn interfaces(&self) -> TypeIterator {
         TypeIterator { reader: self.reader, iter: self.types.interfaces.iter() }
     }
@@ -128,15 +132,8 @@ impl<'a> Reader {
         Self::from_dir(path)
     }
     pub fn namespaces(&self) -> NamespaceIterator {
-        NamespaceIterator { iter: self.namespaces.keys() }
+        NamespaceIterator { reader: self, iter: self.namespaces.iter() }
     }
-    pub fn types(&self, namespace: &str) -> Option<Namespace> {
-        match self.namespaces.get(namespace) {
-            None => None,
-            Some(value) => Some(Namespace { reader: self, types: value }),
-        }
-    }
-    // TODO: from_sdk
     pub fn find(&self, namespace: &str, name: &str) -> Option<TypeDef> {
         match self.namespaces.get(namespace) {
             Some(types) => match types.index.get(name) {

@@ -18,19 +18,7 @@ fn main() {
 }
 
 fn run() -> std::io::Result<()> {
-    let db = Database::new(r"c:\windows\system32\WinMetadata\Windows.Foundation.winmd")?;
-
-    let types = db.type_def();
-
-    let tt = types.row::<TypeDef>(1);
-
-    println!("{}.{}", tt.namespace()?, tt.name()?);
-
-    for t in types.iter::<TypeDef>() {
-        println!("{}.{}", t.namespace()?, t.name()?);
-    }
-
-    let reader = Reader::from_files(&[r"c:\windows\system32\WinMetadata\Windows.Foundation.winmd"])?;
+    let reader = Reader::from_os()?;
 
     if let Some(t) = reader.find("Windows.Foundation", "IUriRuntimeClass") {
         println!("{}.{}", t.namespace()?, t.name()?);
@@ -46,5 +34,21 @@ fn run() -> std::io::Result<()> {
             println!("    {}", m.name()?);
         }
     }
+
+    for ns in reader.namespaces() {
+        println!("namespace {}", ns.name());
+
+        for t in ns.interfaces() {
+            println!("\n    interface {}", t.name()?);
+            for m in t.methods()? {
+                println!("        {}", m.name()?);
+            }
+        }
+
+        for t in ns.classes() {
+            println!("    class {}", t.name()?);
+        }
+    }
+
     Ok(())
 }
