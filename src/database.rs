@@ -123,7 +123,7 @@ impl<'a> Table<'a> {
 
         let mut blob_size = initial_byte;
 
-        for byte in self.db.bytes[offset + 1..offset + blob_size_bytes - 1].iter() {
+        for byte in self.db.bytes[offset + 1..offset + blob_size_bytes].iter() {
             blob_size = (blob_size << 8) + byte;
         }
 
@@ -180,6 +180,7 @@ impl<'a> Table<'a> {
         let mut count = last - first;
         loop {
             if count <= 0 {
+                last = first;
                 break;
             }
             let count2 = count / 2;
