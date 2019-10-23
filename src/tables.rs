@@ -140,8 +140,17 @@ impl<'a> MethodDef<'a> {
     pub fn name(&self) -> Result<&str> {
         self.row.str(3)
     }
+    pub fn params(&self) -> Result<RowIterator<'a, Param<'a>>> {
+        self.row.list(5, &self.row.table.db.param())
+    }
     pub fn parent(&self) -> Result<TypeDef> {
-        self.row.table.db.type_def().upper_bound(6, self.row.index)
+        self.row.table.db.type_def().upper_bound(6, self.row.index) // TODO: this looks wrong...
+    }
+}
+
+impl<'a> Param<'a> {
+    pub fn name(&self) -> Result<&str> {
+        self.row.str(2)
     }
 }
 

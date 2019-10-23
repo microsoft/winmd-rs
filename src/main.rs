@@ -8,7 +8,6 @@ mod flags;
 mod reader;
 mod tables;
 use reader::*;
-use tables::*;
 
 fn main() {
     if let Err(e) = run() {
@@ -49,6 +48,9 @@ fn run() -> std::io::Result<()> {
             println!("\n    interface {}", t.name()?);
             for m in t.methods()? {
                 println!("        method {}", m.name()?);
+                for p in m.params()? {
+                    println!("            param {}", p.name()?);
+                }
             }
         }
 
