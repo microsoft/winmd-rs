@@ -45,6 +45,7 @@ fn read_u32<'a>(bytes: &'a [u8], value: &mut u32) -> Result<&'a [u8]> {
         return Err(invalid_blob());
     };
 
+    // TODO: can avoid the unwrap if we fold that into the if/else chain.
     Ok(bytes.get(bytes_read..).unwrap())
 }
 
