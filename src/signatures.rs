@@ -3,6 +3,8 @@ use crate::error::*;
 use crate::tables::*;
 use std::io::Result;
 
+// TODO: what about using std::io::Read?
+
 struct ModifierSig<'a> {
     type_code: TypeDefOrRef<'a>,
 }

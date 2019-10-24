@@ -9,6 +9,7 @@ mod reader;
 mod signatures;
 mod tables;
 use reader::*;
+use std::io::*;
 
 fn main() {
     if let Err(e) = run() {
@@ -17,20 +18,27 @@ fn main() {
 }
 
 fn run() -> std::io::Result<()> {
-    let reader = Reader::from_os()?;
 
-    if let Some(t) = reader.find("Windows.Foundation", "IGuidHelperStatics") {
-        println!("{}.{}", t.namespace()?, t.name()?);
+    let mut bytes:&[u8] = &[1,2,3,4,5,6,7,8,9,10];
+    let mut buffer=[0;3];
+    bytes.read_exact(&mut buffer);
+    bytes.read_exact(&mut buffer);
+    bytes.read_exact(&mut buffer);
 
-        for m in t.methods()? {
-            if m.name()? == "Equals" {
-                for p in m.params()? {
-                    println!("            param {}", p.name()?);
-                }
-                m.signature()?;
-            }
-        }
-    }
+    // let reader = Reader::from_os()?;
+
+    // if let Some(t) = reader.find("Windows.Foundation", "IGuidHelperStatics") {
+    //     println!("{}.{}", t.namespace()?, t.name()?);
+
+    //     for m in t.methods()? {
+    //         if m.name()? == "Equals" {
+    //             for p in m.params()? {
+    //                 println!("            param {}", p.name()?);
+    //             }
+    //             m.signature()?;
+    //         }
+    //     }
+    // }
 
     // for ns in reader.namespaces() {
     //     if ns.name() != "Windows.Foundation" {
