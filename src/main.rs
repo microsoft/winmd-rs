@@ -6,8 +6,8 @@ mod database;
 mod error;
 mod flags;
 mod reader;
-mod tables;
 mod signatures;
+mod tables;
 use reader::*;
 
 fn main() {

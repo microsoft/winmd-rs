@@ -584,7 +584,6 @@ trait View {
     fn view_as_slice_of<T>(&self, cli_offset: u32, len: u32) -> Result<&[T]>;
     fn view_as_str(&self, cli_offset: u32) -> Result<&[u8]>;
     fn view_offset(&self, cli_offset: u32) -> Result<&[u8]>;
-    fn view_subslice(&self, cli_offset: u32, size: u32) -> Result<&[u8]>;
 }
 
 impl View for [u8] {
@@ -608,9 +607,6 @@ impl View for [u8] {
     }
     fn view_offset(&self, cli_offset: u32) -> Result<&[u8]> {
         self.get(cli_offset as usize..).ok_or_else(|| unexpected_eof())
-    }
-    fn view_subslice(&self, cli_offset: u32, size: u32) -> Result<&[u8]> {
-        self.get(cli_offset as usize..(cli_offset + size) as usize).ok_or_else(|| unexpected_eof())
     }
 }
 
