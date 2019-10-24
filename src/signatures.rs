@@ -2,22 +2,46 @@ use crate::error::*;
 use crate::tables::*;
 use std::io::Result;
 
-pub struct MethodSignature {
-// return_type : return_type
+pub struct MethodSig {
+    // return_type : return_type
 // params : param
 }
 
-struct ReturnTypeSignature {}
+pub struct ParamSig{
+
+}
+
+struct ReturnSig {}
 
 struct TypeSignature {}
 
-impl MethodSignature {
-    pub(crate) fn new(method: &MethodDef<'_>) -> Result<MethodSignature> {
+impl MethodSig {
+    pub(crate) fn new(method: &MethodDef<'_>) -> Result<MethodSig> {
         let mut blob = method.row.blob(4)?;
         let mut calling_convention: u32 = 0;
         blob = read_u32(blob, &mut calling_convention)?;
+        let mut generic_params: u32 = 0;
+        if calling_convention & 0x10 != 0 {
+            blob = read_u32(blob, &mut calling_convention)?;
+        }
+        let mut params: u32 = 0;
+        blob = read_u32(blob, &mut params)?;
 
         Err(invalid_blob())
+    }
+}
+
+impl ParamSig{
+    fn new(bytes: &[u8]) -> Result<ParamSig>
+    {
+Err(invalid_blob())
+    }
+}
+
+impl ReturnSig{
+    fn new(bytes: &[u8]) -> Result<ReturnSig>
+    {
+Err(invalid_blob())
     }
 }
 
@@ -44,8 +68,6 @@ fn read_u32<'a>(bytes: &'a [u8], value: &mut u32) -> Result<&'a [u8]> {
     } else {
         return Err(invalid_blob());
     };
-
-    // TODO: can avoid the unwrap if we fold that into the if/else chain.
     Ok(bytes.get(bytes_read..).unwrap())
 }
 

@@ -140,8 +140,8 @@ impl<'a> MethodDef<'a> {
     pub fn parent(&self) -> Result<TypeDef> {
         self.row.table.db.type_def().upper_bound(6, self.row.index) // TODO: this looks wrong...
     }
-    pub fn signature(&self) -> Result<MethodSignature> {
-        MethodSignature::new(self)
+    pub fn signature(&self) -> Result<MethodSig> {
+        MethodSig::new(self)
     }
 }
 
