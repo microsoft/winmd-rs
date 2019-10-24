@@ -137,6 +137,9 @@ impl<'a> MemberRef<'a> {
 }
 
 impl<'a> MethodDef<'a> {
+    pub fn flags(&self) -> Result<MethodAttributes> {
+        Ok(MethodAttributes(self.row.u32(2)?))
+    }
     pub fn name(&self) -> Result<&str> {
         self.row.str(3)
     }

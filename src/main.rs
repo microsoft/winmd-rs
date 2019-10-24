@@ -47,7 +47,7 @@ fn run() -> std::io::Result<()> {
         for t in ns.interfaces() {
             println!("\n    interface {}", t.name()?);
             for m in t.methods()? {
-                println!("        method {}", m.name()?);
+                println!("        method {} - {}", m.name()?, m.flags()?.special());
                 for p in m.params()? {
                     println!("            param {}", p.name()?);
                 }
