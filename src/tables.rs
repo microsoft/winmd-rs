@@ -4,6 +4,7 @@ use crate::codes::*;
 use crate::database::*;
 use crate::error::*;
 use crate::flags::*;
+use crate::signatures::*;
 use std::io::Result;
 
 macro_rules! table {
@@ -138,6 +139,9 @@ impl<'a> MethodDef<'a> {
     }
     pub fn parent(&self) -> Result<TypeDef> {
         self.row.table.db.type_def().upper_bound(6, self.row.index) // TODO: this looks wrong...
+    }
+    pub fn signature(&self) -> Result<MethodSignature> {
+        MethodSignature::new(self)
     }
 }
 

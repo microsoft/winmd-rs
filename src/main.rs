@@ -7,6 +7,7 @@ mod error;
 mod flags;
 mod reader;
 mod tables;
+mod signatures;
 use reader::*;
 
 fn main() {
