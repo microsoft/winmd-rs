@@ -73,20 +73,10 @@ impl std::fmt::Display for ConstantValue {
 }
 
 impl<'a> Constant<'a> {
-    // type
-    // parent
     pub fn value(&self) -> Result<ConstantValue> {
         match self.row.u32(0)? {
-            0x08 =>
-            // i32
-            {
-                Ok(ConstantValue::I32(*self.row.blob_as::<i32>(2)?))
-            }
-            0x09 =>
-            // u32
-            {
-                Ok(ConstantValue::U32(*self.row.blob_as::<u32>(2)?))
-            }
+            0x08 => Ok(ConstantValue::I32(*self.row.blob_as::<i32>(2)?)),
+            0x09 => Ok(ConstantValue::U32(*self.row.blob_as::<u32>(2)?)),
             _ => Err(invalid_data("Unsupported constant type")),
         }
     }

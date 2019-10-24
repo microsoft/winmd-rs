@@ -13,7 +13,7 @@ pub struct MethodAttributes(pub(crate) u32);
 pub struct TypeAttributes(pub(crate) u32);
 
 impl MethodAttributes {
-    pub fn special(&self) -> bool{
+    pub fn special(&self) -> bool {
         self.0 & 0b100000000000 != 0
     }
 }
