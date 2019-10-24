@@ -1,56 +1,91 @@
+use crate::codes::*;
 use crate::error::*;
 use crate::tables::*;
 use std::io::Result;
 
-pub struct MethodSig {
-    // return_type : return_type
-// params : param
+struct ModifierSig<'a> {
+    type_code: TypeDefOrRef<'a>,
 }
 
-pub struct ParamSig{
-
+pub struct MethodSig<'a> {
+    return_sig: ReturnSig<'a>,
+    params: std::vec::Vec<ParamSig<'a>>,
 }
 
-struct ReturnSig {}
+pub struct ParamSig<'a> {
+    modifiers: std::vec::Vec<ModifierSig<'a>>,
+    type_sig: Option<TypeSig>,
+    by_ref: bool,
+}
 
-struct TypeSignature {}
+struct ReturnSig<'a> {
+    modifiers: std::vec::Vec<ModifierSig<'a>>,
+    type_sig: Option<TypeSig>,
+    by_ref: bool,
+}
 
-impl MethodSig {
-    pub(crate) fn new(method: &MethodDef<'_>) -> Result<MethodSig> {
-        let mut blob = method.row.blob(4)?;
-        let mut calling_convention: u32 = 0;
-        blob = read_u32(blob, &mut calling_convention)?;
-        let mut generic_params: u32 = 0;
+struct TypeSig {}
+
+impl<'a> MethodSig<'a> {
+    pub(crate) fn new(method: &MethodDef<'_>) -> Result<MethodSig<'a>> {
+        let mut bytes = method.row.blob(4)?;
+        let (calling_convention, bytes_read) = read_u32(&mut bytes)?;
+        bytes = seek(bytes, bytes_read);
         if calling_convention & 0x10 != 0 {
-            blob = read_u32(blob, &mut calling_convention)?;
+            let (_, bytes_read) = read_u32(&mut bytes)?;
+            bytes = seek(bytes, bytes_read);
         }
-        let mut params: u32 = 0;
-        blob = read_u32(blob, &mut params)?;
+        let (param_count, bytes_read) = read_u32(&mut bytes)?;
+        bytes = seek(bytes, bytes_read);
+        let return_sig = ReturnSig::new(&mut bytes)?;
+        let mut params = std::vec::Vec::with_capacity(param_count as usize);
+        for _ in 0..param_count {
+            params.push(ParamSig::new(&mut bytes)?)
+        }
 
         Err(invalid_blob())
     }
 }
 
-impl ParamSig{
-    fn new(bytes: &[u8]) -> Result<ParamSig>
-    {
-Err(invalid_blob())
+impl<'a> ModifierSig<'a> {
+    fn new(bytes: &mut &[u8]) -> Result<ModifierSig<'a>> {
+        Err(invalid_blob())
     }
 }
 
-impl ReturnSig{
-    fn new(bytes: &[u8]) -> Result<ReturnSig>
-    {
-Err(invalid_blob())
+impl<'a> ParamSig<'a> {
+    fn new(bytes: &mut &[u8]) -> Result<ParamSig<'a>> {
+        Err(invalid_blob())
     }
 }
 
-fn read_u32<'a>(bytes: &'a [u8], value: &mut u32) -> Result<&'a [u8]> {
+impl<'a> ReturnSig<'a> {
+    fn new(bytes: &mut &[u8]) -> Result<ReturnSig<'a>> {
+        let mut modifiers = std::vec::Vec::new();
+        loop {
+            let (element_type, _) = read_u32(bytes)?;
+            if element_type != 32 && element_type != 31 {
+                break;
+            }
+            modifiers.push(ModifierSig::new(bytes));
+        }
+        let (element_type, bytes_read) = read_u32(bytes)?;
+        if element_type == 16 {}
+
+        Err(invalid_blob())
+    }
+}
+
+fn seek(bytes: &[u8], bytes_read: usize) -> &[u8] {
+    bytes.get(bytes_read..).unwrap()
+}
+
+fn read_u32<'a>(bytes: &[u8]) -> Result<(u32, usize)> {
     if bytes.is_empty() {
         return Err(invalid_blob());
     }
     let bytes_read;
-    *value = if bytes[0] & 0x80 == 0 {
+    let value = if bytes[0] & 0x80 == 0 {
         bytes_read = 1;
         bytes[0] as u32
     } else if bytes[0] & 0xC0 == 0x80 {
@@ -68,9 +103,10 @@ fn read_u32<'a>(bytes: &'a [u8], value: &mut u32) -> Result<&'a [u8]> {
     } else {
         return Err(invalid_blob());
     };
-    Ok(bytes.get(bytes_read..).unwrap())
+
+    Ok((value, bytes_read))
 }
 
 pub fn invalid_blob() -> std::io::Error {
-    std::io::Error::new(std::io::ErrorKind::InvalidData, "Invalid blob")
+    std::io::Error::new(std::io::ErrorKind::InvalidData, "Unsupported blob")
 }
