@@ -583,8 +583,10 @@ trait View {
     fn view_as<T>(&self, cli_offset: u32) -> Result<&T>;
     fn view_as_slice_of<T>(&self, cli_offset: u32, len: u32) -> Result<&[T]>;
     fn view_as_str(&self, cli_offset: u32) -> Result<&[u8]>;
-    fn view_offset(&self, cli_offset: u32) -> Result<&[u8]>;
 }
+
+// TODO: remove use of unsafe blocks by simply indexing into the struct/fields with offsets
+// and avoiding the structs altogether.
 
 impl View for [u8] {
     fn view_as<T>(&self, cli_offset: u32) -> Result<&T> {
@@ -600,13 +602,10 @@ impl View for [u8] {
         unsafe { Ok(std::slice::from_raw_parts(&self[cli_offset as usize] as *const u8 as *const T, len as usize)) }
     }
     fn view_as_str(&self, cli_offset: u32) -> Result<&[u8]> {
-        match self.view_offset(cli_offset)?.iter().position(|c| *c == b'\0') {
+        match self.get(cli_offset as usize..).ok_or_else(|| unexpected_eof())?.iter().position(|c| *c == b'\0') {
             Some(index) => Ok(&self[cli_offset as usize..cli_offset as usize + index]),
             None => Err(unexpected_eof()),
         }
-    }
-    fn view_offset(&self, cli_offset: u32) -> Result<&[u8]> {
-        self.get(cli_offset as usize..).ok_or_else(|| unexpected_eof())
     }
 }
 

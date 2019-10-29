@@ -53,6 +53,17 @@ impl<'a> ModifierSig<'a> {
     fn new(bytes: &mut &[u8]) -> Result<ModifierSig<'a>> {
         Err(invalid_blob())
     }
+    fn vec(bytes: &mut &[u8]) -> Result<std::vec::Vec<ModifierSig<'a>>>{
+        let mut modifiers = std::vec::Vec::new();
+        loop {
+            let (element_type, _) = read_u32(bytes)?;
+            if element_type != 32 && element_type != 31 {
+                break;
+            }
+            modifiers.push(ModifierSig::new(bytes)?);
+        }
+        Ok(modifiers)
+    }
 }
 
 impl<'a> ParamSig<'a> {
@@ -63,20 +74,17 @@ impl<'a> ParamSig<'a> {
 
 impl<'a> ReturnSig<'a> {
     fn new(bytes: &mut &[u8]) -> Result<ReturnSig<'a>> {
-        let mut modifiers = std::vec::Vec::new();
-        loop {
-            let (element_type, _) = read_u32(bytes)?;
-            if element_type != 32 && element_type != 31 {
-                break;
-            }
-            modifiers.push(ModifierSig::new(bytes));
-        }
+        let modifiers = ModifierSig::vec(bytes);
         let (element_type, bytes_read) = read_u32(bytes)?;
         if element_type == 16 {}
 
         Err(invalid_blob())
     }
 }
+
+// fn read_by_ref(bytes: &mut &[u8]) -> Result<bool>{
+
+// }
 
 fn seek(bytes: &[u8], bytes_read: usize) -> &[u8] {
     bytes.get(bytes_read..).unwrap()
