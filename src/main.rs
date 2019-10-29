@@ -18,7 +18,6 @@ fn main() {
 }
 
 fn run() -> std::io::Result<()> {
-
     let reader = Reader::from_os()?;
 
     if let Some(t) = reader.find("Windows.Foundation", "IGuidHelperStatics") {
@@ -29,6 +28,7 @@ fn run() -> std::io::Result<()> {
                 for p in m.params()? {
                     println!("            param {}", p.name()?);
                 }
+                m.signature()?;
             }
         }
     }
