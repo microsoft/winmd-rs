@@ -1,7 +1,7 @@
 use crate::codes::*;
+use crate::database::*;
 use crate::error::*;
 use crate::tables::*;
-use crate::database::*;
 use std::io::Result;
 
 // TODO: what about using std::io::Read?
@@ -22,14 +22,35 @@ pub struct MethodSig<'a> {
 
 pub struct ParamSig<'a> {
     modifiers: std::vec::Vec<ModifierSig<'a>>,
-    type_sig: Option<TypeSig<'a>>,
     by_ref: bool,
+    type_sig: TypeSig<'a>,
+}
+
+impl<'a> ParamSig<'a> {
+    fn new(db: &'a Database, bytes: &mut &[u8]) -> Result<ParamSig<'a>> {
+        let modifiers = ModifierSig::vec(bytes)?;
+        let by_ref = read_expected(bytes, 0x10)?;
+        let type_sig = TypeSig::new(db, bytes)?;
+        Ok(ParamSig{modifiers, by_ref, type_sig})
+    }
 }
 
 struct ReturnSig<'a> {
     modifiers: std::vec::Vec<ModifierSig<'a>>,
-    type_sig: Option<TypeSig<'a>>,
     by_ref: bool,
+    type_sig: Option<TypeSig<'a>>,
+}
+
+impl<'a> ReturnSig<'a> {
+    fn new(db: &'a Database, bytes: &mut &[u8]) -> Result<ReturnSig<'a>> {
+        let modifiers = ModifierSig::vec(bytes)?;
+        let by_ref = read_expected(bytes, 0x10)?;
+        if read_expected(bytes, 0x01)? {
+            Ok(ReturnSig { modifiers, by_ref, type_sig: None })
+        } else {
+            Ok(ReturnSig { modifiers, by_ref, type_sig: Some(TypeSig::new(db, bytes)?) })
+        }
+    }
 }
 
 enum TypeSigType<'a> {
@@ -46,6 +67,16 @@ struct TypeSig<'a> {
     sig_type: TypeSigType<'a>,
 }
 
+impl<'a> TypeSig<'a> {
+    fn new(db: &'a Database, bytes: &mut &[u8]) -> Result<TypeSig<'a>> {
+        let array = read_expected(bytes, 0x1D)?;
+        let modifiers = ModifierSig::vec(bytes)?;
+        let sig_type = TypeSigType::new(db, bytes)?;
+
+        Ok(TypeSig { array, modifiers, sig_type })
+    }
+}
+
 impl<'a> MethodSig<'a> {
     pub(crate) fn new(method: &MethodDef<'_>) -> Result<MethodSig<'a>> {
         let mut bytes = method.row.blob(4)?;
@@ -57,19 +88,19 @@ impl<'a> MethodSig<'a> {
         }
         let (param_count, bytes_read) = read_u32(&mut bytes)?;
         bytes = seek(bytes, bytes_read);
-        let return_sig = ReturnSig::new(&mut bytes)?;
+        let return_sig = ReturnSig::new(method.row.table.db, &mut bytes)?;
         let mut params = std::vec::Vec::with_capacity(param_count as usize);
         for _ in 0..param_count {
-            params.push(ParamSig::new(&mut bytes)?)
+            params.push(ParamSig::new(method.row.table.db, &mut bytes)?)
         }
 
-        Err(invalid_blob())
+        Err(unsupported_blob())
     }
 }
 
 impl<'a> ModifierSig<'a> {
     fn new(bytes: &mut &[u8]) -> Result<ModifierSig<'a>> {
-        Err(invalid_blob())
+        Err(unsupported_blob())
     }
     fn vec(bytes: &mut &[u8]) -> Result<std::vec::Vec<ModifierSig<'a>>> {
         let mut modifiers = std::vec::Vec::new();
@@ -84,39 +115,14 @@ impl<'a> ModifierSig<'a> {
     }
 }
 
-impl<'a> ParamSig<'a> {
-    fn new(bytes: &mut &[u8]) -> Result<ParamSig<'a>> {
-        Err(invalid_blob())
-    }
-}
-
-impl<'a> ReturnSig<'a> {
-    fn new(bytes: &mut &[u8]) -> Result<ReturnSig<'a>> {
-        let modifiers = ModifierSig::vec(bytes);
-        let by_ref = read_expected(bytes, 0x10);
-        let void = read_expected(bytes, 0x01);
-        let type_sig = TypeSig::new(bytes);
-
-        Err(invalid_blob())
-    }
-}
-
-impl<'a> TypeSig<'a> {
-    fn new(bytes: &mut &[u8]) -> Result<TypeSig<'a>> {
-        let array = read_expected(bytes, 0x1D);
-        let modifiers = ModifierSig::vec(bytes);
 
 
-        Err(invalid_blob())
-    }
-}
-
-impl<'a> TypeSigType<'a>{
+impl<'a> TypeSigType<'a> {
     fn new(db: &'a Database, bytes: &mut &[u8]) -> Result<TypeSigType<'a>> {
         let (element_type, bytes_read) = read_u32(bytes)?;
         *bytes = seek(bytes, bytes_read);
 
-        Ok(match element_type{
+        Ok(match element_type {
             0x02 => TypeSigType::ElementType(ElementType::Boolean),
             0x03 => TypeSigType::ElementType(ElementType::Char),
             0x04 => TypeSigType::ElementType(ElementType::I1),
@@ -137,9 +143,9 @@ impl<'a> TypeSigType<'a>{
                 let (code, bytes_read) = read_u32(bytes)?;
                 *bytes = seek(bytes, bytes_read);
                 TypeSigType::TypeDefOrRef(TypeDefOrRef::decode(db, code))
-            },
+            }
 
-            _ => return Err(invalid_blob()),
+            _ => return Err(unsupported_blob()),
         })
     }
 }
@@ -160,7 +166,7 @@ fn seek(bytes: &[u8], bytes_read: usize) -> &[u8] {
 
 fn read_u32<'a>(bytes: &[u8]) -> Result<(u32, usize)> {
     if bytes.is_empty() {
-        return Err(invalid_blob());
+        return Err(unsupported_blob());
     }
     let bytes_read;
     let value = if bytes[0] & 0x80 == 0 {
@@ -168,24 +174,24 @@ fn read_u32<'a>(bytes: &[u8]) -> Result<(u32, usize)> {
         bytes[0] as u32
     } else if bytes[0] & 0xC0 == 0x80 {
         if bytes.len() < 2 {
-            return Err(invalid_blob());
+            return Err(unsupported_blob());
         }
         bytes_read = 2;
         (((bytes[0] & 0x3F) as u32) << 8) | bytes[1] as u32
     } else if bytes[0] & 0xE0 == 0xC0 {
         if bytes.len() < 4 {
-            return Err(invalid_blob());
+            return Err(unsupported_blob());
         }
         bytes_read = 4;
         (((bytes[0] & 0x1F) as u32) << 24) | (bytes[1] as u32) << 16 | (bytes[2] as u32) << 8 | bytes[3] as u32
     } else {
-        return Err(invalid_blob());
+        return Err(unsupported_blob());
     };
 
     Ok((value, bytes_read))
 }
 
-pub fn invalid_blob() -> std::io::Error {
+pub fn unsupported_blob() -> std::io::Error {
     std::io::Error::new(std::io::ErrorKind::InvalidData, "Unsupported blob")
 }
 
