@@ -28,52 +28,58 @@ fn run() -> std::io::Result<()> {
                 for p in m.params()? {
                     println!("            param {}", p.name()?);
                 }
-                m.signature()?;
+                let sig = m.signature()?;
+                if let Some(ret) = sig.return_sig {
+                    println!("{}", ret);
+                }
+                for p in sig.params {
+                    println!("{}", p.type_sig);
+                }
             }
         }
     }
 
-    for ns in reader.namespaces() {
-        if ns.name() != "Windows.Foundation" {
-            continue;
-        }
+    // for ns in reader.namespaces() {
+    //     if ns.name() != "Windows.Foundation" {
+    //         continue;
+    //     }
 
-        println!("namespace {}", ns.name());
+    //     println!("namespace {}", ns.name());
 
-        for t in ns.interfaces() {
-            println!("\n    interface {}", t.name()?);
-            for m in t.methods()? {
-                println!("        method {} - {}", m.name()?, m.flags()?.special());
-                for p in m.params()? {
-                    println!("            param {}", p.name()?);
-                }
-            }
-        }
+    //     for t in ns.interfaces() {
+    //         println!("\n    interface {}", t.name()?);
+    //         for m in t.methods()? {
+    //             println!("        method {} - {}", m.name()?, m.flags()?.special());
+    //             for p in m.params()? {
+    //                 println!("            param {}", p.name()?);
+    //             }
+    //         }
+    //     }
 
-        for t in ns.classes() {
-            println!("    class {}", t.name()?);
-        }
+    //     for t in ns.classes() {
+    //         println!("    class {}", t.name()?);
+    //     }
 
-        for t in ns.enums() {
-            println!("    enum {}", t.name()?);
-            for f in t.fields()? {
-                for c in f.constants()? {
-                    println!("        {} = {}", f.name()?, c.value()?);
-                }
-            }
-        }
+    //     for t in ns.enums() {
+    //         println!("    enum {}", t.name()?);
+    //         for f in t.fields()? {
+    //             for c in f.constants()? {
+    //                 println!("        {} = {}", f.name()?, c.value()?);
+    //             }
+    //         }
+    //     }
 
-        for t in ns.structs() {
-            println!("    struct {}", t.name()?);
-            for f in t.fields()? {
-                println!("        field {}", f.name()?);
-            }
-        }
+    //     for t in ns.structs() {
+    //         println!("    struct {}", t.name()?);
+    //         for f in t.fields()? {
+    //             println!("        field {}", f.name()?);
+    //         }
+    //     }
 
-        for t in ns.delegates() {
-            println!("    delegate {}", t.name()?);
-        }
-    }
+    //     for t in ns.delegates() {
+    //         println!("    delegate {}", t.name()?);
+    //     }
+    // }
 
     Ok(())
 }

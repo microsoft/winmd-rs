@@ -48,6 +48,16 @@ impl<'a> TypeDefOrRef<'a> {
         }
     }
 }
+impl<'a> std::fmt::Display for TypeDefOrRef<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            // TODO: how to convert ? (from std::io::Result to std::fmt::Result)
+            TypeDefOrRef::TypeDef(value) => write!(f, "{}.{}", value.namespace().unwrap(), value.name().unwrap()),
+            TypeDefOrRef::TypeRef(value) => write!(f, "{}.{}", value.namespace().unwrap(), value.name().unwrap()),
+            TypeDefOrRef::TypeSpec(value) => write!(f, "TypeSpec"),
+        }
+    }
+}
 
 pub enum HasCustomAttribute<'a> {
     MethodDef(MethodDef<'a>),

@@ -6,12 +6,12 @@ use std::io::Result;
 
 // TODO: what about using std::io::Read?
 
-struct GenericSig<'a> {
+pub struct GenericSig<'a> {
     sig_type: TypeDefOrRef<'a>,
     args: std::vec::Vec<TypeSig<'a>>,
 }
 
-struct ModifierSig<'a> {
+pub struct ModifierSig<'a> {
     type_code: TypeDefOrRef<'a>,
 }
 impl<'a> ModifierSig<'a> {
@@ -37,8 +37,8 @@ impl<'a> ModifierSig<'a> {
 }
 
 pub struct MethodSig<'a> {
-    return_sig: ReturnSig<'a>,
-    params: std::vec::Vec<ParamSig<'a>>,
+    pub return_sig: Option<TypeSig<'a>>,
+    pub params: std::vec::Vec<ParamSig<'a>>,
 }
 impl<'a> MethodSig<'a> {
     pub(crate) fn new(method: &MethodDef<'a>) -> Result<MethodSig<'a>> {
@@ -51,7 +51,18 @@ impl<'a> MethodSig<'a> {
         }
         let (param_count, bytes_read) = read_u32(&mut bytes)?;
         bytes = seek(bytes, bytes_read);
-        let return_sig = ReturnSig::new(method.row.table.db, &mut bytes)?;
+
+        let return_sig;
+        {
+            let modifiers = ModifierSig::vec(method.row.table.db, &mut bytes)?;
+            let by_ref = read_expected(&mut bytes, 0x10)?;
+            if read_expected(&mut bytes, 0x01)? {
+                return_sig = None;
+            } else {
+                return_sig = Some(TypeSig::new(method.row.table.db, &mut bytes)?);
+            }
+        }
+
         let mut params = std::vec::Vec::with_capacity(param_count as usize);
         for _ in 0..param_count {
             params.push(ParamSig::new(method.row.table.db, &mut bytes)?);
@@ -63,7 +74,7 @@ impl<'a> MethodSig<'a> {
 pub struct ParamSig<'a> {
     modifiers: std::vec::Vec<ModifierSig<'a>>,
     by_ref: bool,
-    type_sig: TypeSig<'a>,
+    pub type_sig: TypeSig<'a>,
 }
 impl<'a> ParamSig<'a> {
     fn new(db: &'a Database, bytes: &mut &[u8]) -> Result<ParamSig<'a>> {
@@ -74,24 +85,7 @@ impl<'a> ParamSig<'a> {
     }
 }
 
-struct ReturnSig<'a> {
-    modifiers: std::vec::Vec<ModifierSig<'a>>,
-    by_ref: bool,
-    type_sig: Option<TypeSig<'a>>,
-}
-impl<'a> ReturnSig<'a> {
-    fn new(db: &'a Database, bytes: &mut &[u8]) -> Result<ReturnSig<'a>> {
-        let modifiers = ModifierSig::vec(db, bytes)?;
-        let by_ref = read_expected(bytes, 0x10)?;
-        if read_expected(bytes, 0x01)? {
-            Ok(ReturnSig { modifiers, by_ref, type_sig: None })
-        } else {
-            Ok(ReturnSig { modifiers, by_ref, type_sig: Some(TypeSig::new(db, bytes)?) })
-        }
-    }
-}
-
-enum TypeSigType<'a> {
+pub enum TypeSigType<'a> {
     ElementType(ElementType),
     TypeDefOrRef(TypeDefOrRef<'a>),
     GenericSig(GenericSig<'a>),
@@ -130,8 +124,19 @@ impl<'a> TypeSigType<'a> {
         })
     }
 }
+impl<'a> std::fmt::Display for TypeSigType<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TypeSigType::ElementType(value) => write!(f, "{}", value),
+            TypeSigType::TypeDefOrRef(value) => write!(f, "{}", value),
+            TypeSigType::GenericSig(value) => write!(f, "{}", "GenericSig"),
+            TypeSigType::GenericTypeIndex(value) => write!(f, "{}", value),
+            TypeSigType::GenericMethodIndex(value) => write!(f, "{}", value),
+        }
+    }
+}
 
-struct TypeSig<'a> {
+pub struct TypeSig<'a> {
     array: bool,
     modifiers: std::vec::Vec<ModifierSig<'a>>,
     sig_type: TypeSigType<'a>,
@@ -142,6 +147,11 @@ impl<'a> TypeSig<'a> {
         let modifiers = ModifierSig::vec(db, bytes)?;
         let sig_type = TypeSigType::new(db, bytes)?;
         Ok(TypeSig { array, modifiers, sig_type })
+    }
+}
+impl<'a> std::fmt::Display for TypeSig<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.sig_type)
     }
 }
 
@@ -190,7 +200,7 @@ pub fn unsupported_blob() -> std::io::Error {
     std::io::Error::new(std::io::ErrorKind::InvalidData, "Unsupported blob")
 }
 
-enum ElementType {
+pub enum ElementType {
     Void = 0x01,
     Boolean = 0x02,
     Char = 0x03,
@@ -236,4 +246,12 @@ enum ElementType {
     Field = 0x53,        // Custom attribute field
     Property = 0x54,     // Custom attribute property
     Enum = 0x55,         // Custom attribute enum
+}
+impl std::fmt::Display for ElementType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ElementType::Boolean => write!(f, "bool"),
+            _ => write!(f, "..ElementType.."),
+        }
+    }
 }
