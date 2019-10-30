@@ -14,69 +14,27 @@ struct GenericSig<'a> {
 struct ModifierSig<'a> {
     type_code: TypeDefOrRef<'a>,
 }
+impl<'a> ModifierSig<'a> {
+    fn new(bytes: &mut &[u8]) -> Result<ModifierSig<'a>> {
+        Err(unsupported_blob())
+    }
+    fn vec(bytes: &mut &[u8]) -> Result<std::vec::Vec<ModifierSig<'a>>> {
+        let mut modifiers = std::vec::Vec::new();
+        loop {
+            let (element_type, _) = read_u32(bytes)?;
+            if element_type != 32 && element_type != 31 {
+                break;
+            }
+            modifiers.push(ModifierSig::new(bytes)?);
+        }
+        Ok(modifiers)
+    }
+}
 
 pub struct MethodSig<'a> {
     return_sig: ReturnSig<'a>,
     params: std::vec::Vec<ParamSig<'a>>,
 }
-
-pub struct ParamSig<'a> {
-    modifiers: std::vec::Vec<ModifierSig<'a>>,
-    by_ref: bool,
-    type_sig: TypeSig<'a>,
-}
-
-impl<'a> ParamSig<'a> {
-    fn new(db: &'a Database, bytes: &mut &[u8]) -> Result<ParamSig<'a>> {
-        let modifiers = ModifierSig::vec(bytes)?;
-        let by_ref = read_expected(bytes, 0x10)?;
-        let type_sig = TypeSig::new(db, bytes)?;
-        Ok(ParamSig { modifiers, by_ref, type_sig })
-    }
-}
-
-struct ReturnSig<'a> {
-    modifiers: std::vec::Vec<ModifierSig<'a>>,
-    by_ref: bool,
-    type_sig: Option<TypeSig<'a>>,
-}
-
-impl<'a> ReturnSig<'a> {
-    fn new(db: &'a Database, bytes: &mut &[u8]) -> Result<ReturnSig<'a>> {
-        let modifiers = ModifierSig::vec(bytes)?;
-        let by_ref = read_expected(bytes, 0x10)?;
-        if read_expected(bytes, 0x01)? {
-            Ok(ReturnSig { modifiers, by_ref, type_sig: None })
-        } else {
-            Ok(ReturnSig { modifiers, by_ref, type_sig: Some(TypeSig::new(db, bytes)?) })
-        }
-    }
-}
-
-enum TypeSigType<'a> {
-    ElementType(ElementType),
-    TypeDefOrRef(TypeDefOrRef<'a>),
-    GenericSig(GenericSig<'a>),
-    GenericTypeIndex(u32),
-    GenericMethodIndex(u32),
-}
-
-struct TypeSig<'a> {
-    array: bool,
-    modifiers: std::vec::Vec<ModifierSig<'a>>,
-    sig_type: TypeSigType<'a>,
-}
-
-impl<'a> TypeSig<'a> {
-    fn new(db: &'a Database, bytes: &mut &[u8]) -> Result<TypeSig<'a>> {
-        let array = read_expected(bytes, 0x1D)?;
-        let modifiers = ModifierSig::vec(bytes)?;
-        let sig_type = TypeSigType::new(db, bytes)?;
-
-        Ok(TypeSig { array, modifiers, sig_type })
-    }
-}
-
 impl<'a> MethodSig<'a> {
     pub(crate) fn new(method: &MethodDef<'_>) -> Result<MethodSig<'a>> {
         let mut bytes = method.row.blob(4)?;
@@ -98,23 +56,44 @@ impl<'a> MethodSig<'a> {
     }
 }
 
-impl<'a> ModifierSig<'a> {
-    fn new(bytes: &mut &[u8]) -> Result<ModifierSig<'a>> {
-        Err(unsupported_blob())
-    }
-    fn vec(bytes: &mut &[u8]) -> Result<std::vec::Vec<ModifierSig<'a>>> {
-        let mut modifiers = std::vec::Vec::new();
-        loop {
-            let (element_type, _) = read_u32(bytes)?;
-            if element_type != 32 && element_type != 31 {
-                break;
-            }
-            modifiers.push(ModifierSig::new(bytes)?);
-        }
-        Ok(modifiers)
+pub struct ParamSig<'a> {
+    modifiers: std::vec::Vec<ModifierSig<'a>>,
+    by_ref: bool,
+    type_sig: TypeSig<'a>,
+}
+impl<'a> ParamSig<'a> {
+    fn new(db: &'a Database, bytes: &mut &[u8]) -> Result<ParamSig<'a>> {
+        let modifiers = ModifierSig::vec(bytes)?;
+        let by_ref = read_expected(bytes, 0x10)?;
+        let type_sig = TypeSig::new(db, bytes)?;
+        Ok(ParamSig { modifiers, by_ref, type_sig })
     }
 }
 
+struct ReturnSig<'a> {
+    modifiers: std::vec::Vec<ModifierSig<'a>>,
+    by_ref: bool,
+    type_sig: Option<TypeSig<'a>>,
+}
+impl<'a> ReturnSig<'a> {
+    fn new(db: &'a Database, bytes: &mut &[u8]) -> Result<ReturnSig<'a>> {
+        let modifiers = ModifierSig::vec(bytes)?;
+        let by_ref = read_expected(bytes, 0x10)?;
+        if read_expected(bytes, 0x01)? {
+            Ok(ReturnSig { modifiers, by_ref, type_sig: None })
+        } else {
+            Ok(ReturnSig { modifiers, by_ref, type_sig: Some(TypeSig::new(db, bytes)?) })
+        }
+    }
+}
+
+enum TypeSigType<'a> {
+    ElementType(ElementType),
+    TypeDefOrRef(TypeDefOrRef<'a>),
+    GenericSig(GenericSig<'a>),
+    GenericTypeIndex(u32),
+    GenericMethodIndex(u32),
+}
 impl<'a> TypeSigType<'a> {
     fn new(db: &'a Database, bytes: &mut &[u8]) -> Result<TypeSigType<'a>> {
         let (element_type, bytes_read) = read_u32(bytes)?;
@@ -145,6 +124,21 @@ impl<'a> TypeSigType<'a> {
 
             _ => return Err(unsupported_blob()),
         })
+    }
+}
+
+struct TypeSig<'a> {
+    array: bool,
+    modifiers: std::vec::Vec<ModifierSig<'a>>,
+    sig_type: TypeSigType<'a>,
+}
+impl<'a> TypeSig<'a> {
+    fn new(db: &'a Database, bytes: &mut &[u8]) -> Result<TypeSig<'a>> {
+        let array = read_expected(bytes, 0x1D)?;
+        let modifiers = ModifierSig::vec(bytes)?;
+        let sig_type = TypeSigType::new(db, bytes)?;
+
+        Ok(TypeSig { array, modifiers, sig_type })
     }
 }
 
