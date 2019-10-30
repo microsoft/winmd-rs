@@ -101,20 +101,18 @@ impl<'a> TypeSigType<'a> {
         Ok(match element_type {
             0x02 => TypeSigType::ElementType(ElementType::Boolean),
             0x03 => TypeSigType::ElementType(ElementType::Char),
-            0x04 => TypeSigType::ElementType(ElementType::I1),
-            0x05 => TypeSigType::ElementType(ElementType::U1),
-            0x06 => TypeSigType::ElementType(ElementType::I2),
-            0x07 => TypeSigType::ElementType(ElementType::U2),
-            0x08 => TypeSigType::ElementType(ElementType::I4),
-            0x09 => TypeSigType::ElementType(ElementType::U4),
-            0x0A => TypeSigType::ElementType(ElementType::I8),
-            0x0B => TypeSigType::ElementType(ElementType::U8),
-            0x0C => TypeSigType::ElementType(ElementType::R4),
-            0x0D => TypeSigType::ElementType(ElementType::R8),
+            0x04 => TypeSigType::ElementType(ElementType::I8),
+            0x05 => TypeSigType::ElementType(ElementType::U8),
+            0x06 => TypeSigType::ElementType(ElementType::I16),
+            0x07 => TypeSigType::ElementType(ElementType::U16),
+            0x08 => TypeSigType::ElementType(ElementType::I32),
+            0x09 => TypeSigType::ElementType(ElementType::U32),
+            0x0A => TypeSigType::ElementType(ElementType::I64),
+            0x0B => TypeSigType::ElementType(ElementType::U64),
+            0x0C => TypeSigType::ElementType(ElementType::F32),
+            0x0D => TypeSigType::ElementType(ElementType::F64),
             0x0E => TypeSigType::ElementType(ElementType::String),
             0x1C => TypeSigType::ElementType(ElementType::Object),
-            0x18 => TypeSigType::ElementType(ElementType::I),
-            0x19 => TypeSigType::ElementType(ElementType::U),
             0x11 | 0x12 => {
                 let (code, bytes_read) = read_u32(bytes)?;
                 *bytes = seek(bytes, bytes_read);
@@ -202,51 +200,20 @@ pub fn unsupported_blob() -> std::io::Error {
 }
 
 pub enum ElementType {
-    Void = 0x01,
-    Boolean = 0x02,
-    Char = 0x03,
-    I1 = 0x04,
-    U1 = 0x05,
-    I2 = 0x06,
-    U2 = 0x07,
-    I4 = 0x08,
-    U4 = 0x09,
-    I8 = 0x0a,
-    U8 = 0x0b,
-    R4 = 0x0c,
-    R8 = 0x0d,
-    String = 0x0e,
-
-    Ptr = 0x0f,       // Followed by TypeSig
-    ByRef = 0x10,     // Followed by TypeSig
-    ValueType = 0x11, // Followed by TypeDef or TypeRef
-    Class = 0x12,     // Followed by TypeDef or TypeRef
-    Var = 0x13,       // Generic parameter in a type definition, represented as unsigned integer
-    Array = 0x14,
-    GenericInst = 0x15,
-    TypedByRef = 0x16,
-
-    I = 0x18, // System.IntPtr
-    U = 0x19, // System.UIntPtr
-
-    FnPtr = 0x1b,  // Followed by full method signature
-    Object = 0x1c, // System.Object
-    SZArray = 0x1d,
-    MVar = 0x1e,     // Generic parameter in a method definition, represented as unsigned integer
-    CModReqd = 0x1f, // Required modifier, followed by a TypeDef or TypeRef
-    CModOpt = 0x20,  // Optional modifier, followed by a TypeDef or TypeRef
-    Internal = 0x21,
-
-    Modifier = 0x40, // Or'd with folowing element types
-    Sentinel = 0x41, // Sentinel for vararg method signature
-
-    Pinned = 0x45,
-
-    Type = 0x50,         // System.Type
-    TaggedObject = 0x51, // Boxed object (in custom attributes)
-    Field = 0x53,        // Custom attribute field
-    Property = 0x54,     // Custom attribute property
-    Enum = 0x55,         // Custom attribute enum
+    Boolean,
+    Char,
+    I8,
+    U8,
+    I16,
+    U16,
+    I32,
+    U32,
+    I64,
+    U64,
+    F32,
+    F64,
+    String,
+    Object,
 }
 impl std::fmt::Display for ElementType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
