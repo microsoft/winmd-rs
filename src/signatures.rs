@@ -15,17 +15,22 @@ struct ModifierSig<'a> {
     type_code: TypeDefOrRef<'a>,
 }
 impl<'a> ModifierSig<'a> {
-    fn new(bytes: &mut &[u8]) -> Result<ModifierSig<'a>> {
-        Err(unsupported_blob())
+    fn new(db: &'a Database, bytes: &mut &[u8]) -> Result<ModifierSig<'a>> {
+        let (need, bytes_read) = read_u32(bytes)?;
+        *bytes = seek(bytes, bytes_read);
+        let (code, bytes_read) = read_u32(bytes)?;
+        *bytes = seek(bytes, bytes_read);
+        let type_code = TypeDefOrRef::decode(db, code);
+        Ok(ModifierSig { type_code })
     }
-    fn vec(bytes: &mut &[u8]) -> Result<std::vec::Vec<ModifierSig<'a>>> {
+    fn vec(db: &'a Database, bytes: &mut &[u8]) -> Result<std::vec::Vec<ModifierSig<'a>>> {
         let mut modifiers = std::vec::Vec::new();
         loop {
             let (element_type, _) = read_u32(bytes)?;
             if element_type != 32 && element_type != 31 {
                 break;
             }
-            modifiers.push(ModifierSig::new(bytes)?);
+            modifiers.push(ModifierSig::new(db, bytes)?);
         }
         Ok(modifiers)
     }
@@ -36,7 +41,7 @@ pub struct MethodSig<'a> {
     params: std::vec::Vec<ParamSig<'a>>,
 }
 impl<'a> MethodSig<'a> {
-    pub(crate) fn new(method: &MethodDef<'_>) -> Result<MethodSig<'a>> {
+    pub(crate) fn new(method: &MethodDef<'a>) -> Result<MethodSig<'a>> {
         let mut bytes = method.row.blob(4)?;
         let (calling_convention, bytes_read) = read_u32(&mut bytes)?;
         bytes = seek(bytes, bytes_read);
@@ -49,10 +54,9 @@ impl<'a> MethodSig<'a> {
         let return_sig = ReturnSig::new(method.row.table.db, &mut bytes)?;
         let mut params = std::vec::Vec::with_capacity(param_count as usize);
         for _ in 0..param_count {
-            params.push(ParamSig::new(method.row.table.db, &mut bytes)?)
+            params.push(ParamSig::new(method.row.table.db, &mut bytes)?);
         }
-
-        Err(unsupported_blob())
+        Ok(MethodSig { return_sig, params })
     }
 }
 
@@ -63,7 +67,7 @@ pub struct ParamSig<'a> {
 }
 impl<'a> ParamSig<'a> {
     fn new(db: &'a Database, bytes: &mut &[u8]) -> Result<ParamSig<'a>> {
-        let modifiers = ModifierSig::vec(bytes)?;
+        let modifiers = ModifierSig::vec(db, bytes)?;
         let by_ref = read_expected(bytes, 0x10)?;
         let type_sig = TypeSig::new(db, bytes)?;
         Ok(ParamSig { modifiers, by_ref, type_sig })
@@ -77,7 +81,7 @@ struct ReturnSig<'a> {
 }
 impl<'a> ReturnSig<'a> {
     fn new(db: &'a Database, bytes: &mut &[u8]) -> Result<ReturnSig<'a>> {
-        let modifiers = ModifierSig::vec(bytes)?;
+        let modifiers = ModifierSig::vec(db, bytes)?;
         let by_ref = read_expected(bytes, 0x10)?;
         if read_expected(bytes, 0x01)? {
             Ok(ReturnSig { modifiers, by_ref, type_sig: None })
@@ -135,9 +139,8 @@ struct TypeSig<'a> {
 impl<'a> TypeSig<'a> {
     fn new(db: &'a Database, bytes: &mut &[u8]) -> Result<TypeSig<'a>> {
         let array = read_expected(bytes, 0x1D)?;
-        let modifiers = ModifierSig::vec(bytes)?;
+        let modifiers = ModifierSig::vec(db, bytes)?;
         let sig_type = TypeSigType::new(db, bytes)?;
-
         Ok(TypeSig { array, modifiers, sig_type })
     }
 }
