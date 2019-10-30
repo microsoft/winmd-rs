@@ -31,7 +31,7 @@ impl<'a> ParamSig<'a> {
         let modifiers = ModifierSig::vec(bytes)?;
         let by_ref = read_expected(bytes, 0x10)?;
         let type_sig = TypeSig::new(db, bytes)?;
-        Ok(ParamSig{modifiers, by_ref, type_sig})
+        Ok(ParamSig { modifiers, by_ref, type_sig })
     }
 }
 
@@ -114,8 +114,6 @@ impl<'a> ModifierSig<'a> {
         Ok(modifiers)
     }
 }
-
-
 
 impl<'a> TypeSigType<'a> {
     fn new(db: &'a Database, bytes: &mut &[u8]) -> Result<TypeSigType<'a>> {
