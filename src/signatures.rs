@@ -154,7 +154,6 @@ impl<'a> TypeSigType<'a> {
                 *bytes = seek(bytes, bytes_read);
                 TypeSigType::GenericMethodIndex(index)
             }
-
             _ => return Err(unsupported_blob()),
         })
     }
@@ -164,7 +163,7 @@ impl<'a> std::fmt::Display for TypeSigType<'a> {
         match self {
             TypeSigType::ElementType(value) => write!(f, "{}", value),
             TypeSigType::TypeDefOrRef(value) => write!(f, "{}", value),
-            TypeSigType::GenericSig(value) => write!(f, "{}", "GenericSig"),
+            TypeSigType::GenericSig(value) => write!(f, "{}", value.sig_type),
             TypeSigType::GenericTypeIndex(value) => write!(f, "{}", value),
             TypeSigType::GenericMethodIndex(value) => write!(f, "{}", value),
         }
