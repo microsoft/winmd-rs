@@ -176,6 +176,10 @@ impl<'a> MethodDef<'a> {
                 last = true;
             }
         }
+
+        if result.starts_with("get_") {
+            result.replace_range(0..4, "");
+        }
         Ok(result)
     }
 }
