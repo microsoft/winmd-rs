@@ -57,7 +57,6 @@ impl<'a> ModifierSig<'a> {
     }
 }
 
-// TODO: do as the cppwinrt's method_signature does and stick the params in a vector of pairs along with their names
 pub struct MethodSig<'a> {
     pub return_sig: Option<TypeSig<'a>>,
     pub params: std::vec::Vec<(Param<'a>, ParamSig<'a>)>,
