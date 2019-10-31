@@ -143,6 +143,41 @@ impl<'a> MethodDef<'a> {
     pub fn signature(&self) -> Result<MethodSig> {
         MethodSig::new(self)
     }
+
+    pub fn rust_name(&self) -> Result<String> {
+        let mut source = self.name()?;
+        let mut result = String::with_capacity(source.len() + 2);
+
+        if self.flags()?.special() {
+            if source.starts_with("get_") || source.starts_with("add_") {
+                source = &source[4..];
+            } else if source.starts_with("put_") {
+                result.push_str("set_");
+                source = &source[4..];
+            } else if source.starts_with("remove_") {
+                result.push_str("revoke_");
+                source = &source[7..];
+            }
+        }
+
+        let mut last = false;
+        for c in source.chars() {
+            if c.is_uppercase() {
+                if last {
+                    result.push('_');
+                    last = false;
+                }
+
+                for lower in c.to_lowercase() {
+                    result.push(lower);
+                }
+            } else {
+                result.push(c);
+                last = true;
+            }
+        }
+        Ok(result)
+    }
 }
 
 impl<'a> Param<'a> {
