@@ -24,11 +24,11 @@ impl<'a> GenericSig<'a> {
 
         let mut args = std::vec::Vec::with_capacity(arg_count as usize);
 
-        for _ in 0..arg_count{
+        for _ in 0..arg_count {
             args.push(TypeSig::new(db, bytes)?);
         }
 
-        Ok(GenericSig{sig_type, args})
+        Ok(GenericSig { sig_type, args })
     }
 }
 
@@ -143,7 +143,17 @@ impl<'a> TypeSigType<'a> {
                 *bytes = seek(bytes, bytes_read);
                 TypeSigType::TypeDefOrRef(TypeDefOrRef::decode(db, code))
             }
+            0x13 => {
+                let (index, bytes_read) = read_u32(bytes)?;
+                *bytes = seek(bytes, bytes_read);
+                TypeSigType::GenericTypeIndex(index)
+            }
             0x15 => TypeSigType::GenericSig(GenericSig::new(db, bytes)?),
+            0x1e => {
+                let (index, bytes_read) = read_u32(bytes)?;
+                *bytes = seek(bytes, bytes_read);
+                TypeSigType::GenericMethodIndex(index)
+            }
 
             _ => return Err(unsupported_blob()),
         })
