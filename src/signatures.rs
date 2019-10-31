@@ -10,6 +10,27 @@ pub struct GenericSig<'a> {
     sig_type: TypeDefOrRef<'a>,
     args: std::vec::Vec<TypeSig<'a>>,
 }
+impl<'a> GenericSig<'a> {
+    fn new(db: &'a Database, bytes: &mut &[u8]) -> Result<GenericSig<'a>> {
+        let (element_type, bytes_read) = read_u32(bytes)?;
+        *bytes = seek(bytes, bytes_read);
+
+        let (code, bytes_read) = read_u32(bytes)?;
+        *bytes = seek(bytes, bytes_read);
+        let sig_type = TypeDefOrRef::decode(db, code);
+
+        let (arg_count, bytes_read) = read_u32(bytes)?;
+        *bytes = seek(bytes, bytes_read);
+
+        let mut args = std::vec::Vec::with_capacity(arg_count as usize);
+
+        for _ in 0..arg_count{
+            args.push(TypeSig::new(db, bytes)?);
+        }
+
+        Ok(GenericSig{sig_type, args})
+    }
+}
 
 pub struct ModifierSig<'a> {
     type_code: TypeDefOrRef<'a>,
@@ -122,6 +143,7 @@ impl<'a> TypeSigType<'a> {
                 *bytes = seek(bytes, bytes_read);
                 TypeSigType::TypeDefOrRef(TypeDefOrRef::decode(db, code))
             }
+            0x15 => TypeSigType::GenericSig(GenericSig::new(db, bytes)?),
 
             _ => return Err(unsupported_blob()),
         })

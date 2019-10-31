@@ -20,69 +20,80 @@ fn main() {
 fn run() -> std::io::Result<()> {
     let reader = Reader::from_os()?;
 
-    if let Some(t) = reader.find("Windows.Foundation", "IUriRuntimeClass") {
-        println!("{}.{}", t.namespace()?, t.name()?);
+    // if let Some(t) = reader.find("Windows.Foundation", "IUriRuntimeClass") {
+    //     println!("{}.{}", t.namespace()?, t.name()?);
 
-        for m in t.methods()? {
-            let sig = m.signature()?;
-            print!("fn {}(", m.name()?);
+    //     for m in t.methods()? {
+    //         let sig = m.signature()?;
+    //         print!("fn {}(", m.name()?);
 
-            if let Some((last, rest)) = sig.params.split_last() {
-                for (param, signature) in rest {
-                    print!("{}: {}, ", param.name()?, signature.type_sig);
-                }
-                let (param, signature) = last;
-                print!("{}: {}", param.name()?, signature.type_sig);
-            }
-
-            match sig.return_sig {
-                Some(value) => println!(") -> {};", value),
-                None => println!(");"),
-            }
-        }
-    }
-
-    // for ns in reader.namespaces() {
-    //     if ns.name() != "Windows.Foundation" {
-    //         continue;
-    //     }
-
-    //     println!("namespace {}", ns.name());
-
-    //     for t in ns.interfaces() {
-    //         println!("\n    interface {}", t.name()?);
-    //         for m in t.methods()? {
-    //             println!("        method {} - {}", m.name()?, m.flags()?.special());
-    //             for p in m.params()? {
-    //                 println!("            param {}", p.name()?);
+    //         if let Some((last, rest)) = sig.params.split_last() {
+    //             for (param, signature) in rest {
+    //                 print!("{}: {}, ", param.name()?, signature.type_sig);
     //             }
+    //             let (param, signature) = last;
+    //             print!("{}: {}", param.name()?, signature.type_sig);
     //         }
-    //     }
 
-    //     for t in ns.classes() {
-    //         println!("    class {}", t.name()?);
-    //     }
-
-    //     for t in ns.enums() {
-    //         println!("    enum {}", t.name()?);
-    //         for f in t.fields()? {
-    //             for c in f.constants()? {
-    //                 println!("        {} = {}", f.name()?, c.value()?);
-    //             }
+    //         match sig.return_sig {
+    //             Some(value) => println!(") -> {};", value),
+    //             None => println!(");"),
     //         }
-    //     }
-
-    //     for t in ns.structs() {
-    //         println!("    struct {}", t.name()?);
-    //         for f in t.fields()? {
-    //             println!("        field {}", f.name()?);
-    //         }
-    //     }
-
-    //     for t in ns.delegates() {
-    //         println!("    delegate {}", t.name()?);
     //     }
     // }
+
+    for ns in reader.namespaces() {
+        if ns.name() != "Windows.Foundation" {
+            continue;
+        }
+
+        println!("namespace {}", ns.name());
+
+        for t in ns.interfaces() {
+            println!("\n    interface {}", t.name()?);
+            for m in t.methods()? {
+                let sig = m.signature()?;
+                print!("        fn {}(", m.name()?);
+
+                if let Some((last, rest)) = sig.params.split_last() {
+                    for (param, signature) in rest {
+                        print!("{}: {}, ", param.name()?, signature.type_sig);
+                    }
+                    let (param, signature) = last;
+                    print!("{}: {}", param.name()?, signature.type_sig);
+                }
+
+                match sig.return_sig {
+                    Some(value) => println!(") -> {};", value),
+                    None => println!(");"),
+                }
+            }
+        }
+
+        for t in ns.classes() {
+            println!("    class {}", t.name()?);
+        }
+
+        for t in ns.enums() {
+            println!("    enum {}", t.name()?);
+            for f in t.fields()? {
+                for c in f.constants()? {
+                    println!("        {} = {}", f.name()?, c.value()?);
+                }
+            }
+        }
+
+        for t in ns.structs() {
+            println!("    struct {}", t.name()?);
+            for f in t.fields()? {
+                println!("        field {}", f.name()?);
+            }
+        }
+
+        for t in ns.delegates() {
+            println!("    delegate {}", t.name()?);
+        }
+    }
 
     Ok(())
 }
