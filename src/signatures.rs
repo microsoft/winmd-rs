@@ -39,7 +39,7 @@ impl<'a> ModifierSig<'a> {
 // TODO: do as the cppwinrt's method_signature does and stick the params in a vector of pairs along with their names
 pub struct MethodSig<'a> {
     pub return_sig: Option<TypeSig<'a>>,
-    pub params: std::vec::Vec<ParamSig<'a>>,
+    pub params: std::vec::Vec<(Param<'a>, ParamSig<'a>)>,
 }
 impl<'a> MethodSig<'a> {
     pub(crate) fn new(method: &MethodDef<'a>) -> Result<MethodSig<'a>> {
@@ -65,8 +65,12 @@ impl<'a> MethodSig<'a> {
         }
 
         let mut params = std::vec::Vec::with_capacity(param_count as usize);
-        for _ in 0..param_count {
-            params.push(ParamSig::new(method.row.table.db, &mut bytes)?);
+
+        for param in method.params()? {
+            if return_sig.is_some() && param.sequence()? == 0 {
+                continue;
+            }
+            params.push((param, ParamSig::new(method.row.table.db, &mut bytes)?));
         }
         Ok(MethodSig { return_sig, params })
     }
@@ -99,7 +103,7 @@ impl<'a> TypeSigType<'a> {
         *bytes = seek(bytes, bytes_read);
 
         Ok(match element_type {
-            0x02 => TypeSigType::ElementType(ElementType::Boolean),
+            0x02 => TypeSigType::ElementType(ElementType::Bool),
             0x03 => TypeSigType::ElementType(ElementType::Char),
             0x04 => TypeSigType::ElementType(ElementType::I8),
             0x05 => TypeSigType::ElementType(ElementType::U8),
@@ -200,7 +204,7 @@ pub fn unsupported_blob() -> std::io::Error {
 }
 
 pub enum ElementType {
-    Boolean,
+    Bool,
     Char,
     I8,
     U8,
@@ -218,7 +222,20 @@ pub enum ElementType {
 impl std::fmt::Display for ElementType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ElementType::Boolean => write!(f, "bool"),
+            ElementType::Bool => write!(f, "bool"),
+            ElementType::Char => write!(f, "char"),
+            ElementType::I8 => write!(f, "i8"),
+            ElementType::U8 => write!(f, "u8"),
+            ElementType::I16 => write!(f, "i16"),
+            ElementType::U16 => write!(f, "u16"),
+            ElementType::I32 => write!(f, "i32"),
+            ElementType::U32 => write!(f, "u32"),
+            ElementType::I64 => write!(f, "i64"),
+            ElementType::U64 => write!(f, "u64"),
+            ElementType::F32 => write!(f, "f32"),
+            ElementType::F64 => write!(f, "f64"),
+            ElementType::String => write!(f, "String"),
+            ElementType::Object => write!(f, "Object"),
             _ => write!(f, "..ElementType.."),
         }
     }

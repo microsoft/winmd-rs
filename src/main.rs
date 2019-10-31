@@ -20,21 +20,24 @@ fn main() {
 fn run() -> std::io::Result<()> {
     let reader = Reader::from_os()?;
 
-    if let Some(t) = reader.find("Windows.Foundation", "IGuidHelperStatics") {
+    if let Some(t) = reader.find("Windows.Foundation", "IUriRuntimeClass") {
         println!("{}.{}", t.namespace()?, t.name()?);
 
         for m in t.methods()? {
-            if m.name()? == "Equals" {
-                for p in m.params()? {
-                    println!("            param {}", p.name()?);
+            let sig = m.signature()?;
+            print!("fn {}(", m.name()?);
+
+            if let Some((last, rest)) = sig.params.split_last() {
+                for (param, signature) in rest {
+                    print!("{}: {}, ", param.name()?, signature.type_sig);
                 }
-                let sig = m.signature()?;
-                if let Some(ret) = sig.return_sig {
-                    println!("{}", ret);
-                }
-                for p in sig.params {
-                    println!("{}", p.type_sig);
-                }
+                let (param, signature) = last;
+                print!("{}: {}", param.name()?, signature.type_sig);
+            }
+
+            match sig.return_sig {
+                Some(value) => println!(") -> {};", value),
+                None => println!(");"),
             }
         }
     }

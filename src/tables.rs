@@ -134,7 +134,7 @@ impl<'a> MethodDef<'a> {
     pub fn name(&self) -> Result<&str> {
         self.row.str(3)
     }
-    pub fn params(&self) -> Result<RowIterator<'a, Param<'a>>> {
+    pub(crate) fn params(&self) -> Result<RowIterator<'a, Param<'a>>> {
         self.row.list(5, &self.row.table.db.param())
     }
     pub fn parent(&self) -> Result<TypeDef> {
@@ -146,6 +146,9 @@ impl<'a> MethodDef<'a> {
 }
 
 impl<'a> Param<'a> {
+    pub fn sequence(&self) -> Result<u32> {
+        self.row.u32(1)
+    }
     pub fn name(&self) -> Result<&str> {
         self.row.str(2)
     }
