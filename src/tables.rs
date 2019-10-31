@@ -106,10 +106,6 @@ impl<'a> CustomAttribute<'a> {
 }
 
 impl<'a> Field<'a> {
-    // flags - FieldAttributes
-    // name
-    // signature
-
     pub fn name(&self) -> Result<&str> {
         self.row.str(1)
     }
@@ -138,7 +134,7 @@ impl<'a> MethodDef<'a> {
         self.row.list(5, &self.row.table.db.param())
     }
     pub fn parent(&self) -> Result<TypeDef> {
-        self.row.table.db.type_def().upper_bound(6, self.row.index) // TODO: this looks wrong...
+        self.row.table.db.type_def().upper_bound(6, self.row.index)
     }
     pub fn signature(&self) -> Result<MethodSig> {
         MethodSig::new(self)

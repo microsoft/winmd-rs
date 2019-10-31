@@ -32,9 +32,9 @@ fn run() -> std::io::Result<()> {
     // }
 
     for ns in reader.namespaces() {
-        if ns.name() != "Windows.Foundation" {
-            continue;
-        }
+        // if ns.name() != "Windows.Foundation" {
+        //     continue;
+        // }
 
         println!("namespace {}", ns.name());
 
@@ -44,15 +44,15 @@ fn run() -> std::io::Result<()> {
                 let sig = m.signature()?;
                 print!("        fn {}(", m.rust_name()?);
 
-                if let Some((last, rest)) = sig.params.split_last() {
+                if let Some((last, rest)) = sig.params().split_last() {
                     for (param, signature) in rest {
-                        print!("{}: {}, ", param.name()?, signature.type_sig);
+                        print!("{}: {}, ", param.name()?, signature.param_type());
                     }
                     let (param, signature) = last;
-                    print!("{}: {}", param.name()?, signature.type_sig);
+                    print!("{}: {}", param.name()?, signature.param_type());
                 }
 
-                match sig.return_sig {
+                match sig.return_type() {
                     Some(value) => println!(") -> {};", value),
                     None => println!(");"),
                 }

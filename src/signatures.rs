@@ -1,14 +1,14 @@
 use crate::codes::*;
 use crate::database::*;
-use crate::error::*;
 use crate::tables::*;
 use std::io::Result;
+use std::vec::*;
 
 // TODO: what about using std::io::Read?
 
 pub struct GenericSig<'a> {
-    sig_type: TypeDefOrRef<'a>,
-    args: std::vec::Vec<TypeSig<'a>>,
+    generic_type: TypeDefOrRef<'a>,
+    args: Vec<TypeSig<'a>>,
 }
 impl<'a> GenericSig<'a> {
     fn new(db: &'a Database, bytes: &mut &[u8]) -> Result<GenericSig<'a>> {
@@ -17,18 +17,31 @@ impl<'a> GenericSig<'a> {
 
         let (code, bytes_read) = read_u32(bytes)?;
         *bytes = seek(bytes, bytes_read);
-        let sig_type = TypeDefOrRef::decode(db, code);
+        let generic_type = TypeDefOrRef::decode(db, code);
 
         let (arg_count, bytes_read) = read_u32(bytes)?;
         *bytes = seek(bytes, bytes_read);
 
-        let mut args = std::vec::Vec::with_capacity(arg_count as usize);
+        let mut args = Vec::with_capacity(arg_count as usize);
 
         for _ in 0..arg_count {
             args.push(TypeSig::new(db, bytes)?);
         }
 
-        Ok(GenericSig { sig_type, args })
+        Ok(GenericSig { generic_type, args })
+    }
+    pub fn generic_type(&self) -> &TypeDefOrRef<'a>
+    {
+        &self.generic_type
+    }
+    pub fn args(&self) -> &Vec<TypeSig<'a>>
+    {
+        &self.args
+    }
+}
+impl<'a> std::fmt::Display for GenericSig<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.generic_type)
     }
 }
 
@@ -44,8 +57,8 @@ impl<'a> ModifierSig<'a> {
         let type_code = TypeDefOrRef::decode(db, code);
         Ok(ModifierSig { type_code })
     }
-    fn vec(db: &'a Database, bytes: &mut &[u8]) -> Result<std::vec::Vec<ModifierSig<'a>>> {
-        let mut modifiers = std::vec::Vec::new();
+    fn vec(db: &'a Database, bytes: &mut &[u8]) -> Result<Vec<ModifierSig<'a>>> {
+        let mut modifiers = Vec::new();
         loop {
             let (element_type, _) = read_u32(bytes)?;
             if element_type != 32 && element_type != 31 {
@@ -58,8 +71,8 @@ impl<'a> ModifierSig<'a> {
 }
 
 pub struct MethodSig<'a> {
-    pub return_sig: Option<TypeSig<'a>>,
-    pub params: std::vec::Vec<(Param<'a>, ParamSig<'a>)>,
+    return_type: Option<TypeSig<'a>>,
+    params: Vec<(Param<'a>, ParamSig<'a>)>,
 }
 impl<'a> MethodSig<'a> {
     pub(crate) fn new(method: &MethodDef<'a>) -> Result<MethodSig<'a>> {
@@ -73,40 +86,52 @@ impl<'a> MethodSig<'a> {
         let (param_count, bytes_read) = read_u32(&mut bytes)?;
         bytes = seek(bytes, bytes_read);
 
-        let return_sig;
+        let return_type;
         {
             let modifiers = ModifierSig::vec(method.row.table.db, &mut bytes)?;
             let by_ref = read_expected(&mut bytes, 0x10)?;
             if read_expected(&mut bytes, 0x01)? {
-                return_sig = None;
+                return_type = None;
             } else {
-                return_sig = Some(TypeSig::new(method.row.table.db, &mut bytes)?);
+                return_type = Some(TypeSig::new(method.row.table.db, &mut bytes)?);
             }
         }
 
-        let mut params = std::vec::Vec::with_capacity(param_count as usize);
+        let mut params = Vec::with_capacity(param_count as usize);
 
         for param in method.params()? {
-            if return_sig.is_some() && param.sequence()? == 0 {
+            if return_type.is_some() && param.sequence()? == 0 {
                 continue;
             }
             params.push((param, ParamSig::new(method.row.table.db, &mut bytes)?));
         }
-        Ok(MethodSig { return_sig, params })
+        Ok(MethodSig { return_type, params })
+    }
+    pub fn return_type(&self) -> &Option<TypeSig<'a>>
+    {
+        &self.return_type
+    }
+    pub fn params(&self) -> &Vec<(Param<'a>, ParamSig<'a>)>
+    {
+        &self.params
     }
 }
 
 pub struct ParamSig<'a> {
-    modifiers: std::vec::Vec<ModifierSig<'a>>,
+    modifiers: Vec<ModifierSig<'a>>,
     by_ref: bool,
-    pub type_sig: TypeSig<'a>,
+    param_type: TypeSig<'a>,
 }
 impl<'a> ParamSig<'a> {
     fn new(db: &'a Database, bytes: &mut &[u8]) -> Result<ParamSig<'a>> {
         let modifiers = ModifierSig::vec(db, bytes)?;
         let by_ref = read_expected(bytes, 0x10)?;
-        let type_sig = TypeSig::new(db, bytes)?;
-        Ok(ParamSig { modifiers, by_ref, type_sig })
+        let param_type = TypeSig::new(db, bytes)?;
+        Ok(ParamSig { modifiers, by_ref, param_type })
+    }
+    pub fn param_type(&self) -> &TypeSig<'a>
+    {
+        &self.param_type
     }
 }
 
@@ -162,7 +187,7 @@ impl<'a> std::fmt::Display for TypeSigType<'a> {
         match self {
             TypeSigType::ElementType(value) => write!(f, "{}", value),
             TypeSigType::TypeDefOrRef(value) => write!(f, "{}", value),
-            TypeSigType::GenericSig(value) => write!(f, "{}", value.sig_type),
+            TypeSigType::GenericSig(value) => write!(f, "{}", value),
             TypeSigType::GenericTypeIndex(value) => write!(f, "{}", value),
             TypeSigType::GenericMethodIndex(value) => write!(f, "{}", value),
         }
@@ -171,7 +196,7 @@ impl<'a> std::fmt::Display for TypeSigType<'a> {
 
 pub struct TypeSig<'a> {
     array: bool,
-    modifiers: std::vec::Vec<ModifierSig<'a>>,
+    modifiers: Vec<ModifierSig<'a>>,
     sig_type: TypeSigType<'a>,
 }
 impl<'a> TypeSig<'a> {
@@ -229,7 +254,7 @@ fn read_u32<'a>(bytes: &[u8]) -> Result<(u32, usize)> {
     Ok((value, bytes_read))
 }
 
-pub fn unsupported_blob() -> std::io::Error {
+fn unsupported_blob() -> std::io::Error {
     std::io::Error::new(std::io::ErrorKind::InvalidData, "Unsupported blob")
 }
 
