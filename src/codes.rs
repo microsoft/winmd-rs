@@ -1,4 +1,5 @@
 use crate::database::*;
+use crate::error::*;
 use crate::tables::*;
 use std::io::Result;
 
@@ -17,14 +18,14 @@ pub enum TypeDefOrRef<'a> {
 }
 
 impl<'a> TypeDefOrRef<'a> {
-    pub(crate) fn decode(db: &'a Database, code: u32) -> Self {
+    pub(crate) fn decode(db: &'a Database, code: u32) -> Result<Self> {
         let code = decode(2, code);
-        match code.0 {
+        Ok(match code.0 {
             0 => Self::TypeDef(db.type_def().row(code.1)),
             1 => Self::TypeRef(db.type_ref().row(code.1)),
             2 => Self::TypeSpec(db.type_spec().row(code.1)),
-            _ => panic!("Invalid TypeDefOrRef code"),
-        }
+            _ => return Err(invalid_data("Invalid TypeDefOrRef code")),
+        })
     }
 
     pub fn encode(&self) -> u32 {
@@ -89,9 +90,9 @@ pub enum HasCustomAttribute<'a> {
 }
 
 impl<'a> HasCustomAttribute<'a> {
-    pub(crate) fn decode(db: &'a Database, code: u32) -> Self {
+    pub(crate) fn decode(db: &'a Database, code: u32) -> Result<Self> {
         let code = decode(5, code);
-        match code.0 {
+        Ok(match code.0 {
             0 => Self::MethodDef(db.method_def().row(code.1)),
             1 => Self::Field(db.field().row(code.1)),
             2 => Self::TypeRef(db.type_ref().row(code.1)),
@@ -114,8 +115,8 @@ impl<'a> HasCustomAttribute<'a> {
             19 => Self::GenericParam(db.generic_param().row(code.1)),
             20 => Self::GenericParamConstraint(db.generic_param_constraint().row(code.1)),
             21 => Self::MethodSpec(db.method_spec().row(code.1)),
-            _ => panic!("Invalid HasCustomAttribute code"),
-        }
+            _ => return Err(invalid_data("Invalid HasCustomAttribute code")),
+        })
     }
 
     pub fn encode(&self) -> u32 {
@@ -152,13 +153,13 @@ pub enum CustomAttributeType<'a> {
 }
 
 impl<'a> CustomAttributeType<'a> {
-    pub(crate) fn decode(db: &'a Database, code: u32) -> Self {
+    pub(crate) fn decode(db: &'a Database, code: u32) -> Result<Self> {
         let code = decode(3, code);
-        match code.0 {
+        Ok(match code.0 {
             2 => Self::MethodDef(db.method_def().row(code.1)),
             3 => Self::MemberRef(db.member_ref().row(code.1)),
-            _ => panic!("Invalid CustomAttributeType code"),
-        }
+            _ => return Err(invalid_data("Invalid CustomAttributeType code")),
+        })
     }
 }
 
@@ -171,16 +172,16 @@ pub enum MemberRefParent<'a> {
 }
 
 impl<'a> MemberRefParent<'a> {
-    pub(crate) fn decode(db: &'a Database, code: u32) -> Self {
+    pub(crate) fn decode(db: &'a Database, code: u32) -> Result<Self> {
         let code = decode(3, code);
-        match code.0 {
+        Ok(match code.0 {
             0 => Self::TypeDef(db.type_def().row(code.1)),
             1 => Self::TypeRef(db.type_ref().row(code.1)),
             2 => Self::ModuleRef(db.module_ref().row(code.1)),
             3 => Self::MethodDef(db.method_def().row(code.1)),
             4 => Self::TypeSpec(db.type_spec().row(code.1)),
-            _ => panic!("Invalid MemberRefParent code"),
-        }
+            _ => return Err(invalid_data("Invalid MemberRefParent code")),
+        })
     }
 }
 
@@ -192,16 +193,16 @@ pub enum HasConstant<'a> {
 
 impl<'a> HasConstant<'a> {
     #![allow(dead_code)]
-    pub(crate) fn decode(db: &'a Database, code: u32) -> Self {
+    pub(crate) fn decode(db: &'a Database, code: u32) -> Result<Self> {
         let code = decode(2, code);
-        match code.0 {
+        Ok(match code.0 {
             0 => Self::Field(db.field().row(code.1)),
             1 => Self::Param(db.param().row(code.1)),
             2 => Self::Property(db.property().row(code.1)),
-            _ => panic!("Invalid HasConstant code"),
-        }
+            _ => return Err(invalid_data("Invalid HasConstant code")),
+        })
     }
-    
+
     pub fn encode(&self) -> u32 {
         match &self {
             Self::Field(value) => encode(2, 0, value.row.index),

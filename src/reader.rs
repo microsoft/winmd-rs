@@ -138,7 +138,7 @@ impl<'a> Reader {
     pub fn namespaces(&self) -> NamespaceIterator {
         NamespaceIterator { reader: self, iter: self.namespaces.iter() }
     }
-    
+
     pub fn find(&self, namespace: &str, name: &str) -> Option<TypeDef> {
         match self.namespaces.get(namespace) {
             Some(types) => match types.index.get(name) {

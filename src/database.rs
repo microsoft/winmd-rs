@@ -324,17 +324,9 @@ impl Database {
             return Err(invalid_data("Invalid DOS signature"));
         }
         let pe = db.bytes.view_as::<ImageNtHeader>(dos.lfanew as u32)?;
-        let com_virtual_address: u32;
-        let sections: &[ImageSectionHeader];
-        match pe.optional_header.magic {
-            MAGIC_PE32 => {
-                com_virtual_address = pe.optional_header.data_directory[IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR as usize].virtual_address;
-                sections = db.bytes.view_as_slice_of::<ImageSectionHeader>(dos.lfanew as u32 + sizeof::<ImageNtHeader>(), pe.file_header.number_of_sections as u32)?;
-            }
-            MAGIC_PE32PLUS => {
-                com_virtual_address = db.bytes.view_as::<ImageNtHeaderPlus>(dos.lfanew as u32)?.optional_header.data_directory[IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR as usize].virtual_address;
-                sections = db.bytes.view_as_slice_of::<ImageSectionHeader>(dos.lfanew as u32 + sizeof::<ImageNtHeaderPlus>(), pe.file_header.number_of_sections as u32)?;
-            }
+        let (com_virtual_address, sections) = match pe.optional_header.magic {
+            MAGIC_PE32 => (pe.optional_header.data_directory[IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR as usize].virtual_address, db.bytes.view_as_slice_of::<ImageSectionHeader>(dos.lfanew as u32 + sizeof::<ImageNtHeader>(), pe.file_header.number_of_sections as u32)?),
+            MAGIC_PE32PLUS => (db.bytes.view_as::<ImageNtHeaderPlus>(dos.lfanew as u32)?.optional_header.data_directory[IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR as usize].virtual_address, db.bytes.view_as_slice_of::<ImageSectionHeader>(dos.lfanew as u32 + sizeof::<ImageNtHeaderPlus>(), pe.file_header.number_of_sections as u32)?),
             _ => return Err(invalid_data("Invalid optional header magic value")),
         };
         let cli = db.bytes.view_as::<ImageCorHeader>(offset_from_rva(section_from_rva(sections, com_virtual_address)?, com_virtual_address))?;

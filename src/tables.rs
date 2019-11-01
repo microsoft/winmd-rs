@@ -87,11 +87,11 @@ impl<'a> Constant<'a> {
 
 impl<'a> CustomAttribute<'a> {
     pub fn parent(&self) -> Result<HasCustomAttribute> {
-        Ok(HasCustomAttribute::decode(&self.row.table.db, self.row.u32(0)?))
+        Ok(HasCustomAttribute::decode(&self.row.table.db, self.row.u32(0)?)?)
     }
 
     pub fn class(&self) -> Result<CustomAttributeType> {
-        Ok(CustomAttributeType::decode(&self.row.table.db, self.row.u32(1)?))
+        Ok(CustomAttributeType::decode(&self.row.table.db, self.row.u32(1)?)?)
     }
 
     pub fn has_name(&self, namespace: &str, name: &str) -> Result<bool> {
@@ -121,7 +121,7 @@ impl<'a> Field<'a> {
 
 impl<'a> MemberRef<'a> {
     pub fn class(&self) -> Result<MemberRefParent> {
-        Ok(MemberRefParent::decode(&self.row.table.db, self.row.u32(0)?))
+        Ok(MemberRefParent::decode(&self.row.table.db, self.row.u32(0)?)?)
     }
 
     pub fn name(&self) -> Result<&str> {
@@ -214,7 +214,7 @@ impl<'a> TypeDef<'a> {
     }
 
     pub fn extends(&self) -> Result<TypeDefOrRef> {
-        Ok(TypeDefOrRef::decode(&self.row.table.db, self.row.u32(3)?))
+        Ok(TypeDefOrRef::decode(&self.row.table.db, self.row.u32(3)?)?)
     }
 
     pub fn fields(&self) -> Result<RowIterator<'a, Field<'a>>> {
@@ -243,7 +243,7 @@ impl<'a> TypeRef<'a> {
     pub fn name(&self) -> Result<&str> {
         self.row.str(1)
     }
-    
+
     pub fn namespace(&self) -> Result<&str> {
         self.row.str(2)
     }

@@ -21,7 +21,7 @@ impl<'a> GenericSig<'a> {
 
         let (code, bytes_read) = read_u32(bytes)?;
         *bytes = seek(bytes, bytes_read);
-        let generic_type = TypeDefOrRef::decode(db, code);
+        let generic_type = TypeDefOrRef::decode(db, code)?;
 
         let (arg_count, bytes_read) = read_u32(bytes)?;
         *bytes = seek(bytes, bytes_read);
@@ -60,7 +60,7 @@ impl<'a> ModifierSig<'a> {
         *bytes = seek(bytes, bytes_read);
         let (code, bytes_read) = read_u32(bytes)?;
         *bytes = seek(bytes, bytes_read);
-        let type_code = TypeDefOrRef::decode(db, code);
+        let type_code = TypeDefOrRef::decode(db, code)?;
         Ok(ModifierSig { type_code })
     }
 
@@ -165,7 +165,7 @@ impl<'a> TypeSigType<'a> {
             0x11 | 0x12 => {
                 let (code, bytes_read) = read_u32(bytes)?;
                 *bytes = seek(bytes, bytes_read);
-                TypeSigType::TypeDefOrRef(TypeDefOrRef::decode(db, code))
+                TypeSigType::TypeDefOrRef(TypeDefOrRef::decode(db, code)?)
             }
             0x13 => {
                 let (index, bytes_read) = read_u32(bytes)?;
