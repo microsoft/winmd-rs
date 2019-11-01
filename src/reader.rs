@@ -136,13 +136,9 @@ impl<'a> Reader {
     }
 
     pub fn find(&self, namespace: &str, name: &str) -> Option<TypeDef> {
-        match self.namespaces.get(namespace) {
-            Some(types) => match types.index.get(name) {
-                Some(&(db, index)) => Some(TypeDef::new(&self.databases[db as usize].type_def(), index)),
-                None => None,
-            },
-            None => None,
-        }
+        let types = self.namespaces.get(namespace)?;
+        let &(db, index) = types.index.get(name)?;
+        Some(TypeDef::new(&self.databases[db as usize].type_def(), index))
     }
 }
 
