@@ -79,11 +79,10 @@ impl<'a> Reader {
         for filename in filenames {
             let db = Database::new(filename)?;
             for t in db.type_def().iter::<TypeDef>() {
-                if !t.flags()?.windows_runtime() {
-                    continue;
+                if t.flags()?.windows_runtime() {
+                    let types = namespaces.entry(t.namespace()?.to_string()).or_insert_with(|| NamespaceData { ..Default::default() });
+                    types.index.entry(t.name()?.to_string()).or_insert((databases.len() as u32, t.row.index));
                 }
-                let types = namespaces.entry(t.namespace()?.to_string()).or_insert_with(|| NamespaceData { ..Default::default() });
-                types.index.entry(t.name()?.to_string()).or_insert((databases.len() as u32, t.row.index));
             }
             databases.push(db);
         }
@@ -92,18 +91,18 @@ impl<'a> Reader {
                 let t = TypeDef::new(&databases[index.0 as usize].type_def(), index.1);
                 if t.flags()?.interface() {
                     types.interfaces.push(*index);
-                    continue;
-                }
-                match t.extends()?.name()? {
-                    "Enum" => types.enums.push(*index),
-                    "MulticastDelegate" => types.delegates.push(*index),
-                    "Attribute" => {}
-                    "ValueType" => {
-                        if !t.has_attribute("Windows.Foundation.Metadata", "ApiContractAttribute")? {
-                            types.structs.push(*index);
+                } else {
+                    match t.extends()?.name()? {
+                        "Enum" => types.enums.push(*index),
+                        "MulticastDelegate" => types.delegates.push(*index),
+                        "Attribute" => {}
+                        "ValueType" => {
+                            if !t.has_attribute("Windows.Foundation.Metadata", "ApiContractAttribute")? {
+                                types.structs.push(*index);
+                            }
                         }
+                        _ => types.classes.push(*index),
                     }
-                    _ => types.classes.push(*index),
                 }
             }
         }
