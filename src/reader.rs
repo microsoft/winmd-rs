@@ -111,10 +111,7 @@ impl<'a> Reader {
 
     pub fn from_dir<P: AsRef<std::path::Path>>(directory: P) -> Result<Self> {
         let files: Vec<std::path::PathBuf> = std::fs::read_dir(directory)?
-            .filter_map(|value| match value {
-                Ok(value) => Some(value.path()),
-                Err(_) => None,
-            })
+            .filter_map(|value| value.ok().map(|value| value.path()))
             .collect();
         Self::from_files(&files)
     }
