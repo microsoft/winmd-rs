@@ -10,10 +10,8 @@ pub struct NamespaceIterator<'a> {
 impl<'a> Iterator for NamespaceIterator<'a> {
     type Item = Namespace<'a>;
     fn next(&mut self) -> Option<Self::Item> {
-        match self.iter.next() {
-            None => None,
-            Some((key, value)) => Some(Namespace { reader: self.reader, name: key, types: value }),
-        }
+        let (key, value) = self.iter.next()?;
+        Some(Namespace { reader: self.reader, name: key, types: value })
     }
 }
 
@@ -25,10 +23,8 @@ pub struct TypeIterator<'a> {
 impl<'a> Iterator for TypeIterator<'a> {
     type Item = TypeDef<'a>;
     fn next(&mut self) -> Option<TypeDef<'a>> {
-        match self.iter.next() {
-            None => None,
-            Some(&(db, index)) => Some(TypeDef::new(&self.reader.databases[db as usize].type_def(), index)),
-        }
+        let &(db, index) = self.iter.next()?;
+        Some(TypeDef::new(&self.reader.databases[db as usize].type_def(), index))
     }
 }
 
