@@ -1,5 +1,9 @@
-// TODO: This is more of a bootstrapping sample. Need to figure out where this should live.
-#[test]
+fn main() {
+    if let Err(e) = run() {
+        println!("{}", e);
+    }
+}
+
 fn run() -> std::io::Result<()> {
     let reader = winmd::Reader::from_os()?;
 
