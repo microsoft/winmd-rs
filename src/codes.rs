@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use crate::database::*;
 use crate::tables::*;
 use std::io::Result;
@@ -54,7 +52,7 @@ impl<'a> std::fmt::Display for TypeDefOrRef<'a> {
             // TODO: how to convert ? (from std::io::Result to std::fmt::Result)
             TypeDefOrRef::TypeDef(value) => write!(f, "{}.{}", value.namespace().unwrap(), value.name().unwrap()),
             TypeDefOrRef::TypeRef(value) => write!(f, "{}.{}", value.namespace().unwrap(), value.name().unwrap()),
-            TypeDefOrRef::TypeSpec(value) => write!(f, "TypeSpec"),
+            TypeDefOrRef::TypeSpec(_) => write!(f, "TypeSpec"),
         }
     }
 }
@@ -182,6 +180,7 @@ pub enum HasConstant<'a> {
     Property(Property<'a>),
 }
 impl<'a> HasConstant<'a> {
+    #![allow(dead_code)]
     pub(crate) fn decode(db: &'a Database, code: u32) -> Self {
         let code = decode(2, code);
         match code.0 {

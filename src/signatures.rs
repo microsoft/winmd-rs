@@ -1,3 +1,6 @@
+// TODO: signatures still need a bit of work and testing
+#![allow(dead_code)]
+
 use crate::codes::*;
 use crate::database::*;
 use crate::tables::*;
@@ -12,7 +15,7 @@ pub struct GenericSig<'a> {
 }
 impl<'a> GenericSig<'a> {
     fn new(db: &'a Database, bytes: &mut &[u8]) -> Result<GenericSig<'a>> {
-        let (element_type, bytes_read) = read_u32(bytes)?;
+        let (_, bytes_read) = read_u32(bytes)?;
         *bytes = seek(bytes, bytes_read);
 
         let (code, bytes_read) = read_u32(bytes)?;
@@ -48,7 +51,7 @@ pub struct ModifierSig<'a> {
 }
 impl<'a> ModifierSig<'a> {
     fn new(db: &'a Database, bytes: &mut &[u8]) -> Result<ModifierSig<'a>> {
-        let (need, bytes_read) = read_u32(bytes)?;
+        let (_, bytes_read) = read_u32(bytes)?;
         *bytes = seek(bytes, bytes_read);
         let (code, bytes_read) = read_u32(bytes)?;
         *bytes = seek(bytes, bytes_read);
@@ -86,8 +89,8 @@ impl<'a> MethodSig<'a> {
 
         let return_type;
         {
-            let modifiers = ModifierSig::vec(method.row.table.db, &mut bytes)?;
-            let by_ref = read_expected(&mut bytes, 0x10)?;
+            ModifierSig::vec(method.row.table.db, &mut bytes)?;
+            read_expected(&mut bytes, 0x10)?;
             if read_expected(&mut bytes, 0x01)? {
                 return_type = None;
             } else {
@@ -286,7 +289,6 @@ impl std::fmt::Display for ElementType {
             ElementType::F64 => write!(f, "f64"),
             ElementType::String => write!(f, "String"),
             ElementType::Object => write!(f, "Object"),
-            _ => write!(f, "..ElementType.."),
         }
     }
 }

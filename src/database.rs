@@ -1,4 +1,6 @@
+// TODO: Many tables still need columns defined and tested.
 #![allow(dead_code)]
+
 #![allow(exceeding_bitshifts)]
 
 use crate::error::*;
@@ -214,9 +216,6 @@ pub struct TableData {
 impl TableData {
     pub fn table<'a>(&'a self, db: &'a Database) -> Table<'a> {
         Table { db, data: self }
-    }
-    pub fn rows(&self) -> u32 {
-        self.row_count
     }
     fn index_size(&self) -> u32 {
         if self.row_count < (1 << 16) {
