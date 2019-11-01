@@ -30,12 +30,10 @@ impl<'a> GenericSig<'a> {
 
         Ok(GenericSig { generic_type, args })
     }
-    pub fn generic_type(&self) -> &TypeDefOrRef<'a>
-    {
+    pub fn generic_type(&self) -> &TypeDefOrRef<'a> {
         &self.generic_type
     }
-    pub fn args(&self) -> &Vec<TypeSig<'a>>
-    {
+    pub fn args(&self) -> &Vec<TypeSig<'a>> {
         &self.args
     }
 }
@@ -107,12 +105,10 @@ impl<'a> MethodSig<'a> {
         }
         Ok(MethodSig { return_type, params })
     }
-    pub fn return_type(&self) -> &Option<TypeSig<'a>>
-    {
+    pub fn return_type(&self) -> &Option<TypeSig<'a>> {
         &self.return_type
     }
-    pub fn params(&self) -> &Vec<(Param<'a>, ParamSig<'a>)>
-    {
+    pub fn params(&self) -> &Vec<(Param<'a>, ParamSig<'a>)> {
         &self.params
     }
 }
@@ -129,8 +125,7 @@ impl<'a> ParamSig<'a> {
         let param_type = TypeSig::new(db, bytes)?;
         Ok(ParamSig { modifiers, by_ref, param_type })
     }
-    pub fn param_type(&self) -> &TypeSig<'a>
-    {
+    pub fn param_type(&self) -> &TypeSig<'a> {
         &self.param_type
     }
 }
