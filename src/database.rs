@@ -21,11 +21,13 @@ pub struct RowIterator<'a, T: Row<'a>> {
     last: u32,
     phantom: PhantomData<T>,
 }
+
 impl<'a, T: Row<'a>> RowIterator<'a, T> {
     pub fn new(table: &Table<'a>, first: u32, last: u32) -> RowIterator<'a, T> {
         RowIterator { table: *table, first: first, last, phantom: PhantomData }
     }
 }
+
 impl<'a, T: Row<'a>> Iterator for RowIterator<'a, T> {
     type Item = T;
     fn next(&mut self) -> Option<T> {
@@ -57,15 +59,19 @@ impl<'a> RowData<'a> {
     pub fn str(&self, column: u32) -> Result<&str> {
         self.table.str(self.index, column)
     }
+
     pub fn blob(&self, column: u32) -> Result<&[u8]> {
         self.table.blob(self.index, column)
     }
+
     pub fn blob_as<T>(&self, column: u32) -> Result<&T> {
         self.blob(column)?.view_as::<T>(0)
     }
+
     pub fn u32(&self, column: u32) -> Result<u32> {
         self.table.u32(self.index, column)
     }
+
     pub fn list<T: Row<'a>>(&self, column: u32, table: &Table<'a>) -> Result<RowIterator<'a, T>> {
         let first = self.u32(column)? - 1;
         let last = if self.index + 1 < self.table.len() { self.table.u32(self.index + 1, column)? - 1 } else { table.len() };
@@ -78,20 +84,25 @@ pub struct Table<'a> {
     pub(crate) db: &'a Database,
     data: &'a TableData,
 }
+
 impl<'a> Table<'a> {
     // TODO: make iter/rows/row work like slice.get
     pub fn iter<T: Row<'a>>(&self) -> RowIterator<'a, T> {
         T::from_rows(self, (0, self.data.row_count))
     }
+
     pub fn rows<T: Row<'a>>(&self, first: u32, last: u32) -> RowIterator<'a, T> {
         T::from_rows(self, (first, last))
     }
+
     pub fn row<T: Row<'a>>(&self, index: u32) -> T {
         T::new(self, index)
     }
+
     pub fn len(&self) -> u32 {
         self.data.row_count
     }
+
     pub fn str(&self, row: u32, column: u32) -> Result<&str> {
         let offset = (self.db.strings + self.u32(row, column)?) as usize;
         match self.db.bytes[offset..].iter().position(|c| *c == b'\0') {
@@ -102,11 +113,11 @@ impl<'a> Table<'a> {
             },
         }
     }
+
     pub fn blob(&self, row: u32, column: u32) -> Result<&[u8]> {
         let offset = (self.db.blobs + self.u32(row, column)?) as usize;
         let mut initial_byte = self.db.bytes[offset];
         let blob_size_bytes;
-
         match initial_byte >> 5 {
             0..=3 => {
                 blob_size_bytes = 1;
@@ -122,15 +133,13 @@ impl<'a> Table<'a> {
             }
             _ => return Err(invalid_data("Invalid blob encoding")),
         };
-
         let mut blob_size = initial_byte;
-
         for byte in self.db.bytes[offset + 1..offset + blob_size_bytes].iter() {
             blob_size = (blob_size << 8) + byte;
         }
-
         Ok(&self.db.bytes[offset + blob_size_bytes..offset + blob_size_bytes + blob_size as usize])
     }
+
     pub fn u32(&self, row: u32, column: u32) -> Result<u32> {
         let offset = self.data.data + row * self.data.row_size + self.data.columns[column as usize].0;
         match self.data.columns[column as usize].1 {
@@ -140,6 +149,7 @@ impl<'a> Table<'a> {
             _ => Ok(*(self.db.bytes.view_as::<u64>(offset)?) as u32),
         }
     }
+
     fn lower_bound_of(&self, mut first: u32, last: u32, column: u32, value: u32) -> Result<u32> {
         let mut count = last - first;
         while count > 0 {
@@ -154,6 +164,7 @@ impl<'a> Table<'a> {
         }
         Ok(first)
     }
+
     pub fn upper_bound<T: Row<'a>>(&self, column: u32, value: u32) -> Result<T> {
         let index = self.upper_bound_of(0, self.data.row_count, column, value)?;
         if index == self.data.row_count {
@@ -161,6 +172,7 @@ impl<'a> Table<'a> {
         }
         Ok(T::new(self, index))
     }
+
     fn upper_bound_of(&self, mut first: u32, last: u32, column: u32, value: u32) -> Result<u32> {
         let mut count = last - first;
         while count > 0 {
@@ -175,9 +187,11 @@ impl<'a> Table<'a> {
         }
         Ok(first)
     }
+
     pub fn equal_range<T: Row<'a>>(&self, column: u32, value: u32) -> Result<RowIterator<'a, T>> {
         Ok(T::from_rows(self, self.equal_range_of(0, self.data.row_count, column, value)?))
     }
+
     fn equal_range_of(&self, mut first: u32, mut last: u32, column: u32, value: u32) -> Result<(u32, u32)> {
         let mut count = last - first;
         loop {
@@ -217,6 +231,7 @@ impl TableData {
     pub fn table<'a>(&'a self, db: &'a Database) -> Table<'a> {
         Table { db, data: self }
     }
+
     fn index_size(&self) -> u32 {
         if self.row_count < (1 << 16) {
             2
@@ -224,6 +239,7 @@ impl TableData {
             4
         }
     }
+
     fn set_columns(&mut self, a: u32, b: u32, c: u32, d: u32, e: u32, f: u32) {
         self.row_size = (a + b + c + d + e + f).into();
         self.columns[0] = (0, a);
@@ -243,6 +259,7 @@ impl TableData {
             self.columns[5] = ((a + b + c + d + e), f);
         }
     }
+
     fn set_data(&mut self, data: &mut u32) {
         if self.row_count != 0 {
             let next = *data + self.row_count * self.row_size;
@@ -298,6 +315,7 @@ pub struct Database {
     pub type_ref: TableData,
     pub type_spec: TableData,
 }
+
 impl Database {
     pub fn new<P: AsRef<std::path::Path>>(filename: P) -> Result<Self> {
         let mut db = Self { bytes: std::fs::read(filename)?, ..Default::default() };

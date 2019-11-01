@@ -6,6 +6,7 @@ pub struct NamespaceIterator<'a> {
     reader: &'a Reader,
     iter: std::collections::btree_map::Iter<'a, String, NamespaceData>,
 }
+
 impl<'a> Iterator for NamespaceIterator<'a> {
     type Item = Namespace<'a>;
     fn next(&mut self) -> Option<Self::Item> {
@@ -20,6 +21,7 @@ pub struct TypeIterator<'a> {
     reader: &'a Reader,
     iter: std::slice::Iter<'a, (u32, u32)>,
 }
+
 impl<'a> Iterator for TypeIterator<'a> {
     type Item = TypeDef<'a>;
     fn next(&mut self) -> Option<TypeDef<'a>> {
@@ -45,6 +47,7 @@ pub struct Namespace<'a> {
     name: &'a str,
     types: &'a NamespaceData,
 }
+
 impl<'a> Namespace<'a> {
     pub fn name(&self) -> &str {
         self.name
@@ -70,6 +73,7 @@ pub struct Reader {
     databases: std::vec::Vec<Database>,
     namespaces: std::collections::BTreeMap<String, NamespaceData>,
 }
+
 impl<'a> Reader {
     // TODO: Can't this be an iterator to avoid creating the collection in from_dir()?
     pub fn from_files<P: AsRef<std::path::Path>>(filenames: &[P]) -> Result<Self> {
@@ -109,6 +113,7 @@ impl<'a> Reader {
         }
         Ok(Self { databases, namespaces })
     }
+
     pub fn from_dir<P: AsRef<std::path::Path>>(directory: P) -> Result<Self> {
         let files: Vec<std::path::PathBuf> = std::fs::read_dir(directory)?
             .filter_map(|value| match value {
@@ -118,6 +123,7 @@ impl<'a> Reader {
             .collect();
         Self::from_files(&files)
     }
+
     pub fn from_os() -> Result<Self> {
         let mut path = std::path::PathBuf::new();
         path.push(match std::env::var("windir") {
@@ -128,9 +134,11 @@ impl<'a> Reader {
         path.push("winmetadata");
         Self::from_dir(path)
     }
+
     pub fn namespaces(&self) -> NamespaceIterator {
         NamespaceIterator { reader: self, iter: self.namespaces.iter() }
     }
+    
     pub fn find(&self, namespace: &str, name: &str) -> Option<TypeDef> {
         match self.namespaces.get(namespace) {
             Some(types) => match types.index.get(name) {

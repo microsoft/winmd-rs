@@ -13,6 +13,7 @@ pub struct GenericSig<'a> {
     generic_type: TypeDefOrRef<'a>,
     args: Vec<TypeSig<'a>>,
 }
+
 impl<'a> GenericSig<'a> {
     fn new(db: &'a Database, bytes: &mut &[u8]) -> Result<GenericSig<'a>> {
         let (_, bytes_read) = read_u32(bytes)?;
@@ -33,13 +34,16 @@ impl<'a> GenericSig<'a> {
 
         Ok(GenericSig { generic_type, args })
     }
+
     pub fn generic_type(&self) -> &TypeDefOrRef<'a> {
         &self.generic_type
     }
+
     pub fn args(&self) -> &Vec<TypeSig<'a>> {
         &self.args
     }
 }
+
 impl<'a> std::fmt::Display for GenericSig<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.generic_type)
@@ -49,6 +53,7 @@ impl<'a> std::fmt::Display for GenericSig<'a> {
 pub struct ModifierSig<'a> {
     type_code: TypeDefOrRef<'a>,
 }
+
 impl<'a> ModifierSig<'a> {
     fn new(db: &'a Database, bytes: &mut &[u8]) -> Result<ModifierSig<'a>> {
         let (_, bytes_read) = read_u32(bytes)?;
@@ -58,6 +63,7 @@ impl<'a> ModifierSig<'a> {
         let type_code = TypeDefOrRef::decode(db, code);
         Ok(ModifierSig { type_code })
     }
+
     fn vec(db: &'a Database, bytes: &mut &[u8]) -> Result<Vec<ModifierSig<'a>>> {
         let mut modifiers = Vec::new();
         loop {
@@ -75,6 +81,7 @@ pub struct MethodSig<'a> {
     return_type: Option<TypeSig<'a>>,
     params: Vec<(Param<'a>, ParamSig<'a>)>,
 }
+
 impl<'a> MethodSig<'a> {
     pub(crate) fn new(method: &MethodDef<'a>) -> Result<MethodSig<'a>> {
         let mut bytes = method.row.blob(4)?;
@@ -86,20 +93,10 @@ impl<'a> MethodSig<'a> {
         }
         let (param_count, bytes_read) = read_u32(&mut bytes)?;
         bytes = seek(bytes, bytes_read);
-
-        let return_type;
-        {
-            ModifierSig::vec(method.row.table.db, &mut bytes)?;
-            read_expected(&mut bytes, 0x10)?;
-            if read_expected(&mut bytes, 0x01)? {
-                return_type = None;
-            } else {
-                return_type = Some(TypeSig::new(method.row.table.db, &mut bytes)?);
-            }
-        }
-
+        ModifierSig::vec(method.row.table.db, &mut bytes)?;
+        read_expected(&mut bytes, 0x10)?;
+        let return_type = if read_expected(&mut bytes, 0x01)? { None } else { Some(TypeSig::new(method.row.table.db, &mut bytes)?) };
         let mut params = Vec::with_capacity(param_count as usize);
-
         for param in method.params()? {
             if return_type.is_some() && param.sequence()? == 0 {
                 continue;
@@ -108,9 +105,11 @@ impl<'a> MethodSig<'a> {
         }
         Ok(MethodSig { return_type, params })
     }
+
     pub fn return_type(&self) -> &Option<TypeSig<'a>> {
         &self.return_type
     }
+
     pub fn params(&self) -> &Vec<(Param<'a>, ParamSig<'a>)> {
         &self.params
     }
@@ -121,6 +120,7 @@ pub struct ParamSig<'a> {
     by_ref: bool,
     param_type: TypeSig<'a>,
 }
+
 impl<'a> ParamSig<'a> {
     fn new(db: &'a Database, bytes: &mut &[u8]) -> Result<ParamSig<'a>> {
         let modifiers = ModifierSig::vec(db, bytes)?;
@@ -128,6 +128,7 @@ impl<'a> ParamSig<'a> {
         let param_type = TypeSig::new(db, bytes)?;
         Ok(ParamSig { modifiers, by_ref, param_type })
     }
+
     pub fn param_type(&self) -> &TypeSig<'a> {
         &self.param_type
     }
@@ -140,6 +141,7 @@ pub enum TypeSigType<'a> {
     GenericTypeIndex(u32),
     GenericMethodIndex(u32),
 }
+
 impl<'a> TypeSigType<'a> {
     fn new(db: &'a Database, bytes: &mut &[u8]) -> Result<TypeSigType<'a>> {
         let (element_type, bytes_read) = read_u32(bytes)?;
@@ -180,6 +182,7 @@ impl<'a> TypeSigType<'a> {
         })
     }
 }
+
 impl<'a> std::fmt::Display for TypeSigType<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -197,6 +200,7 @@ pub struct TypeSig<'a> {
     modifiers: Vec<ModifierSig<'a>>,
     sig_type: TypeSigType<'a>,
 }
+
 impl<'a> TypeSig<'a> {
     fn new(db: &'a Database, bytes: &mut &[u8]) -> Result<TypeSig<'a>> {
         let array = read_expected(bytes, 0x1D)?;
@@ -205,6 +209,7 @@ impl<'a> TypeSig<'a> {
         Ok(TypeSig { array, modifiers, sig_type })
     }
 }
+
 impl<'a> std::fmt::Display for TypeSig<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.sig_type)
@@ -272,6 +277,7 @@ pub enum ElementType {
     String,
     Object,
 }
+
 impl std::fmt::Display for ElementType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

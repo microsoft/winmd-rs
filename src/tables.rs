@@ -65,6 +65,7 @@ pub enum ConstantValue {
     I32(i32),
     U32(u32),
 }
+
 impl std::fmt::Display for ConstantValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -88,9 +89,11 @@ impl<'a> CustomAttribute<'a> {
     pub fn parent(&self) -> Result<HasCustomAttribute> {
         Ok(HasCustomAttribute::decode(&self.row.table.db, self.row.u32(0)?))
     }
+
     pub fn class(&self) -> Result<CustomAttributeType> {
         Ok(CustomAttributeType::decode(&self.row.table.db, self.row.u32(1)?))
     }
+
     pub fn has_name(&self, namespace: &str, name: &str) -> Result<bool> {
         Ok(match self.class()? {
             CustomAttributeType::MethodDef(value) => {
@@ -110,6 +113,7 @@ impl<'a> Field<'a> {
     pub fn name(&self) -> Result<&str> {
         self.row.str(1)
     }
+
     pub fn constants(&self) -> Result<RowIterator<'a, Constant<'a>>> {
         self.row.table.db.constant().equal_range(1, HasConstant::Field(*self).encode())
     }
@@ -119,6 +123,7 @@ impl<'a> MemberRef<'a> {
     pub fn class(&self) -> Result<MemberRefParent> {
         Ok(MemberRefParent::decode(&self.row.table.db, self.row.u32(0)?))
     }
+
     pub fn name(&self) -> Result<&str> {
         self.row.str(1)
     }
@@ -128,15 +133,19 @@ impl<'a> MethodDef<'a> {
     pub fn flags(&self) -> Result<MethodAttributes> {
         Ok(MethodAttributes(self.row.u32(2)?))
     }
+
     pub fn name(&self) -> Result<&str> {
         self.row.str(3)
     }
+
     pub(crate) fn params(&self) -> Result<RowIterator<'a, Param<'a>>> {
         self.row.list(5, &self.row.table.db.param())
     }
+
     pub fn parent(&self) -> Result<TypeDef> {
         self.row.table.db.type_def().upper_bound(6, self.row.index)
     }
+
     pub fn signature(&self) -> Result<MethodSig> {
         MethodSig::new(self)
     }
@@ -185,6 +194,7 @@ impl<'a> Param<'a> {
     pub fn sequence(&self) -> Result<u32> {
         self.row.u32(1)
     }
+
     pub fn name(&self) -> Result<&str> {
         self.row.str(2)
     }
@@ -194,24 +204,31 @@ impl<'a> TypeDef<'a> {
     pub fn flags(&self) -> Result<TypeAttributes> {
         Ok(TypeAttributes(self.row.u32(0)?))
     }
+
     pub fn name(&self) -> Result<&str> {
         self.row.str(1)
     }
+
     pub fn namespace(&self) -> Result<&str> {
         self.row.str(2)
     }
+
     pub fn extends(&self) -> Result<TypeDefOrRef> {
         Ok(TypeDefOrRef::decode(&self.row.table.db, self.row.u32(3)?))
     }
+
     pub fn fields(&self) -> Result<RowIterator<'a, Field<'a>>> {
         self.row.list(4, &self.row.table.db.field())
     }
+
     pub fn methods(&self) -> Result<RowIterator<'a, MethodDef<'a>>> {
         self.row.list(5, &self.row.table.db.method_def())
     }
+
     pub fn attributes(&self) -> Result<RowIterator<'a, CustomAttribute<'a>>> {
         self.row.table.db.custom_attribute().equal_range(0, HasCustomAttribute::TypeDef(*self).encode())
     }
+
     pub fn has_attribute(&self, namespace: &str, name: &str) -> Result<bool> {
         for attribute in self.attributes()? {
             if attribute.has_name(namespace, name)? {
@@ -226,6 +243,7 @@ impl<'a> TypeRef<'a> {
     pub fn name(&self) -> Result<&str> {
         self.row.str(1)
     }
+    
     pub fn namespace(&self) -> Result<&str> {
         self.row.str(2)
     }

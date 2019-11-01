@@ -5,6 +5,7 @@ use std::io::Result;
 fn decode(bits: u32, code: u32) -> (u32, u32) {
     (code & ((1 << bits) - 1), (code >> bits) - 1)
 }
+
 fn encode(bits: u32, enumerator: u32, index: u32) -> u32 {
     ((index + 1) << bits) | enumerator
 }
@@ -14,6 +15,7 @@ pub enum TypeDefOrRef<'a> {
     TypeRef(TypeRef<'a>),
     TypeSpec(TypeSpec<'a>),
 }
+
 impl<'a> TypeDefOrRef<'a> {
     pub(crate) fn decode(db: &'a Database, code: u32) -> Self {
         let code = decode(2, code);
@@ -24,6 +26,7 @@ impl<'a> TypeDefOrRef<'a> {
             _ => panic!("Invalid TypeDefOrRef code"),
         }
     }
+
     pub fn encode(&self) -> u32 {
         match &self {
             Self::TypeDef(value) => encode(2, 0, value.row.index),
@@ -31,6 +34,7 @@ impl<'a> TypeDefOrRef<'a> {
             Self::TypeSpec(value) => encode(2, 2, value.row.index),
         }
     }
+
     pub fn name(&'a self) -> Result<&'a str> {
         match self {
             Self::TypeDef(value) => value.name(),
@@ -38,6 +42,7 @@ impl<'a> TypeDefOrRef<'a> {
             Self::TypeSpec(_) => panic!("Cannot call name() function on a TypeSpec"),
         }
     }
+
     pub fn namespace(&'a self) -> Result<&'a str> {
         match self {
             Self::TypeDef(value) => value.namespace(),
@@ -46,6 +51,7 @@ impl<'a> TypeDefOrRef<'a> {
         }
     }
 }
+
 impl<'a> std::fmt::Display for TypeDefOrRef<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -81,6 +87,7 @@ pub enum HasCustomAttribute<'a> {
     GenericParamConstraint(GenericParamConstraint<'a>),
     MethodSpec(MethodSpec<'a>),
 }
+
 impl<'a> HasCustomAttribute<'a> {
     pub(crate) fn decode(db: &'a Database, code: u32) -> Self {
         let code = decode(5, code);
@@ -110,6 +117,7 @@ impl<'a> HasCustomAttribute<'a> {
             _ => panic!("Invalid HasCustomAttribute code"),
         }
     }
+
     pub fn encode(&self) -> u32 {
         match &self {
             Self::MethodDef(value) => encode(5, 0, value.row.index),
@@ -142,6 +150,7 @@ pub enum CustomAttributeType<'a> {
     MethodDef(MethodDef<'a>),
     MemberRef(MemberRef<'a>),
 }
+
 impl<'a> CustomAttributeType<'a> {
     pub(crate) fn decode(db: &'a Database, code: u32) -> Self {
         let code = decode(3, code);
@@ -160,6 +169,7 @@ pub enum MemberRefParent<'a> {
     MethodDef(MethodDef<'a>),
     TypeSpec(TypeSpec<'a>),
 }
+
 impl<'a> MemberRefParent<'a> {
     pub(crate) fn decode(db: &'a Database, code: u32) -> Self {
         let code = decode(3, code);
@@ -179,6 +189,7 @@ pub enum HasConstant<'a> {
     Param(Param<'a>),
     Property(Property<'a>),
 }
+
 impl<'a> HasConstant<'a> {
     #![allow(dead_code)]
     pub(crate) fn decode(db: &'a Database, code: u32) -> Self {
@@ -190,6 +201,7 @@ impl<'a> HasConstant<'a> {
             _ => panic!("Invalid HasConstant code"),
         }
     }
+    
     pub fn encode(&self) -> u32 {
         match &self {
             Self::Field(value) => encode(2, 0, value.row.index),
