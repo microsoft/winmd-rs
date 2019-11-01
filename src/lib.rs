@@ -13,19 +13,6 @@ use std::io::Result;
 use std::io::*;
 use tables::*;
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn winmd_wizzing() {
-        assert_eq!(true, true);
-    }
-
-    #[test]
-    fn winmd_wizzin234g() {
-        assert_eq!(true, true);
-    }
-}
-
 fn main() {
     if let Err(e) = run() {
         println!("{}", e);
