@@ -70,8 +70,9 @@ impl<'a> ModifierSig<'a> {
             let (element_type, _) = read_u32(bytes)?;
             if element_type != 32 && element_type != 31 {
                 break;
+            } else {
+                modifiers.push(ModifierSig::new(db, bytes)?);
             }
-            modifiers.push(ModifierSig::new(db, bytes)?);
         }
         Ok(modifiers)
     }
