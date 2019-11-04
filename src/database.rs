@@ -3,7 +3,6 @@
 #![allow(exceeding_bitshifts)]
 
 use crate::error::*;
-use std::io::Result;
 use std::marker::PhantomData;
 
 macro_rules! table_fn {
@@ -55,23 +54,23 @@ pub(crate) struct RowData<'a> {
 }
 
 impl<'a> RowData<'a> {
-    pub fn str(&self, column: u32) -> Result<&str> {
+    pub fn str(&self, column: u32) -> Result<&str, Error> {
         self.table.str(self.index, column)
     }
 
-    pub fn blob(&self, column: u32) -> Result<&[u8]> {
+    pub fn blob(&self, column: u32) -> Result<&[u8], Error> {
         self.table.blob(self.index, column)
     }
 
-    pub fn blob_as<T>(&self, column: u32) -> Result<&T> {
+    pub fn blob_as<T>(&self, column: u32) -> Result<&T, Error> {
         self.blob(column)?.view_as::<T>(0)
     }
 
-    pub fn u32(&self, column: u32) -> Result<u32> {
+    pub fn u32(&self, column: u32) -> Result<u32, Error> {
         self.table.u32(self.index, column)
     }
 
-    pub fn list<T: Row<'a>>(&self, column: u32, table: &Table<'a>) -> Result<RowIterator<'a, T>> {
+    pub fn list<T: Row<'a>>(&self, column: u32, table: &Table<'a>) -> Result<RowIterator<'a, T>, Error> {
         let first = self.u32(column)? - 1;
         let last = if self.index + 1 < self.table.len() { self.table.u32(self.index + 1, column)? - 1 } else { table.len() };
         Ok(RowIterator::new(table, first, last))
@@ -102,18 +101,18 @@ impl<'a> Table<'a> {
         self.data.row_count
     }
 
-    pub fn str(&self, row: u32, column: u32) -> Result<&str> {
+    pub fn str(&self, row: u32, column: u32) -> Result<&str, Error> {
         let offset = (self.db.strings + self.u32(row, column)?) as usize;
         match self.db.bytes[offset..].iter().position(|c| *c == b'\0') {
             None => Err(unexpected_eof()),
             Some(last) => match std::str::from_utf8(&self.db.bytes[offset..offset + last]) {
                 Ok(string) => Ok(string),
-                Err(_) => Err(invalid_data("Bytes not valid UTF-8")),
+                Err(_) => Err(Error::InvalidData("Bytes not valid UTF-8")),
             },
         }
     }
 
-    pub fn blob(&self, row: u32, column: u32) -> Result<&[u8]> {
+    pub fn blob(&self, row: u32, column: u32) -> Result<&[u8], Error> {
         let offset = (self.db.blobs + self.u32(row, column)?) as usize;
         let mut initial_byte = self.db.bytes[offset];
         let blob_size_bytes;
@@ -130,7 +129,7 @@ impl<'a> Table<'a> {
                 blob_size_bytes = 4;
                 initial_byte &= 0x1f;
             }
-            _ => return Err(invalid_data("Invalid blob encoding")),
+            _ => return Err(Error::InvalidData("Invalid blob encoding")),
         };
         let mut blob_size = initial_byte;
         for byte in self.db.bytes[offset + 1..offset + blob_size_bytes].iter() {
@@ -139,7 +138,7 @@ impl<'a> Table<'a> {
         Ok(&self.db.bytes[offset + blob_size_bytes..offset + blob_size_bytes + blob_size as usize])
     }
 
-    pub fn u32(&self, row: u32, column: u32) -> Result<u32> {
+    pub fn u32(&self, row: u32, column: u32) -> Result<u32, Error> {
         let offset = self.data.data + row * self.data.row_size + self.data.columns[column as usize].0;
         match self.data.columns[column as usize].1 {
             1 => Ok(*(self.db.bytes.view_as::<u8>(offset)?) as u32),
@@ -149,7 +148,7 @@ impl<'a> Table<'a> {
         }
     }
 
-    fn lower_bound_of(&self, mut first: u32, last: u32, column: u32, value: u32) -> Result<u32> {
+    fn lower_bound_of(&self, mut first: u32, last: u32, column: u32, value: u32) -> Result<u32, Error> {
         let mut count = last - first;
         while count > 0 {
             let count2 = count / 2;
@@ -164,15 +163,15 @@ impl<'a> Table<'a> {
         Ok(first)
     }
 
-    pub fn upper_bound<T: Row<'a>>(&self, column: u32, value: u32) -> Result<T> {
+    pub fn upper_bound<T: Row<'a>>(&self, column: u32, value: u32) -> Result<T, Error> {
         let index = self.upper_bound_of(0, self.data.row_count, column, value)?;
         if index == self.data.row_count {
-            return Err(invalid_data("Invalid row index"));
+            return Err(Error::InvalidData("Invalid row index"));
         }
         Ok(T::new(self, index))
     }
 
-    fn upper_bound_of(&self, mut first: u32, last: u32, column: u32, value: u32) -> Result<u32> {
+    fn upper_bound_of(&self, mut first: u32, last: u32, column: u32, value: u32) -> Result<u32, Error> {
         let mut count = last - first;
         while count > 0 {
             let count2 = count / 2;
@@ -187,11 +186,11 @@ impl<'a> Table<'a> {
         Ok(first)
     }
 
-    pub fn equal_range<T: Row<'a>>(&self, column: u32, value: u32) -> Result<RowIterator<'a, T>> {
+    pub fn equal_range<T: Row<'a>>(&self, column: u32, value: u32) -> Result<RowIterator<'a, T>, Error> {
         Ok(T::from_rows(self, self.equal_range_of(0, self.data.row_count, column, value)?))
     }
 
-    fn equal_range_of(&self, mut first: u32, mut last: u32, column: u32, value: u32) -> Result<(u32, u32)> {
+    fn equal_range_of(&self, mut first: u32, mut last: u32, column: u32, value: u32) -> Result<(u32, u32), Error> {
         let mut count = last - first;
         loop {
             if count <= 0 {
@@ -316,25 +315,25 @@ pub struct Database {
 }
 
 impl Database {
-    pub fn new<P: AsRef<std::path::Path>>(filename: P) -> Result<Self> {
+    pub fn new<P: AsRef<std::path::Path>>(filename: P) -> Result<Self, Error> {
         let mut db = Self { bytes: std::fs::read(filename)?, ..Default::default() };
         let dos = db.bytes.view_as::<ImageDosHeader>(0)?;
         if dos.signature != IMAGE_DOS_SIGNATURE {
-            return Err(invalid_data("Invalid DOS signature"));
+            return Err(Error::InvalidData("Invalid DOS signature"));
         }
         let pe = db.bytes.view_as::<ImageNtHeader>(dos.lfanew as u32)?;
         let (com_virtual_address, sections) = match pe.optional_header.magic {
             MAGIC_PE32 => (pe.optional_header.data_directory[IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR as usize].virtual_address, db.bytes.view_as_slice_of::<ImageSectionHeader>(dos.lfanew as u32 + sizeof::<ImageNtHeader>(), pe.file_header.number_of_sections as u32)?),
             MAGIC_PE32PLUS => (db.bytes.view_as::<ImageNtHeaderPlus>(dos.lfanew as u32)?.optional_header.data_directory[IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR as usize].virtual_address, db.bytes.view_as_slice_of::<ImageSectionHeader>(dos.lfanew as u32 + sizeof::<ImageNtHeaderPlus>(), pe.file_header.number_of_sections as u32)?),
-            _ => return Err(invalid_data("Invalid optional header magic value")),
+            _ => return Err(Error::InvalidData("Invalid optional header magic value")),
         };
         let cli = db.bytes.view_as::<ImageCorHeader>(offset_from_rva(section_from_rva(sections, com_virtual_address)?, com_virtual_address))?;
         if cli.cb != sizeof::<ImageCorHeader>() {
-            return Err(invalid_data("Invalid CLI header"));
+            return Err(Error::InvalidData("Invalid CLI header"));
         }
         let cli_offset = offset_from_rva(section_from_rva(sections, cli.meta_data.virtual_address)?, cli.meta_data.virtual_address);
         if *db.bytes.view_as::<u32>(cli_offset)? != STORAGE_MAGIC_SIG {
-            return Err(invalid_data("CLI metadata magic signature not found"));
+            return Err(Error::InvalidData("CLI metadata magic signature not found"));
         }
         let version_length = *db.bytes.view_as::<u32>(cli_offset + 12)?;
         let mut view = cli_offset + version_length + 20;
@@ -349,7 +348,7 @@ impl Database {
                 b"#GUID" => db.guids = cli_offset + stream_offset,
                 b"#~" => tables_data = (cli_offset + stream_offset, stream_size),
                 b"#US" => {}
-                _ => return Err(invalid_data("Unknown metadata stream")),
+                _ => return Err(Error::InvalidData("Unknown metadata stream")),
             }
             let mut padding = 4 - stream_name.len() % 4;
             if padding == 0 {
@@ -408,7 +407,7 @@ impl Database {
                 0x2a => db.generic_param.row_count = row_count,
                 0x2b => db.method_spec.row_count = row_count,
                 0x2c => db.generic_param_constraint.row_count = row_count,
-                _ => return Err(invalid_data("Unknown metadata table")),
+                _ => return Err(Error::InvalidData("Unknown metadata table")),
             };
         }
         let empty_table = TableData::default();
@@ -547,12 +546,8 @@ impl Database {
     table_fn!(type_spec);
 }
 
-fn unexpected_eof() -> std::io::Error {
-    std::io::Error::from(std::io::ErrorKind::UnexpectedEof)
-}
-
-fn section_from_rva(sections: &[ImageSectionHeader], rva: u32) -> Result<&ImageSectionHeader> {
-    sections.iter().find(|&s| rva >= s.virtual_address && rva < s.virtual_address + s.physical_address_or_virtual_size).ok_or_else(|| invalid_data("Section containing RVA not found"))
+fn section_from_rva(sections: &[ImageSectionHeader], rva: u32) -> Result<&ImageSectionHeader, Error> {
+    sections.iter().find(|&s| rva >= s.virtual_address && rva < s.virtual_address + s.physical_address_or_virtual_size).ok_or_else(|| Error::InvalidData("Section containing RVA not found"))
 }
 
 fn offset_from_rva(section: &ImageSectionHeader, rva: u32) -> u32 {
@@ -588,28 +583,28 @@ fn composite_index_size(tables: &[&TableData]) -> u32 {
 }
 
 trait View {
-    fn view_as<T>(&self, cli_offset: u32) -> Result<&T>;
-    fn view_as_slice_of<T>(&self, cli_offset: u32, len: u32) -> Result<&[T]>;
-    fn view_as_str(&self, cli_offset: u32) -> Result<&[u8]>;
+    fn view_as<T>(&self, cli_offset: u32) -> Result<&T, Error>;
+    fn view_as_slice_of<T>(&self, cli_offset: u32, len: u32) -> Result<&[T], Error>;
+    fn view_as_str(&self, cli_offset: u32) -> Result<&[u8], Error>;
 }
 
 // TODO: remove use of unsafe blocks by simply indexing into the struct/fields with offsets
 // and avoiding the structs altogether.
 
 impl View for [u8] {
-    fn view_as<T>(&self, cli_offset: u32) -> Result<&T> {
+    fn view_as<T>(&self, cli_offset: u32) -> Result<&T, Error> {
         if cli_offset + sizeof::<T>() > self.len() as u32 {
             return Err(unexpected_eof());
         }
         unsafe { Ok(&*(&self[cli_offset as usize] as *const u8 as *const T)) }
     }
-    fn view_as_slice_of<T>(&self, cli_offset: u32, len: u32) -> Result<&[T]> {
+    fn view_as_slice_of<T>(&self, cli_offset: u32, len: u32) -> Result<&[T], Error> {
         if cli_offset + sizeof::<T>() * len > self.len() as u32 {
             return Err(unexpected_eof());
         }
         unsafe { Ok(std::slice::from_raw_parts(&self[cli_offset as usize] as *const u8 as *const T, len as usize)) }
     }
-    fn view_as_str(&self, cli_offset: u32) -> Result<&[u8]> {
+    fn view_as_str(&self, cli_offset: u32) -> Result<&[u8], Error> {
         match self.get(cli_offset as usize..).ok_or_else(|| unexpected_eof())?.iter().position(|c| *c == b'\0') {
             Some(index) => Ok(&self[cli_offset as usize..cli_offset as usize + index]),
             None => Err(unexpected_eof()),

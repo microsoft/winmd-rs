@@ -1,6 +1,6 @@
 use crate::database::*;
+use crate::error::*;
 use crate::tables::*;
-use std::io::Result;
 
 pub struct NamespaceIterator<'a> {
     reader: &'a Reader,
@@ -72,7 +72,7 @@ pub struct Reader {
 
 impl<'a> Reader {
     // TODO: Can't this be an iterator to avoid creating the collection in from_dir()?
-    pub fn from_files<P: AsRef<std::path::Path>>(filenames: &[P]) -> Result<Self> {
+    pub fn from_files<P: AsRef<std::path::Path>>(filenames: &[P]) -> Result<Self, Error> {
         let mut databases = std::vec::Vec::new();
         databases.reserve(filenames.len());
         let mut namespaces = std::collections::BTreeMap::new();
@@ -109,16 +109,16 @@ impl<'a> Reader {
         Ok(Self { databases, namespaces })
     }
 
-    pub fn from_dir<P: AsRef<std::path::Path>>(directory: P) -> Result<Self> {
+    pub fn from_dir<P: AsRef<std::path::Path>>(directory: P) -> Result<Self, Error> {
         let files: Vec<std::path::PathBuf> = std::fs::read_dir(directory)?.filter_map(|value| value.ok().map(|value| value.path())).collect();
         Self::from_files(&files)
     }
 
-    pub fn from_os() -> Result<Self> {
+    pub fn from_os() -> Result<Self, Error> {
         let mut path = std::path::PathBuf::new();
         path.push(match std::env::var("windir") {
             Ok(value) => value,
-            Err(_) => return Err(std::io::Error::new(std::io::ErrorKind::NotFound, "'windir' environment variable not found")),
+            Err(_) => return Err(std::io::Error::new(std::io::ErrorKind::NotFound, "'windir' environment variable not found").into()),
         });
         path.push(SYSTEM32);
         path.push("winmetadata");

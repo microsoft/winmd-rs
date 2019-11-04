@@ -6,7 +6,6 @@ use crate::database::*;
 use crate::error::*;
 use crate::flags::*;
 use crate::signatures::*;
-use std::io::Result;
 
 macro_rules! table {
     ($name:ident) => {
@@ -76,25 +75,25 @@ impl std::fmt::Display for ConstantValue {
 }
 
 impl<'a> Constant<'a> {
-    pub fn value(&self) -> Result<ConstantValue> {
+    pub fn value(&self) -> Result<ConstantValue, Error> {
         match self.row.u32(0)? {
             0x08 => Ok(ConstantValue::I32(*self.row.blob_as::<i32>(2)?)),
             0x09 => Ok(ConstantValue::U32(*self.row.blob_as::<u32>(2)?)),
-            _ => Err(invalid_data("Unsupported constant type")),
+            _ => Err(Error::InvalidData("Unsupported constant type")),
         }
     }
 }
 
 impl<'a> CustomAttribute<'a> {
-    pub fn parent(&self) -> Result<HasCustomAttribute> {
+    pub fn parent(&self) -> Result<HasCustomAttribute, Error> {
         Ok(HasCustomAttribute::decode(&self.row.table.db, self.row.u32(0)?)?)
     }
 
-    pub fn class(&self) -> Result<CustomAttributeType> {
+    pub fn class(&self) -> Result<CustomAttributeType, Error> {
         Ok(CustomAttributeType::decode(&self.row.table.db, self.row.u32(1)?)?)
     }
 
-    pub fn has_name(&self, namespace: &str, name: &str) -> Result<bool> {
+    pub fn has_name(&self, namespace: &str, name: &str) -> Result<bool, Error> {
         Ok(match self.class()? {
             CustomAttributeType::MethodDef(value) => {
                 let parent = value.parent()?;
@@ -110,47 +109,47 @@ impl<'a> CustomAttribute<'a> {
 }
 
 impl<'a> Field<'a> {
-    pub fn name(&self) -> Result<&str> {
+    pub fn name(&self) -> Result<&str, Error> {
         self.row.str(1)
     }
 
-    pub fn constants(&self) -> Result<RowIterator<'a, Constant<'a>>> {
+    pub fn constants(&self) -> Result<RowIterator<'a, Constant<'a>>, Error> {
         self.row.table.db.constant().equal_range(1, HasConstant::Field(*self).encode())
     }
 }
 
 impl<'a> MemberRef<'a> {
-    pub fn class(&self) -> Result<MemberRefParent> {
+    pub fn class(&self) -> Result<MemberRefParent, Error> {
         Ok(MemberRefParent::decode(&self.row.table.db, self.row.u32(0)?)?)
     }
 
-    pub fn name(&self) -> Result<&str> {
+    pub fn name(&self) -> Result<&str, Error> {
         self.row.str(1)
     }
 }
 
 impl<'a> MethodDef<'a> {
-    pub fn flags(&self) -> Result<MethodAttributes> {
+    pub fn flags(&self) -> Result<MethodAttributes, Error> {
         Ok(MethodAttributes(self.row.u32(2)?))
     }
 
-    pub fn name(&self) -> Result<&str> {
+    pub fn name(&self) -> Result<&str, Error> {
         self.row.str(3)
     }
 
-    pub(crate) fn params(&self) -> Result<RowIterator<'a, Param<'a>>> {
+    pub(crate) fn params(&self) -> Result<RowIterator<'a, Param<'a>>, Error> {
         self.row.list(5, &self.row.table.db.param())
     }
 
-    pub fn parent(&self) -> Result<TypeDef> {
+    pub fn parent(&self) -> Result<TypeDef, Error> {
         self.row.table.db.type_def().upper_bound(6, self.row.index)
     }
 
-    pub fn signature(&self) -> Result<MethodSig> {
+    pub fn signature(&self) -> Result<MethodSig, Error> {
         MethodSig::new(self)
     }
 
-    pub fn rust_name(&self) -> Result<String> {
+    pub fn rust_name(&self) -> Result<String, Error> {
         let mut source = self.name()?;
         let mut result = String::with_capacity(source.len() + 2);
 
@@ -191,45 +190,45 @@ impl<'a> MethodDef<'a> {
 }
 
 impl<'a> Param<'a> {
-    pub fn sequence(&self) -> Result<u32> {
+    pub fn sequence(&self) -> Result<u32, Error> {
         self.row.u32(1)
     }
 
-    pub fn name(&self) -> Result<&str> {
+    pub fn name(&self) -> Result<&str, Error> {
         self.row.str(2)
     }
 }
 
 impl<'a> TypeDef<'a> {
-    pub fn flags(&self) -> Result<TypeAttributes> {
+    pub fn flags(&self) -> Result<TypeAttributes, Error> {
         Ok(TypeAttributes(self.row.u32(0)?))
     }
 
-    pub fn name(&self) -> Result<&str> {
+    pub fn name(&self) -> Result<&str, Error> {
         self.row.str(1)
     }
 
-    pub fn namespace(&self) -> Result<&str> {
+    pub fn namespace(&self) -> Result<&str, Error> {
         self.row.str(2)
     }
 
-    pub fn extends(&self) -> Result<TypeDefOrRef> {
+    pub fn extends(&self) -> Result<TypeDefOrRef, Error> {
         Ok(TypeDefOrRef::decode(&self.row.table.db, self.row.u32(3)?)?)
     }
 
-    pub fn fields(&self) -> Result<RowIterator<'a, Field<'a>>> {
+    pub fn fields(&self) -> Result<RowIterator<'a, Field<'a>>, Error> {
         self.row.list(4, &self.row.table.db.field())
     }
 
-    pub fn methods(&self) -> Result<RowIterator<'a, MethodDef<'a>>> {
+    pub fn methods(&self) -> Result<RowIterator<'a, MethodDef<'a>>, Error> {
         self.row.list(5, &self.row.table.db.method_def())
     }
 
-    pub fn attributes(&self) -> Result<RowIterator<'a, CustomAttribute<'a>>> {
+    pub fn attributes(&self) -> Result<RowIterator<'a, CustomAttribute<'a>>, Error> {
         self.row.table.db.custom_attribute().equal_range(0, HasCustomAttribute::TypeDef(*self).encode())
     }
 
-    pub fn has_attribute(&self, namespace: &str, name: &str) -> Result<bool> {
+    pub fn has_attribute(&self, namespace: &str, name: &str) -> Result<bool, Error> {
         for attribute in self.attributes()? {
             if attribute.has_name(namespace, name)? {
                 return Ok(true);
@@ -240,11 +239,11 @@ impl<'a> TypeDef<'a> {
 }
 
 impl<'a> TypeRef<'a> {
-    pub fn name(&self) -> Result<&str> {
+    pub fn name(&self) -> Result<&str, Error> {
         self.row.str(1)
     }
 
-    pub fn namespace(&self) -> Result<&str> {
+    pub fn namespace(&self) -> Result<&str, Error> {
         self.row.str(2)
     }
 }
