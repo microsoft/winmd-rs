@@ -234,22 +234,18 @@ fn read_u32<'a>(bytes: &[u8]) -> Result<(u32, usize)> {
     if bytes.is_empty() {
         return Err(unsupported_blob());
     }
-    let bytes_read;
-    let value = if bytes[0] & 0x80 == 0 {
-        bytes_read = 1;
-        bytes[0] as u32
+    let (bytes_read, value) = if bytes[0] & 0x80 == 0 {
+        (1, bytes[0] as u32)
     } else if bytes[0] & 0xC0 == 0x80 {
         if bytes.len() < 2 {
             return Err(unsupported_blob());
         }
-        bytes_read = 2;
-        (((bytes[0] & 0x3F) as u32) << 8) | bytes[1] as u32
+        (2, (((bytes[0] & 0x3F) as u32) << 8) | bytes[1] as u32)
     } else if bytes[0] & 0xE0 == 0xC0 {
         if bytes.len() < 4 {
             return Err(unsupported_blob());
         }
-        bytes_read = 4;
-        (((bytes[0] & 0x1F) as u32) << 24) | (bytes[1] as u32) << 16 | (bytes[2] as u32) << 8 | bytes[3] as u32
+        (4, (((bytes[0] & 0x1F) as u32) << 24) | (bytes[1] as u32) << 16 | (bytes[2] as u32) << 8 | bytes[3] as u32)
     } else {
         return Err(unsupported_blob());
     };
