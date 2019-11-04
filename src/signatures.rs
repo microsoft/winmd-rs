@@ -98,10 +98,9 @@ impl<'a> MethodSig<'a> {
         let return_type = if read_expected(&mut bytes, 0x01)? { None } else { Some(TypeSig::new(method.row.table.db, &mut bytes)?) };
         let mut params = Vec::with_capacity(param_count as usize);
         for param in method.params()? {
-            if return_type.is_some() && param.sequence()? == 0 {
-                continue;
+            if !return_type.is_some() || param.sequence()? != 0 {
+                params.push((param, ParamSig::new(method.row.table.db, &mut bytes)?));
             }
-            params.push((param, ParamSig::new(method.row.table.db, &mut bytes)?));
         }
         Ok(MethodSig { return_type, params })
     }
