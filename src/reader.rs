@@ -120,7 +120,7 @@ impl<'a> Reader {
             Ok(value) => value,
             Err(_) => return Err(std::io::Error::new(std::io::ErrorKind::NotFound, "'windir' environment variable not found")),
         });
-        path.push(system32());
+        path.push(SYSTEM32);
         path.push("winmetadata");
         Self::from_dir(path)
     }
@@ -137,10 +137,7 @@ impl<'a> Reader {
 }
 
 #[cfg(target_pointer_width = "64")]
-fn system32() -> &'static str {
-    "System32"
-}
+const SYSTEM32: &str = "System32";
+
 #[cfg(target_pointer_width = "32")]
-fn system32() -> &'static str {
-    "SysNative"
-}
+const SYSTEM32: &str = "SysNative";
