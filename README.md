@@ -1,6 +1,6 @@
 [![Build Status](https://dev.azure.com/microsoft/Dart/_apis/build/status/microsoft.winmd-rs?branchName=master)](https://dev.azure.com/microsoft/Dart/_build/latest?definitionId=45839&branchName=master)
 
-# Rust WinMD Parser
+# Rust winmd parser
 
 A parser for WinMD files written in Rust.
 
