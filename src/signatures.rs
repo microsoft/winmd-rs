@@ -257,6 +257,7 @@ fn read_u32<'a>(bytes: &[u8]) -> ParseResult<(u32, usize)> {
     Ok((value, bytes_read))
 }
 
+#[derive(PartialEq)]
 pub enum ElementType {
     Bool,
     Char,

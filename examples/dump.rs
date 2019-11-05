@@ -4,7 +4,7 @@ fn main() {
     }
 }
 
-fn run() -> Result<(), winmd::error::Error> {
+fn run() -> Result<(), winmd::Error> {
     let reader = winmd::Reader::from_os()?;
 
     for ns in reader.namespaces() {
