@@ -1,6 +1,6 @@
 mod codes;
 mod database;
-mod error;
+pub mod error;
 mod flags;
 mod reader;
 mod signatures;
