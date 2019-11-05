@@ -15,7 +15,7 @@ pub struct GenericSig<'a> {
 }
 
 impl<'a> GenericSig<'a> {
-    fn new(db: &'a Database, bytes: &mut &[u8]) -> Result<GenericSig<'a>, Error> {
+    fn new(db: &'a Database, bytes: &mut &[u8]) -> ParseResult<GenericSig<'a>> {
         let (_, bytes_read) = read_u32(bytes)?;
         *bytes = seek(bytes, bytes_read);
 
@@ -55,7 +55,7 @@ pub struct ModifierSig<'a> {
 }
 
 impl<'a> ModifierSig<'a> {
-    fn new(db: &'a Database, bytes: &mut &[u8]) -> Result<ModifierSig<'a>, Error> {
+    fn new(db: &'a Database, bytes: &mut &[u8]) -> ParseResult<ModifierSig<'a>> {
         let (_, bytes_read) = read_u32(bytes)?;
         *bytes = seek(bytes, bytes_read);
         let (code, bytes_read) = read_u32(bytes)?;
@@ -64,7 +64,7 @@ impl<'a> ModifierSig<'a> {
         Ok(ModifierSig { type_code })
     }
 
-    fn vec(db: &'a Database, bytes: &mut &[u8]) -> Result<Vec<ModifierSig<'a>>, Error> {
+    fn vec(db: &'a Database, bytes: &mut &[u8]) -> ParseResult<Vec<ModifierSig<'a>>> {
         let mut modifiers = Vec::new();
         loop {
             let (element_type, _) = read_u32(bytes)?;
@@ -84,7 +84,7 @@ pub struct MethodSig<'a> {
 }
 
 impl<'a> MethodSig<'a> {
-    pub(crate) fn new(method: &MethodDef<'a>) -> Result<MethodSig<'a>, Error> {
+    pub(crate) fn new(method: &MethodDef<'a>) -> ParseResult<MethodSig<'a>> {
         let mut bytes = method.row.blob(4)?;
         let (calling_convention, bytes_read) = read_u32(&mut bytes)?;
         bytes = seek(bytes, bytes_read);
@@ -122,7 +122,7 @@ pub struct ParamSig<'a> {
 }
 
 impl<'a> ParamSig<'a> {
-    fn new(db: &'a Database, bytes: &mut &[u8]) -> Result<ParamSig<'a>, Error> {
+    fn new(db: &'a Database, bytes: &mut &[u8]) -> ParseResult<ParamSig<'a>> {
         let modifiers = ModifierSig::vec(db, bytes)?;
         let by_ref = read_expected(bytes, 0x10)?;
         let param_type = TypeSig::new(db, bytes)?;
@@ -143,7 +143,7 @@ pub enum TypeSigType<'a> {
 }
 
 impl<'a> TypeSigType<'a> {
-    fn new(db: &'a Database, bytes: &mut &[u8]) -> Result<TypeSigType<'a>, Error> {
+    fn new(db: &'a Database, bytes: &mut &[u8]) -> ParseResult<TypeSigType<'a>> {
         let (element_type, bytes_read) = read_u32(bytes)?;
         *bytes = seek(bytes, bytes_read);
 
@@ -202,7 +202,7 @@ pub struct TypeSig<'a> {
 }
 
 impl<'a> TypeSig<'a> {
-    fn new(db: &'a Database, bytes: &mut &[u8]) -> Result<TypeSig<'a>, Error> {
+    fn new(db: &'a Database, bytes: &mut &[u8]) -> ParseResult<TypeSig<'a>> {
         let array = read_expected(bytes, 0x1D)?;
         let modifiers = ModifierSig::vec(db, bytes)?;
         let sig_type = TypeSigType::new(db, bytes)?;
@@ -216,7 +216,7 @@ impl<'a> std::fmt::Display for TypeSig<'a> {
     }
 }
 
-fn read_expected(bytes: &mut &[u8], expected: u32) -> Result<bool, Error> {
+fn read_expected(bytes: &mut &[u8], expected: u32) -> ParseResult<bool> {
     let (element_type, bytes_read) = read_u32(bytes)?;
     Ok(if element_type == expected {
         *bytes = seek(bytes, bytes_read);
@@ -230,7 +230,7 @@ fn seek(bytes: &[u8], bytes_read: usize) -> &[u8] {
     bytes.get(bytes_read..).unwrap()
 }
 
-fn read_u32<'a>(bytes: &[u8]) -> Result<(u32, usize), Error> {
+fn read_u32<'a>(bytes: &[u8]) -> ParseResult<(u32, usize)> {
     if bytes.is_empty() {
         return Err(unsupported_blob());
     }
