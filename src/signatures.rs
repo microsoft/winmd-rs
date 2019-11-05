@@ -7,8 +7,6 @@ use crate::error::*;
 use crate::tables::*;
 use std::vec::*;
 
-// TODO: what about using std::io::Read?
-
 pub struct GenericSig<'a> {
     sig_type: TypeDefOrRef<'a>,
     args: Vec<TypeSig<'a>>,
