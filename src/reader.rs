@@ -1,6 +1,6 @@
 use crate::database::*;
+use crate::error::*;
 use crate::tables::*;
-use std::io::Result;
 
 pub struct NamespaceIterator<'a> {
     reader: &'a Reader,
@@ -72,20 +72,21 @@ pub struct Reader {
 
 impl<'a> Reader {
     // TODO: Can't this be an iterator to avoid creating the collection in from_dir()?
-    pub fn from_files<P: AsRef<std::path::Path>>(filenames: &[P]) -> Result<Self> {
-        let mut databases = std::vec::Vec::new();
-        databases.reserve(filenames.len());
-        let mut namespaces = std::collections::BTreeMap::new();
+    pub fn from_files<P: AsRef<std::path::Path>>(filenames: &[P]) -> Result<Self, Error> {
+        let mut databases = std::vec::Vec::with_capacity(filenames.len());
+        let mut namespaces = std::collections::BTreeMap::<String, NamespaceData>::new();
+
         for filename in filenames {
             let db = Database::new(filename)?;
             for t in db.type_def().iter::<TypeDef>() {
                 if t.flags()?.windows_runtime() {
-                    let types = namespaces.entry(t.namespace()?.to_string()).or_insert_with(|| NamespaceData { ..Default::default() });
+                    let types = namespaces.entry(t.namespace()?.to_string()).or_insert_with(|| Default::default());
                     types.index.entry(t.name()?.to_string()).or_insert((databases.len() as u32, t.row.index));
                 }
             }
             databases.push(db);
         }
+
         for (_, types) in &mut namespaces {
             for (_, index) in &types.index {
                 let t = TypeDef::new(&databases[index.0 as usize].type_def(), index.1);
@@ -106,20 +107,18 @@ impl<'a> Reader {
                 }
             }
         }
+
         Ok(Self { databases, namespaces })
     }
 
-    pub fn from_dir<P: AsRef<std::path::Path>>(directory: P) -> Result<Self> {
+    pub fn from_dir<P: AsRef<std::path::Path>>(directory: P) -> Result<Self, Error> {
         let files: Vec<std::path::PathBuf> = std::fs::read_dir(directory)?.filter_map(|value| value.ok().map(|value| value.path())).collect();
         Self::from_files(&files)
     }
 
-    pub fn from_os() -> Result<Self> {
+    pub fn from_os() -> Result<Self, Error> {
         let mut path = std::path::PathBuf::new();
-        path.push(match std::env::var("windir") {
-            Ok(value) => value,
-            Err(_) => return Err(std::io::Error::new(std::io::ErrorKind::NotFound, "'windir' environment variable not found")),
-        });
+        path.push(std::env::var("windir").expect("'windir' environment variable not found"));
         path.push(SYSTEM32);
         path.push("winmetadata");
         Self::from_dir(path)
