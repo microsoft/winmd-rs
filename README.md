@@ -1,5 +1,15 @@
+[![Build Status](https://dev.azure.com/microsoft/Dart/_apis/build/status/microsoft.winmd-rs?branchName=master)](https://dev.azure.com/microsoft/Dart/_build/latest?definitionId=45839&branchName=master)
 
-# Contributing
+# Rust winmd parser
+
+A parser for WinMD files written in Rust.
+
+## Status
+
+This repo is still in very early and active development. You can find more information about future plans for
+this project [here](https://kennykerr.ca/2019/11/05/rust/).
+
+## Contributing
 
 This project welcomes contributions and suggestions.  Most contributions require you to agree to a
 Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us
