@@ -73,19 +73,20 @@ pub struct Reader {
 impl<'a> Reader {
     // TODO: Can't this be an iterator to avoid creating the collection in from_dir()?
     pub fn from_files<P: AsRef<std::path::Path>>(filenames: &[P]) -> Result<Self, Error> {
-        let mut databases = std::vec::Vec::new();
-        databases.reserve(filenames.len());
-        let mut namespaces = std::collections::BTreeMap::new();
+        let mut databases = std::vec::Vec::with_capacity(filenames.len());
+        let mut namespaces = std::collections::BTreeMap::<String, NamespaceData>::new();
+
         for filename in filenames {
             let db = Database::new(filename)?;
             for t in db.type_def().iter::<TypeDef>() {
                 if t.flags()?.windows_runtime() {
-                    let types = namespaces.entry(t.namespace()?.to_string()).or_insert_with(|| NamespaceData { ..Default::default() });
+                    let types = namespaces.entry(t.namespace()?.to_string()).or_insert_with(|| Default::default());
                     types.index.entry(t.name()?.to_string()).or_insert((databases.len() as u32, t.row.index));
                 }
             }
             databases.push(db);
         }
+
         for (_, types) in &mut namespaces {
             for (_, index) in &types.index {
                 let t = TypeDef::new(&databases[index.0 as usize].type_def(), index.1);
@@ -106,6 +107,7 @@ impl<'a> Reader {
                 }
             }
         }
+
         Ok(Self { databases, namespaces })
     }
 
