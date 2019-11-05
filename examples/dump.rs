@@ -1,10 +1,10 @@
 fn main() {
     if let Err(e) = run() {
-        println!("{}", e);
+        println!("{:?}", e);
     }
 }
 
-fn run() -> std::io::Result<()> {
+fn run() -> Result<(), winmd::error::Error> {
     let reader = winmd::Reader::from_os()?;
 
     for ns in reader.namespaces() {
