@@ -116,10 +116,7 @@ impl<'a> Reader {
 
     pub fn from_os() -> Result<Self, Error> {
         let mut path = std::path::PathBuf::new();
-        path.push(match std::env::var("windir") {
-            Ok(value) => value,
-            Err(_) => return Err(std::io::Error::new(std::io::ErrorKind::NotFound, "'windir' environment variable not found").into()),
-        });
+        path.push(std::env::var("windir").expect("'windir' environment variable not found"));
         path.push(SYSTEM32);
         path.push("winmetadata");
         Self::from_dir(path)
