@@ -62,7 +62,7 @@ impl<'a> RowData<'a> {
         self.table.blob(self.index, column)
     }
 
-    pub fn blob_as<T>(&self, column: u32) -> ParseResult<&T> {
+    pub fn blob_as<T: MemMappable>(&self, column: u32) -> ParseResult<&T> {
         self.blob(column)?.view_as::<T>(0)
     }
 
@@ -583,27 +583,44 @@ fn composite_index_size(tables: &[&TableData]) -> u32 {
 }
 
 trait View {
-    fn view_as<T>(&self, cli_offset: u32) -> ParseResult<&T>;
-    fn view_as_slice_of<T>(&self, cli_offset: u32, len: u32) -> ParseResult<&[T]>;
+    fn view_as<T: MemMappable>(&self, offset: u32) -> ParseResult<&T>;
+    fn view_as_slice_of<T: MemMappable>(&self, cli_offset: u32, len: u32) -> ParseResult<&[T]>;
     fn view_as_str(&self, cli_offset: u32) -> ParseResult<&[u8]>;
 }
 
-// TODO: remove use of unsafe blocks by simply indexing into the struct/fields with offsets
-// and avoiding the structs altogether.
+/// A marker trait for any value that can safely be memory mapped
+pub unsafe trait MemMappable {}
+
+unsafe impl MemMappable for u8 {}
+unsafe impl MemMappable for u16 {}
+unsafe impl MemMappable for u32 {}
+unsafe impl MemMappable for i32 {}
+unsafe impl MemMappable for u64 {}
+unsafe impl MemMappable for ImageDosHeader {}
+unsafe impl MemMappable for ImageFileHeader {}
+unsafe impl MemMappable for ImageDataDirectory {}
+unsafe impl MemMappable for ImageNtHeader {}
+unsafe impl MemMappable for ImageOptionalHeader {}
+unsafe impl MemMappable for ImageOptionalHeaderPlus {}
+unsafe impl MemMappable for ImageNtHeaderPlus {}
+unsafe impl MemMappable for ImageSectionHeader {}
+unsafe impl MemMappable for ImageCorHeader {}
 
 impl View for [u8] {
-    fn view_as<T>(&self, cli_offset: u32) -> ParseResult<&T> {
+    fn view_as<T: MemMappable>(&self, cli_offset: u32) -> ParseResult<&T> {
         if cli_offset + sizeof::<T>() > self.len() as u32 {
             return Err(unexpected_eof());
         }
         unsafe { Ok(&*(&self[cli_offset as usize] as *const u8 as *const T)) }
     }
-    fn view_as_slice_of<T>(&self, cli_offset: u32, len: u32) -> ParseResult<&[T]> {
+
+    fn view_as_slice_of<T: MemMappable>(&self, cli_offset: u32, len: u32) -> ParseResult<&[T]> {
         if cli_offset + sizeof::<T>() * len > self.len() as u32 {
             return Err(unexpected_eof());
         }
         unsafe { Ok(std::slice::from_raw_parts(&self[cli_offset as usize] as *const u8 as *const T, len as usize)) }
     }
+
     fn view_as_str(&self, cli_offset: u32) -> ParseResult<&[u8]> {
         match self.get(cli_offset as usize..).ok_or_else(|| unexpected_eof())?.iter().position(|c| *c == b'\0') {
             Some(index) => Ok(&self[cli_offset as usize..cli_offset as usize + index]),
