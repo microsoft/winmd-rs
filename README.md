@@ -2,7 +2,7 @@
 
 # Rust winmd parser
 
-A parser for WinMD files written in Rust.
+A parser for winmd files written in Rust.
 
 ## Status
 
