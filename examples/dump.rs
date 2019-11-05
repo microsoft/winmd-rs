@@ -22,10 +22,10 @@ fn run() -> std::io::Result<()> {
 
                 if let Some((last, rest)) = sig.params().split_last() {
                     for (param, signature) in rest {
-                        print!("{}: {}, ", param.name()?, signature.param_type());
+                        print!("{}: {}, ", param.name()?, signature.sig_type());
                     }
                     let (param, signature) = last;
-                    print!("{}: {}", param.name()?, signature.param_type());
+                    print!("{}: {}", param.name()?, signature.sig_type());
                 }
 
                 match sig.return_type() {

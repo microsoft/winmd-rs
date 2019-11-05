@@ -10,7 +10,7 @@ use std::vec::*;
 // TODO: what about using std::io::Read?
 
 pub struct GenericSig<'a> {
-    generic_type: TypeDefOrRef<'a>,
+    sig_type: TypeDefOrRef<'a>,
     args: Vec<TypeSig<'a>>,
 }
 
@@ -21,7 +21,7 @@ impl<'a> GenericSig<'a> {
 
         let (code, bytes_read) = read_u32(bytes)?;
         *bytes = seek(bytes, bytes_read);
-        let generic_type = TypeDefOrRef::decode(db, code)?;
+        let sig_type = TypeDefOrRef::decode(db, code)?;
 
         let (arg_count, bytes_read) = read_u32(bytes)?;
         *bytes = seek(bytes, bytes_read);
@@ -32,11 +32,11 @@ impl<'a> GenericSig<'a> {
             args.push(TypeSig::new(db, bytes)?);
         }
 
-        Ok(GenericSig { generic_type, args })
+        Ok(GenericSig { sig_type, args })
     }
 
-    pub fn generic_type(&self) -> &TypeDefOrRef<'a> {
-        &self.generic_type
+    pub fn sig_type(&self) -> &TypeDefOrRef<'a> {
+        &self.sig_type
     }
 
     pub fn args(&self) -> &Vec<TypeSig<'a>> {
@@ -46,12 +46,12 @@ impl<'a> GenericSig<'a> {
 
 impl<'a> std::fmt::Display for GenericSig<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.generic_type)
+        write!(f, "{}", self.sig_type)
     }
 }
 
 pub struct ModifierSig<'a> {
-    type_code: TypeDefOrRef<'a>,
+    sig_type: TypeDefOrRef<'a>,
 }
 
 impl<'a> ModifierSig<'a> {
@@ -60,8 +60,8 @@ impl<'a> ModifierSig<'a> {
         *bytes = seek(bytes, bytes_read);
         let (code, bytes_read) = read_u32(bytes)?;
         *bytes = seek(bytes, bytes_read);
-        let type_code = TypeDefOrRef::decode(db, code)?;
-        Ok(ModifierSig { type_code })
+        let sig_type = TypeDefOrRef::decode(db, code)?;
+        Ok(ModifierSig { sig_type })
     }
 
     fn vec(db: &'a Database, bytes: &mut &[u8]) -> Result<Vec<ModifierSig<'a>>> {
@@ -118,19 +118,19 @@ impl<'a> MethodSig<'a> {
 pub struct ParamSig<'a> {
     modifiers: Vec<ModifierSig<'a>>,
     by_ref: bool,
-    param_type: TypeSig<'a>,
+    sig_type: TypeSig<'a>,
 }
 
 impl<'a> ParamSig<'a> {
     fn new(db: &'a Database, bytes: &mut &[u8]) -> Result<ParamSig<'a>> {
         let modifiers = ModifierSig::vec(db, bytes)?;
         let by_ref = read_expected(bytes, 0x10)?;
-        let param_type = TypeSig::new(db, bytes)?;
-        Ok(ParamSig { modifiers, by_ref, param_type })
+        let sig_type = TypeSig::new(db, bytes)?;
+        Ok(ParamSig { modifiers, by_ref, sig_type })
     }
 
-    pub fn param_type(&self) -> &TypeSig<'a> {
-        &self.param_type
+    pub fn sig_type(&self) -> &TypeSig<'a> {
+        &self.sig_type
     }
 }
 
@@ -207,6 +207,10 @@ impl<'a> TypeSig<'a> {
         let modifiers = ModifierSig::vec(db, bytes)?;
         let sig_type = TypeSigType::new(db, bytes)?;
         Ok(TypeSig { array, modifiers, sig_type })
+    }
+
+    pub fn sig_type(&self) -> &TypeSigType<'a> {
+        &self.sig_type
     }
 }
 

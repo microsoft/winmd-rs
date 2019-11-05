@@ -13,6 +13,9 @@ fn type_def() {
 
     for m in t.methods().unwrap() {
         assert!(m.name().unwrap() == "ToString");
+        let sig = m.signature().unwrap();
+        let return_type = sig.return_type();
+
     }
 
     assert!(t.has_attribute("Windows.Foundation.Metadata", "GuidAttribute").unwrap());
