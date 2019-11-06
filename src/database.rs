@@ -103,36 +103,20 @@ impl<'a> Table<'a> {
 
     pub fn str(&self, row: u32, column: u32) -> ParseResult<&str> {
         let offset = (self.db.strings + self.u32(row, column)?) as usize;
-        match self.db.bytes[offset..].iter().position(|c| *c == b'\0') {
-            None => Err(unexpected_eof()),
-            Some(last) => match std::str::from_utf8(&self.db.bytes[offset..offset + last]) {
-                Ok(string) => Ok(string),
-                Err(_) => Err(ParseError::InvalidData("Bytes not valid UTF-8")),
-            },
-        }
+        let last = self.db.bytes[offset..].iter().position(|c| *c == b'\0').ok_or_else(unexpected_eof)?;
+        std::str::from_utf8(&self.db.bytes[offset..offset + last]).map_err(|_| ParseError::InvalidData("Bytes not valid UTF-8"))
     }
 
     pub fn blob(&self, row: u32, column: u32) -> ParseResult<&[u8]> {
         let offset = (self.db.blobs + self.u32(row, column)?) as usize;
-        let mut initial_byte = self.db.bytes[offset];
-        let blob_size_bytes;
-        match initial_byte >> 5 {
-            0..=3 => {
-                blob_size_bytes = 1;
-                initial_byte &= 0x7f;
-            }
-            4..=5 => {
-                blob_size_bytes = 2;
-                initial_byte &= 0x3f;
-            }
-            6 => {
-                blob_size_bytes = 4;
-                initial_byte &= 0x1f;
-            }
+        let initial_byte = self.db.bytes[offset];
+        let (mut blob_size, blob_size_bytes) = match initial_byte >> 5 {
+            0..=3 => (initial_byte & 0x7f, 1),
+            4..=5 => (initial_byte & 0x3f, 2),
+            6 => (initial_byte & 0x1f, 4),
             _ => return Err(ParseError::InvalidData("Invalid blob encoding")),
         };
-        let mut blob_size = initial_byte;
-        for byte in self.db.bytes[offset + 1..offset + blob_size_bytes].iter() {
+        for byte in &self.db.bytes[offset + 1..offset + blob_size_bytes] {
             blob_size = (blob_size << 8) + byte;
         }
         Ok(&self.db.bytes[offset + blob_size_bytes..offset + blob_size_bytes + blob_size as usize])
@@ -598,17 +582,18 @@ impl View for [u8] {
         }
         unsafe { Ok(&*(&self[cli_offset as usize] as *const u8 as *const T)) }
     }
+
     fn view_as_slice_of<T>(&self, cli_offset: u32, len: u32) -> ParseResult<&[T]> {
         if cli_offset + sizeof::<T>() * len > self.len() as u32 {
             return Err(unexpected_eof());
         }
         unsafe { Ok(std::slice::from_raw_parts(&self[cli_offset as usize] as *const u8 as *const T, len as usize)) }
     }
+
     fn view_as_str(&self, cli_offset: u32) -> ParseResult<&[u8]> {
-        match self.get(cli_offset as usize..).ok_or_else(|| unexpected_eof())?.iter().position(|c| *c == b'\0') {
-            Some(index) => Ok(&self[cli_offset as usize..cli_offset as usize + index]),
-            None => Err(unexpected_eof()),
-        }
+        let buffer = self.get(cli_offset as usize..).ok_or_else(unexpected_eof)?;
+        let index = buffer.iter().position(|c| *c == b'\0').ok_or_else(unexpected_eof)?;
+        Ok(&self[cli_offset as usize..cli_offset as usize + index])
     }
 }
 
