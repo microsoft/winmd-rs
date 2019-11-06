@@ -7,36 +7,27 @@ use crate::error::*;
 use crate::tables::*;
 use std::vec::*;
 
-// TODO: what about using std::io::Read?
-
 pub struct GenericSig<'a> {
-    generic_type: TypeDefOrRef<'a>,
+    sig_type: TypeDefOrRef<'a>,
     args: Vec<TypeSig<'a>>,
 }
 
 impl<'a> GenericSig<'a> {
     fn new(db: &'a Database, bytes: &mut &[u8]) -> ParseResult<GenericSig<'a>> {
-        let (_, bytes_read) = read_u32(bytes)?;
-        *bytes = seek(bytes, bytes_read);
-
-        let (code, bytes_read) = read_u32(bytes)?;
-        *bytes = seek(bytes, bytes_read);
-        let generic_type = TypeDefOrRef::decode(db, code)?;
-
-        let (arg_count, bytes_read) = read_u32(bytes)?;
-        *bytes = seek(bytes, bytes_read);
-
+        read_u32(bytes)?;
+        let sig_type = TypeDefOrRef::decode(db, read_u32(bytes)?)?;
+        let arg_count = read_u32(bytes)?;
         let mut args = Vec::with_capacity(arg_count as usize);
 
         for _ in 0..arg_count {
             args.push(TypeSig::new(db, bytes)?);
         }
 
-        Ok(GenericSig { generic_type, args })
+        Ok(GenericSig { sig_type, args })
     }
 
-    pub fn generic_type(&self) -> &TypeDefOrRef<'a> {
-        &self.generic_type
+    pub fn sig_type(&self) -> &TypeDefOrRef<'a> {
+        &self.sig_type
     }
 
     pub fn args(&self) -> &Vec<TypeSig<'a>> {
@@ -46,28 +37,25 @@ impl<'a> GenericSig<'a> {
 
 impl<'a> std::fmt::Display for GenericSig<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.generic_type)
+        write!(f, "{}", self.sig_type)
     }
 }
 
 pub struct ModifierSig<'a> {
-    type_code: TypeDefOrRef<'a>,
+    sig_type: TypeDefOrRef<'a>,
 }
 
 impl<'a> ModifierSig<'a> {
     fn new(db: &'a Database, bytes: &mut &[u8]) -> ParseResult<ModifierSig<'a>> {
-        let (_, bytes_read) = read_u32(bytes)?;
-        *bytes = seek(bytes, bytes_read);
-        let (code, bytes_read) = read_u32(bytes)?;
-        *bytes = seek(bytes, bytes_read);
-        let type_code = TypeDefOrRef::decode(db, code)?;
-        Ok(ModifierSig { type_code })
+        read_u32(bytes)?;
+        let sig_type = TypeDefOrRef::decode(db, read_u32(bytes)?)?;
+        Ok(ModifierSig { sig_type })
     }
 
     fn vec(db: &'a Database, bytes: &mut &[u8]) -> ParseResult<Vec<ModifierSig<'a>>> {
         let mut modifiers = Vec::new();
         loop {
-            let (element_type, _) = read_u32(bytes)?;
+            let (element_type, _) = peek_u32(bytes)?;
             if element_type != 32 && element_type != 31 {
                 break;
             } else {
@@ -86,14 +74,11 @@ pub struct MethodSig<'a> {
 impl<'a> MethodSig<'a> {
     pub(crate) fn new(method: &MethodDef<'a>) -> ParseResult<MethodSig<'a>> {
         let mut bytes = method.row.blob(4)?;
-        let (calling_convention, bytes_read) = read_u32(&mut bytes)?;
-        bytes = seek(bytes, bytes_read);
+        let calling_convention = read_u32(&mut bytes)?;
         if calling_convention & 0x10 != 0 {
-            let (_, bytes_read) = read_u32(&mut bytes)?;
-            bytes = seek(bytes, bytes_read);
+            read_u32(&mut bytes)?;
         }
-        let (param_count, bytes_read) = read_u32(&mut bytes)?;
-        bytes = seek(bytes, bytes_read);
+        let param_count = read_u32(&mut bytes)?;
         ModifierSig::vec(method.row.table.db, &mut bytes)?;
         read_expected(&mut bytes, 0x10)?;
         let return_type = if read_expected(&mut bytes, 0x01)? { None } else { Some(TypeSig::new(method.row.table.db, &mut bytes)?) };
@@ -118,19 +103,19 @@ impl<'a> MethodSig<'a> {
 pub struct ParamSig<'a> {
     modifiers: Vec<ModifierSig<'a>>,
     by_ref: bool,
-    param_type: TypeSig<'a>,
+    sig_type: TypeSig<'a>,
 }
 
 impl<'a> ParamSig<'a> {
     fn new(db: &'a Database, bytes: &mut &[u8]) -> ParseResult<ParamSig<'a>> {
         let modifiers = ModifierSig::vec(db, bytes)?;
         let by_ref = read_expected(bytes, 0x10)?;
-        let param_type = TypeSig::new(db, bytes)?;
-        Ok(ParamSig { modifiers, by_ref, param_type })
+        let sig_type = TypeSig::new(db, bytes)?;
+        Ok(ParamSig { modifiers, by_ref, sig_type })
     }
 
-    pub fn param_type(&self) -> &TypeSig<'a> {
-        &self.param_type
+    pub fn sig_type(&self) -> &TypeSig<'a> {
+        &self.sig_type
     }
 }
 
@@ -144,8 +129,7 @@ pub enum TypeSigType<'a> {
 
 impl<'a> TypeSigType<'a> {
     fn new(db: &'a Database, bytes: &mut &[u8]) -> ParseResult<TypeSigType<'a>> {
-        let (element_type, bytes_read) = read_u32(bytes)?;
-        *bytes = seek(bytes, bytes_read);
+        let element_type = read_u32(bytes)?;
 
         Ok(match element_type {
             0x02 => TypeSigType::ElementType(ElementType::Bool),
@@ -162,22 +146,10 @@ impl<'a> TypeSigType<'a> {
             0x0D => TypeSigType::ElementType(ElementType::F64),
             0x0E => TypeSigType::ElementType(ElementType::String),
             0x1C => TypeSigType::ElementType(ElementType::Object),
-            0x11 | 0x12 => {
-                let (code, bytes_read) = read_u32(bytes)?;
-                *bytes = seek(bytes, bytes_read);
-                TypeSigType::TypeDefOrRef(TypeDefOrRef::decode(db, code)?)
-            }
-            0x13 => {
-                let (index, bytes_read) = read_u32(bytes)?;
-                *bytes = seek(bytes, bytes_read);
-                TypeSigType::GenericTypeIndex(index)
-            }
+            0x11 | 0x12 => TypeSigType::TypeDefOrRef(TypeDefOrRef::decode(db, read_u32(bytes)?)?),
+            0x13 => TypeSigType::GenericTypeIndex(read_u32(bytes)?),
             0x15 => TypeSigType::GenericSig(GenericSig::new(db, bytes)?),
-            0x1e => {
-                let (index, bytes_read) = read_u32(bytes)?;
-                *bytes = seek(bytes, bytes_read);
-                TypeSigType::GenericMethodIndex(index)
-            }
+            0x1e => TypeSigType::GenericMethodIndex(read_u32(bytes)?),
             _ => return Err(unsupported_blob()),
         })
     }
@@ -208,6 +180,10 @@ impl<'a> TypeSig<'a> {
         let sig_type = TypeSigType::new(db, bytes)?;
         Ok(TypeSig { array, modifiers, sig_type })
     }
+
+    pub fn sig_type(&self) -> &TypeSigType<'a> {
+        &self.sig_type
+    }
 }
 
 impl<'a> std::fmt::Display for TypeSig<'a> {
@@ -217,7 +193,7 @@ impl<'a> std::fmt::Display for TypeSig<'a> {
 }
 
 fn read_expected(bytes: &mut &[u8], expected: u32) -> ParseResult<bool> {
-    let (element_type, bytes_read) = read_u32(bytes)?;
+    let (element_type, bytes_read) = peek_u32(bytes)?;
     Ok(if element_type == expected {
         *bytes = seek(bytes, bytes_read);
         true
@@ -230,7 +206,7 @@ fn seek(bytes: &[u8], bytes_read: usize) -> &[u8] {
     bytes.get(bytes_read..).unwrap()
 }
 
-fn read_u32<'a>(bytes: &[u8]) -> ParseResult<(u32, usize)> {
+fn peek_u32<'a>(bytes: &[u8]) -> ParseResult<(u32, usize)> {
     if bytes.is_empty() {
         return Err(unsupported_blob());
     }
@@ -253,6 +229,13 @@ fn read_u32<'a>(bytes: &[u8]) -> ParseResult<(u32, usize)> {
     Ok((value, bytes_read))
 }
 
+fn read_u32<'a>(bytes: &mut &[u8]) -> ParseResult<u32> {
+    let (value, bytes_read) = peek_u32(bytes)?;
+    *bytes = seek(bytes, bytes_read);
+    Ok(value)
+}
+
+#[derive(PartialEq)]
 pub enum ElementType {
     Bool,
     Char,

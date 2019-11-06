@@ -4,7 +4,7 @@ fn main() {
     }
 }
 
-fn run() -> Result<(), winmd::error::Error> {
+fn run() -> Result<(), winmd::Error> {
     let reader = winmd::Reader::from_os()?;
 
     for ns in reader.namespaces() {
@@ -22,10 +22,10 @@ fn run() -> Result<(), winmd::error::Error> {
 
                 if let Some((last, rest)) = sig.params().split_last() {
                     for (param, signature) in rest {
-                        print!("{}: {}, ", param.name()?, signature.param_type());
+                        print!("{}: {}, ", param.name()?, signature.sig_type());
                     }
                     let (param, signature) = last;
-                    print!("{}: {}", param.name()?, signature.param_type());
+                    print!("{}: {}", param.name()?, signature.sig_type());
                 }
 
                 match sig.return_type() {
