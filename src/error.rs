@@ -26,11 +26,11 @@ pub enum ParseError {
     InvalidData(&'static str),
 }
 
-pub fn unexpected_eof() -> ParseError {
+pub(crate) fn unexpected_eof() -> ParseError {
     ParseError::Io(io::Error::from(io::ErrorKind::UnexpectedEof))
 }
 
-pub fn unsupported_blob() -> ParseError {
+pub(crate) fn unsupported_blob() -> ParseError {
     ParseError::InvalidData("Unsupported blob")
 }
 
