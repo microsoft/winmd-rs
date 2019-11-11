@@ -3,3 +3,6 @@ name = "winmd"
 version = "0.1.0"
 authors = ["Kenny Kerr <kenny.kerr@microsoft.com>"]
 edition = "2018"
+license = "MIT"
+description = "Parser for winmd files"
+repository = "https://github.com/microsoft/winmd-rs"
