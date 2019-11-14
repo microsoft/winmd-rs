@@ -290,6 +290,7 @@ pub struct Database {
     pub module_ref: TableData,
     pub nested_class: TableData,
     pub param: TableData,
+    pub permission: TableData,
     pub property: TableData,
     pub property_map: TableData,
     pub standalone_sig: TableData,
@@ -522,6 +523,7 @@ impl Database {
     table_fn!(module_ref);
     table_fn!(nested_class);
     table_fn!(param);
+    table_fn!(permission);
     table_fn!(property);
     table_fn!(property_map);
     table_fn!(standalone_sig);

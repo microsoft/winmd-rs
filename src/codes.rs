@@ -1,6 +1,16 @@
 use crate::database::*;
 use crate::error::*;
 use crate::tables::*;
+use winmd_macros::*;
+
+#[type_encoding(1)]
+enum TypeDefOrRef2 {
+    TypeDef,
+    TypeRef,
+    TypeSpec,
+}
+
+//fn use_gen(code: &TypeDefOrRef2) {}
 
 fn decode(bits: u32, code: u32) -> (u32, u32) {
     (code & ((1 << bits) - 1), (code >> bits) - 1)
@@ -71,7 +81,7 @@ pub enum HasCustomAttribute<'a> {
     InterfaceImpl(InterfaceImpl<'a>),
     MemberRef(MemberRef<'a>),
     Module(Module<'a>),
-    // Permission
+    Permission(Permission<'a>),
     Property(Property<'a>),
     Event(Event<'a>),
     StandaloneSig(StandaloneSig<'a>),
@@ -99,7 +109,7 @@ impl<'a> HasCustomAttribute<'a> {
             5 => Self::InterfaceImpl(db.interface_impl().row(code.1)),
             6 => Self::MemberRef(db.member_ref().row(code.1)),
             7 => Self::Module(db.module().row(code.1)),
-            // Permission
+            8 => Self::Permission(db.module().row(code.1)),
             9 => Self::Property(db.property().row(code.1)),
             10 => Self::Event(db.event().row(code.1)),
             11 => Self::StandaloneSig(db.standalone_sig().row(code.1)),
@@ -127,7 +137,7 @@ impl<'a> HasCustomAttribute<'a> {
             Self::InterfaceImpl(value) => encode(5, 5, value.row.index),
             Self::MemberRef(value) => encode(5, 6, value.row.index),
             Self::Module(value) => encode(5, 7, value.row.index),
-            // Permission
+            Self::Permission(value) => encode(5, 8, value.row.index),
             Self::Property(value) => encode(5, 9, value.row.index),
             Self::Event(value) => encode(5, 10, value.row.index),
             Self::StandaloneSig(value) => encode(5, 11, value.row.index),
