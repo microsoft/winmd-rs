@@ -89,7 +89,7 @@ pub enum HasConstant {
 }
 
 #[type_code(3)]
-pub enum CustomAttributeType<'a> {
+pub enum CustomAttributeType {
     not_used,
     not_used,
     MethodDef,
