@@ -1,58 +1,83 @@
 extern crate proc_macro;
 
 use proc_macro::TokenStream;
-use quote::*;
-use syn::*;
-use proc_macro2::*;
+use proc_macro2::TokenStream as TokenStream2;
+use quote::quote;
 use std::iter::FromIterator;
 
 #[proc_macro_attribute]
-pub fn type_encoding(args: TokenStream, input: TokenStream) -> TokenStream {
-    // println!("args: {}", args.to_string());
-    // println!("input: {}", input.to_string());
-
+pub fn type_code(args: TokenStream, input: TokenStream) -> TokenStream {
     let args = syn::parse_macro_input!(args as syn::AttributeArgs);
+    let input = syn::parse_macro_input!(input as syn::ItemEnum);
 
-    if args.len() != 1 {
-        panic!("type_encoding macro expects a single integer literal argument");
+    let bits = &args[0];
+    let name = &input.ident;
+    let mut variants: Vec<TokenStream2> = Vec::new();
+    let mut decodes: Vec<TokenStream2> = Vec::new();
+    let mut encodes: Vec<TokenStream2> = Vec::new();
+
+    for index in 0..input.variants.len() {
+        let camel = &input.variants[index].ident;
+        let camel_name = camel.to_string();
+
+        if camel_name != "not_used" {
+            let snake = syn::Ident::new(&to_snake(&camel_name), camel.span());
+            let index = index as u32;
+
+            variants.push(quote!(
+                #camel(#camel<'a>),
+            ));
+
+            decodes.push(quote!(
+                #index => Self::#camel(db.#snake().row(code.1)),
+            ));
+
+            encodes.push(quote!(
+                Self::#camel(value) => encode(#bits, #index, value.row.index),
+            ));
+        }
     }
 
-    let type_code = &args[0];
-    let input = syn::parse_macro_input!(input as syn::ItemEnum);
-    let name = &input.ident;
-    let variants = input.variants.iter();
-
-    //let mut output: Vec<TokenStream> = Vec::new();
-    // // let type_index = match &args[0] {
-    // //     NestedMeta::Lit(value) => match value {
-    // //         Lit::Int(value) => value,
-    // //         _ => panic!("type_encoding macro requires a single integer argument"),
-    // //     },
-    // //     _ => panic!("type_encoding macro requires a single integer argument"),
-    // // };
-
-    // for variant in &input.variants
-    // {
-    //     if variant.ident != "Unused"
-    //     {
-    //         println!("{}", variant.ident.to_string());
-    //     }
-
-    //     index += 1;
-    // }
-
-    // output.push(input.to_token_stream().into());
-
-    // TokenStream::from_iter(output)
+    let variants = TokenStream2::from_iter(variants);
+    let decodes = TokenStream2::from_iter(decodes);
+    let encodes = TokenStream2::from_iter(encodes);
 
     let output = quote!(
         pub enum #name<'a> {
-            #(#variants),*
+            #variants
+        }
+        impl<'a> #name<'a> {
+            pub(crate) fn decode(db: &'a Database, code: u32) -> ParseResult<Self> {
+                let code = decode(#bits, code);
+                Ok(match code.0 {
+                    #decodes
+                    _ => return Err(ParseError::InvalidData("Invalid type code")),
+                })
+            }
+            pub fn encode(&self) -> u32 {
+                match &self {
+                    #encodes
+                }
+            }
         }
     );
 
-    println!("{}", output);
+    output.into()
+}
 
-    quote!(
-    ).into()
+fn to_snake(camel: &str) -> String {
+    let mut snake = String::new();
+    for c in camel.chars() {
+        if c.is_uppercase() {
+            if !snake.is_empty() {
+                snake.push('_');
+            }
+            for c in c.to_lowercase() {
+                snake.push(c);
+            }
+        } else {
+            snake.push(c);
+        }
+    }
+    return snake;
 }

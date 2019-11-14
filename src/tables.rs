@@ -53,7 +53,6 @@ table!(Module);
 table!(ModuleRef);
 table!(NestedClass);
 table!(Param);
-table!(Permission);
 table!(Property);
 table!(PropertyMap);
 table!(StandaloneSig);
