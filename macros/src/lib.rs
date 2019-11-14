@@ -12,9 +12,9 @@ pub fn type_code(args: TokenStream, input: TokenStream) -> TokenStream {
 
     let bits = &args[0];
     let name = &input.ident;
-    let mut variants: Vec<TokenStream2> = Vec::new();
-    let mut decodes: Vec<TokenStream2> = Vec::new();
-    let mut encodes: Vec<TokenStream2> = Vec::new();
+    let mut variants = Vec::new();
+    let mut decodes = Vec::new();
+    let mut encodes = Vec::new();
 
     for index in 0..input.variants.len() {
         let camel = &input.variants[index].ident;
