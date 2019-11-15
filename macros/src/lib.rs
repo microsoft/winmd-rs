@@ -10,6 +10,10 @@ pub fn type_code(args: TokenStream, input: TokenStream) -> TokenStream {
     let args = syn::parse_macro_input!(args as syn::AttributeArgs);
     let input = syn::parse_macro_input!(input as syn::ItemEnum);
 
+    if args.len() != 1 {
+        panic!("The type_code attribute expects a single integer literal argument");
+    }
+
     let bits = &args[0];
     let name = &input.ident;
     let mut variants = Vec::new();
