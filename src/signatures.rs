@@ -100,6 +100,22 @@ impl<'a> MethodSig<'a> {
     }
 }
 
+pub(crate) fn constructor_sig<'a>(db: &'a Database, mut bytes: &[u8]) -> ParseResult<Vec<ParamSig<'a>>>
+{
+    let calling_convention = read_u32(&mut bytes)?;
+    if calling_convention & 0x10 != 0 {
+        read_u32(&mut bytes)?;
+    }
+    let param_count = read_u32(&mut bytes)?;
+    ModifierSig::vec(db, &mut bytes)?;
+    read_expected(&mut bytes, 0x10)?;
+    let mut params = Vec::with_capacity(param_count as usize);
+    for _ in 0..param_count {
+        params.push(ParamSig::new(db, &mut bytes)?);
+    }
+    Ok(params)
+}
+
 // pub struct AttributeSig<'a> {
 //     // args: Vec<>,
 // }
