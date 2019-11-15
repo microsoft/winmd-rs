@@ -16,8 +16,8 @@ pub fn type_code(args: TokenStream, input: TokenStream) -> TokenStream {
     let mut decodes = Vec::new();
     let mut encodes = Vec::new();
 
-    for index in 0..input.variants.len() {
-        let camel = &input.variants[index].ident;
+    for (index, variant) in input.variants.iter().enumerate() {
+        let camel = &variant.ident;
         let camel_name = camel.to_string();
 
         if camel_name != "not_used" {
@@ -79,5 +79,5 @@ fn to_snake(camel: &str) -> String {
             snake.push(c);
         }
     }
-    return snake;
+    snake
 }
