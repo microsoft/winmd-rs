@@ -93,13 +93,12 @@ impl<'a> CustomAttribute<'a> {
         Ok(CustomAttributeType::decode(&self.row.table.db, self.row.u32(1)?)?)
     }
 
-    // TODO: signature should just return an AttributeSig...
-    // pub fn signature(&self) -> ParseResult<MethodSig> {
-    //     Ok(match self.constructor()? {
-    //         CustomAttributeType::MethodDef(value) => value.signature(),
-    //         CustomAttributeType::MemberRef(value) => value.signature(),
-    //     })
-    // }
+    pub fn signature(&self) -> ParseResult<AttributeSig> {
+        Ok(match self.constructor()? {
+            CustomAttributeType::MethodDef(value) => AttributeSig::new(&self.row.table.db, value.row.blob(4)?, self.row.blob(2)?)?,
+            CustomAttributeType::MemberRef(value) => AttributeSig::new(&self.row.table.db, value.row.blob(2)?, self.row.blob(2)?)?,
+        })
+    }
 
     pub fn has_name(&self, namespace: &str, name: &str) -> ParseResult<bool> {
         Ok(match self.constructor()? {

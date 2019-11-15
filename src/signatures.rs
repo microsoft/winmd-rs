@@ -116,9 +116,16 @@ pub(crate) fn constructor_sig<'a>(db: &'a Database, mut bytes: &[u8]) -> ParseRe
     Ok(params)
 }
 
-// pub struct AttributeSig<'a> {
-//     // args: Vec<>,
-// }
+pub struct AttributeSig<'a> {
+    // args: Vec<>,
+}
+
+impl<'a> AttributeSig<'a> {
+    pub(crate) fn new(db: &'a Database, signature_bytes: &[u8], data_bytes: &[u8]) -> ParseResult<AttributeSig<'a>>
+    {
+        Err(unsupported_blob())
+    }
+}
 
 pub struct ParamSig<'a> {
     modifiers: Vec<ModifierSig<'a>>,
