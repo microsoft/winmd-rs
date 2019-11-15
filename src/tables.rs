@@ -89,17 +89,25 @@ impl<'a> CustomAttribute<'a> {
         Ok(HasCustomAttribute::decode(&self.row.table.db, self.row.u32(0)?)?)
     }
 
-    pub fn class(&self) -> ParseResult<CustomAttributeType> {
+    pub fn constructor(&self) -> ParseResult<CustomAttributeType> {
         Ok(CustomAttributeType::decode(&self.row.table.db, self.row.u32(1)?)?)
     }
 
+    // TODO: signature should just return an AttributeSig...
+    // pub fn signature(&self) -> ParseResult<MethodSig> {
+    //     Ok(match self.constructor()? {
+    //         CustomAttributeType::MethodDef(value) => value.signature(),
+    //         CustomAttributeType::MemberRef(value) => value.signature(),
+    //     })
+    // }
+
     pub fn has_name(&self, namespace: &str, name: &str) -> ParseResult<bool> {
-        Ok(match self.class()? {
+        Ok(match self.constructor()? {
             CustomAttributeType::MethodDef(value) => {
                 let parent = value.parent()?;
                 name == parent.name()? && namespace == parent.namespace()?
             }
-            CustomAttributeType::MemberRef(value) => match value.class()? {
+            CustomAttributeType::MemberRef(value) => match value.parent()? {
                 MemberRefParent::TypeDef(value) => name == value.name()? && namespace == value.namespace()?,
                 MemberRefParent::TypeRef(value) => name == value.name()? && namespace == value.namespace()?,
                 _ => false,
@@ -119,7 +127,7 @@ impl<'a> Field<'a> {
 }
 
 impl<'a> MemberRef<'a> {
-    pub fn class(&self) -> ParseResult<MemberRefParent> {
+    pub fn parent(&self) -> ParseResult<MemberRefParent> {
         Ok(MemberRefParent::decode(&self.row.table.db, self.row.u32(0)?)?)
     }
 
@@ -150,6 +158,8 @@ impl<'a> MethodDef<'a> {
     }
 
     pub fn rust_name(&self) -> ParseResult<String> {
+        // TODO: need to account for OverloadAttribute considering that Rust doesn't support overloads.
+
         let mut source = self.name()?;
         let mut result = String::with_capacity(source.len() + 2);
 

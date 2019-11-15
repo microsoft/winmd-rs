@@ -100,6 +100,10 @@ impl<'a> MethodSig<'a> {
     }
 }
 
+// pub struct AttributeSig<'a> {
+//     // args: Vec<>,
+// }
+
 pub struct ParamSig<'a> {
     modifiers: Vec<ModifierSig<'a>>,
     by_ref: bool,
