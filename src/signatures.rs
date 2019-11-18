@@ -165,14 +165,14 @@ impl<'a> ArgumentSig {
                     match value {
                         //ElementType::Bool =>
                         // ElementType::Char,
-                        // ElementType::I8,
+                        ElementType::I8 => ArgumentSig::I8(read_i8(&mut data_bytes)),
                         ElementType::U8 => ArgumentSig::U8(read_u8(&mut data_bytes)),
-                        // ElementType::I16,
+                        ElementType::I16 => ArgumentSig::I16(read_i16(&mut data_bytes)),
                         ElementType::U16 => ArgumentSig::U16(read_u16(&mut data_bytes)),
-                        // ElementType::I32,
+                        ElementType::I32 => ArgumentSig::I32(read_i32(&mut data_bytes)),
                         ElementType::U32 => ArgumentSig::U32(read_u32(&mut data_bytes)),
-                        // ElementType::I64,
-                        // ElementType::U64,
+                        ElementType::I64 => ArgumentSig::I64(read_i64(&mut data_bytes)),
+                        ElementType::U64 => ArgumentSig::U64(read_u64(&mut data_bytes)),
                         // ElementType::F32,
                         // ElementType::F64,
                         // ElementType::String,
@@ -292,10 +292,22 @@ fn read_expected(bytes: &mut &[u8], expected: u32) -> ParseResult<bool> {
     })
 }
 
+fn read_i8(bytes: &mut &[u8]) -> i8 {
+    let (value_bytes, rest) = bytes.split_at(std::mem::size_of::<i8>());
+    *bytes = rest;
+    i8::from_le_bytes(value_bytes.try_into().unwrap())
+}
+
 fn read_u8(bytes: &mut &[u8]) -> u8 {
     let (value_bytes, rest) = bytes.split_at(std::mem::size_of::<u8>());
     *bytes = rest;
     u8::from_le_bytes(value_bytes.try_into().unwrap())
+}
+
+fn read_i16(bytes: &mut &[u8]) -> i16 {
+    let (value_bytes, rest) = bytes.split_at(std::mem::size_of::<i16>());
+    *bytes = rest;
+    i16::from_le_bytes(value_bytes.try_into().unwrap())
 }
 
 fn read_u16(bytes: &mut &[u8]) -> u16 {
@@ -304,10 +316,28 @@ fn read_u16(bytes: &mut &[u8]) -> u16 {
     u16::from_le_bytes(value_bytes.try_into().unwrap())
 }
 
+fn read_i32(bytes: &mut &[u8]) -> i32 {
+    let (value_bytes, rest) = bytes.split_at(std::mem::size_of::<i32>());
+    *bytes = rest;
+    i32::from_le_bytes(value_bytes.try_into().unwrap())
+}
+
 fn read_u32(bytes: &mut &[u8]) -> u32 {
     let (value_bytes, rest) = bytes.split_at(std::mem::size_of::<u32>());
     *bytes = rest;
     u32::from_le_bytes(value_bytes.try_into().unwrap())
+}
+
+fn read_i64(bytes: &mut &[u8]) -> i64 {
+    let (value_bytes, rest) = bytes.split_at(std::mem::size_of::<i64>());
+    *bytes = rest;
+    i64::from_le_bytes(value_bytes.try_into().unwrap())
+}
+
+fn read_u64(bytes: &mut &[u8]) -> u64 {
+    let (value_bytes, rest) = bytes.split_at(std::mem::size_of::<u64>());
+    *bytes = rest;
+    u64::from_le_bytes(value_bytes.try_into().unwrap())
 }
 
 fn seek(bytes: &[u8], bytes_read: usize) -> &[u8] {
