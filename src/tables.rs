@@ -245,6 +245,15 @@ impl<'a> TypeDef<'a> {
         }
         Ok(false)
     }
+
+    pub fn find_attribute(&self, namespace: &str, name: &str) -> ParseResult<Option<CustomAttribute<'a>>> {
+        for attribute in self.attributes()? {
+            if attribute.has_name(namespace, name)? {
+                return Ok(Some(attribute));
+            }
+        }
+        Ok(None)
+    }
 }
 
 impl<'a> TypeRef<'a> {
