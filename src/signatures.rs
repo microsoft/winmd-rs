@@ -133,6 +133,26 @@ pub enum ArgumentSig {
     String(String),
 }
 
+impl std::fmt::UpperHex for ArgumentSig {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            ArgumentSig::Bool(value) => write!(f, "{}", value),
+            ArgumentSig::Char(value) => write!(f, "{}", value),
+            ArgumentSig::I8(value) => write!(f, "{:X}", value),
+            ArgumentSig::U8(value) => write!(f, "{:X}", value),
+            ArgumentSig::I16(value) => write!(f, "{:X}", value),
+            ArgumentSig::U16(value) => write!(f, "{:X}", value),
+            ArgumentSig::I32(value) => write!(f, "{:X}", value),
+            ArgumentSig::U32(value) => write!(f, "{:X}", value),
+            ArgumentSig::I64(value) => write!(f, "{:X}", value),
+            ArgumentSig::U64(value) => write!(f, "{:X}", value),
+            ArgumentSig::F32(value) => write!(f, "{}", value),
+            ArgumentSig::F64(value) => write!(f, "{}", value),
+            ArgumentSig::String(value) => write!(f, "{}", value),
+        }
+    }
+}
+
 impl<'a> ArgumentSig {
     pub(crate) fn new(db: &'a Database, signature_bytes: &[u8], mut data_bytes: &[u8]) -> ParseResult<Vec<ArgumentSig>> {
         let params = constructor_sig(db, signature_bytes)?;
@@ -226,7 +246,7 @@ impl<'a> TypeSigType<'a> {
 }
 
 impl<'a> std::fmt::Display for TypeSigType<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             TypeSigType::ElementType(value) => write!(f, "{}", value),
             TypeSigType::TypeDefOrRef(value) => write!(f, "{}", value),

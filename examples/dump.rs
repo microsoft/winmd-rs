@@ -10,6 +10,8 @@ fn run() -> Result<(), winmd::Error> {
     let s = reader.find("Windows.Foundation", "IStringable").unwrap();
     for attribute in s.attributes()? {
         if attribute.has_name("Windows.Foundation.Metadata", "GuidAttribute")? {
+            let args = attribute.arguments()?;
+            println!("{:X}-{:X}-{:X}-{:X}{:X}-{:X}{:X}{:X}{:X}{:X}{:X}", args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8], args[9], args[10],);
             for arg in attribute.arguments()? {
                 match arg {
                     winmd::ArgumentSig::U8(value) => {
