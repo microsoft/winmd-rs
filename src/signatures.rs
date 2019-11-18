@@ -6,6 +6,7 @@ use crate::database::*;
 use crate::error::*;
 use crate::tables::*;
 use std::vec::*;
+use std::convert::TryInto;
 
 pub struct GenericSig<'a> {
     sig_type: TypeDefOrRef<'a>,
@@ -14,9 +15,9 @@ pub struct GenericSig<'a> {
 
 impl<'a> GenericSig<'a> {
     fn new(db: &'a Database, bytes: &mut &[u8]) -> ParseResult<GenericSig<'a>> {
-        read_u32(bytes)?;
-        let sig_type = TypeDefOrRef::decode(db, read_u32(bytes)?)?;
-        let arg_count = read_u32(bytes)?;
+        read_unsigned(bytes)?;
+        let sig_type = TypeDefOrRef::decode(db, read_unsigned(bytes)?)?;
+        let arg_count = read_unsigned(bytes)?;
         let mut args = Vec::with_capacity(arg_count as usize);
 
         for _ in 0..arg_count {
@@ -47,15 +48,15 @@ pub struct ModifierSig<'a> {
 
 impl<'a> ModifierSig<'a> {
     fn new(db: &'a Database, bytes: &mut &[u8]) -> ParseResult<ModifierSig<'a>> {
-        read_u32(bytes)?;
-        let sig_type = TypeDefOrRef::decode(db, read_u32(bytes)?)?;
+        read_unsigned(bytes)?;
+        let sig_type = TypeDefOrRef::decode(db, read_unsigned(bytes)?)?;
         Ok(ModifierSig { sig_type })
     }
 
     fn vec(db: &'a Database, bytes: &mut &[u8]) -> ParseResult<Vec<ModifierSig<'a>>> {
         let mut modifiers = Vec::new();
         loop {
-            let (element_type, _) = peek_u32(bytes)?;
+            let (element_type, _) = peek_unsigned(bytes)?;
             if element_type != 32 && element_type != 31 {
                 break;
             } else {
@@ -74,11 +75,11 @@ pub struct MethodSig<'a> {
 impl<'a> MethodSig<'a> {
     pub(crate) fn new(method: &MethodDef<'a>) -> ParseResult<MethodSig<'a>> {
         let mut bytes = method.row.blob(4)?;
-        let calling_convention = read_u32(&mut bytes)?;
+        let calling_convention = read_unsigned(&mut bytes)?;
         if calling_convention & 0x10 != 0 {
-            read_u32(&mut bytes)?;
+            read_unsigned(&mut bytes)?;
         }
-        let param_count = read_u32(&mut bytes)?;
+        let param_count = read_unsigned(&mut bytes)?;
         ModifierSig::vec(method.row.table.db, &mut bytes)?;
         read_expected(&mut bytes, 0x10)?;
         let return_type = if read_expected(&mut bytes, 0x01)? { None } else { Some(TypeSig::new(method.row.table.db, &mut bytes)?) };
@@ -102,13 +103,14 @@ impl<'a> MethodSig<'a> {
 
 pub(crate) fn constructor_sig<'a>(db: &'a Database, mut bytes: &[u8]) -> ParseResult<Vec<ParamSig<'a>>>
 {
-    let calling_convention = read_u32(&mut bytes)?;
+    let calling_convention = read_unsigned(&mut bytes)?;
     if calling_convention & 0x10 != 0 {
-        read_u32(&mut bytes)?;
+        read_unsigned(&mut bytes)?;
     }
-    let param_count = read_u32(&mut bytes)?;
+    let param_count = read_unsigned(&mut bytes)?;
     ModifierSig::vec(db, &mut bytes)?;
     read_expected(&mut bytes, 0x10)?;
+    let return_type = if read_expected(&mut bytes, 0x01)? { None } else { Some(TypeSig::new(db, &mut bytes)?) };
     let mut params = Vec::with_capacity(param_count as usize);
     for _ in 0..param_count {
         params.push(ParamSig::new(db, &mut bytes)?);
@@ -116,14 +118,58 @@ pub(crate) fn constructor_sig<'a>(db: &'a Database, mut bytes: &[u8]) -> ParseRe
     Ok(params)
 }
 
-pub struct AttributeSig<'a> {
-    // args: Vec<>,
+pub enum ArgumentSig {
+    Bool(bool),
+    Char(char),
+    I8(i8),
+    U8(u8),
+    I16(i16),
+    U16(u16),
+    I32(i32),
+    U32(u32),
+    I64(i64),
+    U64(u64),
+    F32(f32),
+    F64(f64),
+    String(String),
 }
 
-impl<'a> AttributeSig<'a> {
-    pub(crate) fn new(db: &'a Database, signature_bytes: &[u8], data_bytes: &[u8]) -> ParseResult<AttributeSig<'a>>
+impl<'a> ArgumentSig {
+    pub(crate) fn new(db: &'a Database, signature_bytes: &[u8], mut data_bytes: &[u8]) -> ParseResult<Vec<ArgumentSig>>
     {
-        Err(unsupported_blob())
+        let params = constructor_sig(db, signature_bytes)?;
+        let prolog = read_u16(&mut data_bytes);
+        let mut args = Vec::with_capacity(params.len());
+
+        for param in params{
+            args.push(match param.sig_type.sig_type
+            {
+                TypeSigType::ElementType(value) => {
+                    match value{
+                        //ElementType::Bool => 
+                        // ElementType::Char,
+                        // ElementType::I8,
+                        ElementType::U8 => ArgumentSig::U8(read_u8(&mut data_bytes)),
+                        // ElementType::I16,
+                        ElementType::U16 => ArgumentSig::U16(read_u16(&mut data_bytes)),
+                        // ElementType::I32,
+                        ElementType::U32 => ArgumentSig::U32(read_u32(&mut data_bytes)),
+                        // ElementType::I64,
+                        // ElementType::U64,
+                        // ElementType::F32,
+                        // ElementType::F64,
+                        // ElementType::String,
+                        _ => return Err(unsupported_blob()),
+                    }
+                },
+                // TypeSigType::TypeDefOrRef(value) => {
+
+                // }
+                _ => return Err(unsupported_blob()),
+            });
+        }
+
+        Ok(args)
     }
 }
 
@@ -156,7 +202,7 @@ pub enum TypeSigType<'a> {
 
 impl<'a> TypeSigType<'a> {
     fn new(db: &'a Database, bytes: &mut &[u8]) -> ParseResult<TypeSigType<'a>> {
-        let element_type = read_u32(bytes)?;
+        let element_type = read_unsigned(bytes)?;
 
         Ok(match element_type {
             0x02 => TypeSigType::ElementType(ElementType::Bool),
@@ -173,10 +219,10 @@ impl<'a> TypeSigType<'a> {
             0x0D => TypeSigType::ElementType(ElementType::F64),
             0x0E => TypeSigType::ElementType(ElementType::String),
             0x1C => TypeSigType::ElementType(ElementType::Object),
-            0x11 | 0x12 => TypeSigType::TypeDefOrRef(TypeDefOrRef::decode(db, read_u32(bytes)?)?),
-            0x13 => TypeSigType::GenericTypeIndex(read_u32(bytes)?),
+            0x11 | 0x12 => TypeSigType::TypeDefOrRef(TypeDefOrRef::decode(db, read_unsigned(bytes)?)?),
+            0x13 => TypeSigType::GenericTypeIndex(read_unsigned(bytes)?),
             0x15 => TypeSigType::GenericSig(GenericSig::new(db, bytes)?),
-            0x1e => TypeSigType::GenericMethodIndex(read_u32(bytes)?),
+            0x1e => TypeSigType::GenericMethodIndex(read_unsigned(bytes)?),
             _ => return Err(unsupported_blob()),
         })
     }
@@ -220,7 +266,7 @@ impl<'a> std::fmt::Display for TypeSig<'a> {
 }
 
 fn read_expected(bytes: &mut &[u8], expected: u32) -> ParseResult<bool> {
-    let (element_type, bytes_read) = peek_u32(bytes)?;
+    let (element_type, bytes_read) = peek_unsigned(bytes)?;
     Ok(if element_type == expected {
         *bytes = seek(bytes, bytes_read);
         true
@@ -229,11 +275,29 @@ fn read_expected(bytes: &mut &[u8], expected: u32) -> ParseResult<bool> {
     })
 }
 
+fn read_u8(bytes: &mut &[u8]) -> u8{
+    let (value_bytes, rest) = bytes.split_at(std::mem::size_of::<u8>());
+    *bytes = rest;
+    u8::from_le_bytes(value_bytes.try_into().unwrap())
+}
+
+fn read_u16(bytes: &mut &[u8]) -> u16{
+    let (value_bytes, rest) = bytes.split_at(std::mem::size_of::<u16>());
+    *bytes = rest;
+    u16::from_le_bytes(value_bytes.try_into().unwrap())
+}
+
+fn read_u32(bytes: &mut &[u8]) -> u32{
+    let (value_bytes, rest) = bytes.split_at(std::mem::size_of::<u32>());
+    *bytes = rest;
+    u32::from_le_bytes(value_bytes.try_into().unwrap())
+}
+
 fn seek(bytes: &[u8], bytes_read: usize) -> &[u8] {
     bytes.get(bytes_read..).unwrap()
 }
 
-fn peek_u32<'a>(bytes: &[u8]) -> ParseResult<(u32, usize)> {
+fn peek_unsigned<'a>(bytes: &[u8]) -> ParseResult<(u32, usize)> {
     if bytes.is_empty() {
         return Err(unsupported_blob());
     }
@@ -256,8 +320,8 @@ fn peek_u32<'a>(bytes: &[u8]) -> ParseResult<(u32, usize)> {
     Ok((value, bytes_read))
 }
 
-fn read_u32<'a>(bytes: &mut &[u8]) -> ParseResult<u32> {
-    let (value, bytes_read) = peek_u32(bytes)?;
+fn read_unsigned<'a>(bytes: &mut &[u8]) -> ParseResult<u32> {
+    let (value, bytes_read) = peek_unsigned(bytes)?;
     *bytes = seek(bytes, bytes_read);
     Ok(value)
 }
