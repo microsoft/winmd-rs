@@ -10,22 +10,17 @@ fn run() -> Result<(), winmd::Error> {
     let s = reader.find("Windows.Foundation", "IStringable").unwrap();
     for attribute in s.attributes()? {
         if attribute.has_name("Windows.Foundation.Metadata", "GuidAttribute")? {
-            for arg in attribute.arguments()?
-            {
-                match arg
-                {
-                    winmd::ArgumentSig::U8(value) =>
-                    {
+            for arg in attribute.arguments()? {
+                match arg {
+                    winmd::ArgumentSig::U8(value) => {
                         println!("{:x?}", value);
-                    },
-                    winmd::ArgumentSig::U16(value) =>
-                    {
+                    }
+                    winmd::ArgumentSig::U16(value) => {
                         println!("{:x?}", value);
-                    },
-                    winmd::ArgumentSig::U32(value) =>
-                    {
+                    }
+                    winmd::ArgumentSig::U32(value) => {
                         println!("{:x?}", value);
-                    },
+                    }
                     _ => panic!("unknown"),
                 }
             }

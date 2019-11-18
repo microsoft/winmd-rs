@@ -5,8 +5,8 @@ use crate::codes::*;
 use crate::database::*;
 use crate::error::*;
 use crate::tables::*;
-use std::vec::*;
 use std::convert::TryInto;
+use std::vec::*;
 
 pub struct GenericSig<'a> {
     sig_type: TypeDefOrRef<'a>,
@@ -101,8 +101,7 @@ impl<'a> MethodSig<'a> {
     }
 }
 
-pub(crate) fn constructor_sig<'a>(db: &'a Database, mut bytes: &[u8]) -> ParseResult<Vec<ParamSig<'a>>>
-{
+pub(crate) fn constructor_sig<'a>(db: &'a Database, mut bytes: &[u8]) -> ParseResult<Vec<ParamSig<'a>>> {
     let calling_convention = read_unsigned(&mut bytes)?;
     if calling_convention & 0x10 != 0 {
         read_unsigned(&mut bytes)?;
@@ -135,18 +134,16 @@ pub enum ArgumentSig {
 }
 
 impl<'a> ArgumentSig {
-    pub(crate) fn new(db: &'a Database, signature_bytes: &[u8], mut data_bytes: &[u8]) -> ParseResult<Vec<ArgumentSig>>
-    {
+    pub(crate) fn new(db: &'a Database, signature_bytes: &[u8], mut data_bytes: &[u8]) -> ParseResult<Vec<ArgumentSig>> {
         let params = constructor_sig(db, signature_bytes)?;
         let prolog = read_u16(&mut data_bytes);
         let mut args = Vec::with_capacity(params.len());
 
-        for param in params{
-            args.push(match param.sig_type.sig_type
-            {
+        for param in params {
+            args.push(match param.sig_type.sig_type {
                 TypeSigType::ElementType(value) => {
-                    match value{
-                        //ElementType::Bool => 
+                    match value {
+                        //ElementType::Bool =>
                         // ElementType::Char,
                         // ElementType::I8,
                         ElementType::U8 => ArgumentSig::U8(read_u8(&mut data_bytes)),
@@ -161,7 +158,7 @@ impl<'a> ArgumentSig {
                         // ElementType::String,
                         _ => return Err(unsupported_blob()),
                     }
-                },
+                }
                 // TypeSigType::TypeDefOrRef(value) => {
 
                 // }
@@ -275,19 +272,19 @@ fn read_expected(bytes: &mut &[u8], expected: u32) -> ParseResult<bool> {
     })
 }
 
-fn read_u8(bytes: &mut &[u8]) -> u8{
+fn read_u8(bytes: &mut &[u8]) -> u8 {
     let (value_bytes, rest) = bytes.split_at(std::mem::size_of::<u8>());
     *bytes = rest;
     u8::from_le_bytes(value_bytes.try_into().unwrap())
 }
 
-fn read_u16(bytes: &mut &[u8]) -> u16{
+fn read_u16(bytes: &mut &[u8]) -> u16 {
     let (value_bytes, rest) = bytes.split_at(std::mem::size_of::<u16>());
     *bytes = rest;
     u16::from_le_bytes(value_bytes.try_into().unwrap())
 }
 
-fn read_u32(bytes: &mut &[u8]) -> u32{
+fn read_u32(bytes: &mut &[u8]) -> u32 {
     let (value_bytes, rest) = bytes.split_at(std::mem::size_of::<u32>());
     *bytes = rest;
     u32::from_le_bytes(value_bytes.try_into().unwrap())
