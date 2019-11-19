@@ -93,7 +93,7 @@ impl<'a> CustomAttribute<'a> {
         Ok(CustomAttributeType::decode(&self.row.table.db, self.row.u32(1)?)?)
     }
 
-    pub fn arguments(&self) -> ParseResult<Vec<ArgumentSig>> {
+    pub fn arguments(&self) -> ParseResult<Vec<(&'a str,ArgumentSig)>> {
         Ok(match self.constructor()? {
             CustomAttributeType::MethodDef(value) => ArgumentSig::new(&self.row.table.db, value.row.blob(4)?, self.row.blob(2)?)?,
             CustomAttributeType::MemberRef(value) => ArgumentSig::new(&self.row.table.db, value.row.blob(2)?, self.row.blob(2)?)?,

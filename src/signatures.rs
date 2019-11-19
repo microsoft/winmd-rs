@@ -109,7 +109,7 @@ pub(crate) fn constructor_sig<'a>(db: &'a Database, mut bytes: &[u8]) -> ParseRe
     let param_count = read_unsigned(&mut bytes)?;
     ModifierSig::vec(db, &mut bytes)?;
     read_expected(&mut bytes, 0x10)?;
-    let return_type = if read_expected(&mut bytes, 0x01)? { None } else { Some(TypeSig::new(db, &mut bytes)?) };
+    if !read_expected(&mut bytes, 0x01)? { TypeSig::new(db, &mut bytes)?; };
     let mut params = Vec::with_capacity(param_count as usize);
     for _ in 0..param_count {
         params.push(ParamSig::new(db, &mut bytes)?);
@@ -117,6 +117,7 @@ pub(crate) fn constructor_sig<'a>(db: &'a Database, mut bytes: &[u8]) -> ParseRe
     Ok(params)
 }
 
+#[derive(PartialEq)]
 pub enum ArgumentSig {
     Bool(bool),
     Char(char),
@@ -154,13 +155,13 @@ impl std::fmt::UpperHex for ArgumentSig {
 }
 
 impl<'a> ArgumentSig {
-    pub(crate) fn new(db: &'a Database, signature_bytes: &[u8], mut data_bytes: &[u8]) -> ParseResult<Vec<ArgumentSig>> {
+    pub(crate) fn new(db: &'a Database, signature_bytes: &[u8], mut data_bytes: &[u8]) -> ParseResult<Vec<(&'a str,ArgumentSig)>> {
         let params = constructor_sig(db, signature_bytes)?;
-        let prolog = read_u16(&mut data_bytes);
+        read_u16(&mut data_bytes);
         let mut args = Vec::with_capacity(params.len());
 
         for param in params {
-            args.push(match param.sig_type.sig_type {
+            args.push(("",match param.sig_type.sig_type {
                 TypeSigType::ElementType(value) => {
                     match value {
                         //ElementType::Bool =>
@@ -183,7 +184,14 @@ impl<'a> ArgumentSig {
 
                 // }
                 _ => return Err(unsupported_blob()),
-            });
+            }));
+        }
+
+        let named_args = read_u16(&mut data_bytes);
+
+        for _ in 0..named_args{
+            let field_or_prop = read_u8(&mut data_bytes);
+            let arg_type = read_u8(&mut data_bytes);
         }
 
         Ok(args)

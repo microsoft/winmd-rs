@@ -1,0 +1,43 @@
+namespace Test
+{
+    enum TypeAttributeEnum
+    {
+        Alpha,
+        Red,
+        Green,
+        Blue
+    };
+
+    [attributeusage(target_interface)]
+    [version(1)]
+    attribute TypeAttribute
+    {
+        Boolean B;
+        Int32 I32;
+        String S;
+        type T;
+        TypeAttributeEnum E;
+    };
+
+    struct TypeStruct
+    {
+        Boolean B;
+        Char C;
+        UInt8 U8;
+        Int16 I16;
+        UInt16 U16;
+        Int32 I32;
+        UInt32 U32;
+        Int64 I64;
+        UInt64 U64;
+        Single F32;
+        Double F64;
+        String S;
+    };
+
+    [Type(TRUE, 123, "Test", TypeStruct, TypeAttributeEnum.Green)]
+    interface ITypeAttribute
+    {
+        void Call();
+    };
+}
