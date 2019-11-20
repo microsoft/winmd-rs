@@ -251,6 +251,12 @@ impl TableData {
     }
 }
 
+impl PartialEq for Database {
+    fn eq(&self, other: &Self) -> bool {
+        &self.bytes as *const std::vec::Vec<u8> == &other.bytes as *const std::vec::Vec<u8>
+    }
+}
+
 #[derive(Default)]
 pub struct Database {
     bytes: std::vec::Vec<u8>,

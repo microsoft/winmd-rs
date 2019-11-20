@@ -18,6 +18,11 @@ macro_rules! table {
                 Self { row: RowData { table: *table, index } }
             }
         }
+        impl<'a> PartialEq for $name<'a> {
+            fn eq(&self, other: &Self) -> bool {
+                self.row.index == other.row.index && self.row.table.db == other.row.table.db
+            }
+        }
     };
 }
 

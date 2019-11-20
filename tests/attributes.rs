@@ -27,7 +27,7 @@ fn attributes() -> Result<(), winmd::Error> {
 
     println!("{}", args.len());
 
-    assert!(args.len() == 3);
+    assert!(args.len() == 4);
 
     assert!(args[0].0 == "B");
     assert!(args[0].1 == winmd::ArgumentSig::Bool(true));
@@ -37,6 +37,9 @@ fn attributes() -> Result<(), winmd::Error> {
 
     assert!(args[2].0 == "S");
     assert!(args[2].1 == winmd::ArgumentSig::String("Test"));
+
+    assert!(args[3].0 == "T");
+    assert!(args[3].1 == winmd::ArgumentSig::String("Test.TypeStruct"));
 
 
     Ok(())
