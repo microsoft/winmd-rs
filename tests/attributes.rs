@@ -27,10 +27,16 @@ fn attributes() -> Result<(), winmd::Error> {
 
     println!("{}", args.len());
 
-    assert!(args.len() == 5);
-    // assert!(args[0] == winmd::ArgumentSig::Bool(true));
-    // assert!(args[1] == winmd::ArgumentSig::I32(123));
+    assert!(args.len() == 3);
 
+    assert!(args[0].0 == "B");
+    assert!(args[0].1 == winmd::ArgumentSig::Bool(true));
+
+    assert!(args[1].0 == "I32");
+    assert!(args[1].1 == winmd::ArgumentSig::I32(123));
+
+    assert!(args[2].0 == "S");
+    assert!(args[2].1 == winmd::ArgumentSig::String("Test"));
 
 
     Ok(())
