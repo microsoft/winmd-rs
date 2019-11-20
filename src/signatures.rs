@@ -192,6 +192,20 @@ impl<'a> ArgumentSig {
         for _ in 0..named_args{
             let field_or_prop = read_u8(&mut data_bytes);
             let arg_type = read_u8(&mut data_bytes);
+
+            args.push(match arg_type{
+                // 0x50 => { // System.Type
+                    
+                // },
+                // 0x55 => { // Enum
+
+                // },
+                // 2 => {
+                //     // TODO: read name (string length followed by string bytes)
+                //     // 
+                // },
+                _ => return Err(unsupported_blob()),
+            });
         }
 
         Ok(args)
@@ -298,6 +312,13 @@ fn read_expected(bytes: &mut &[u8], expected: u32) -> ParseResult<bool> {
     } else {
         false
     })
+}
+
+fn read_string(bytes: &mut &[u8]) -> String{
+    let length = read_unsigned(bytes).unwrap();
+    let (string_bytes, rest) = bytes.split_at(length as usize);
+    *bytes = rest;
+    String::from_utf8(Vec::from(string_bytes)).unwrap()
 }
 
 fn read_i8(bytes: &mut &[u8]) -> i8 {
