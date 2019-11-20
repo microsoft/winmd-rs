@@ -118,7 +118,7 @@ pub(crate) fn constructor_sig<'a>(db: &'a Database, mut bytes: &[u8]) -> ParseRe
 }
 
 #[derive(PartialEq)]
-pub enum ArgumentSig {
+pub enum ArgumentSig<'a> {
     Bool(bool),
     Char(char),
     I8(i8),
@@ -131,10 +131,10 @@ pub enum ArgumentSig {
     U64(u64),
     F32(f32),
     F64(f64),
-    String(String),
+    String(&'a str),
 }
 
-impl std::fmt::UpperHex for ArgumentSig {
+impl<'a> std::fmt::UpperHex for ArgumentSig<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             ArgumentSig::Bool(value) => write!(f, "{}", value),
@@ -154,8 +154,8 @@ impl std::fmt::UpperHex for ArgumentSig {
     }
 }
 
-impl<'a> ArgumentSig {
-    pub(crate) fn new(db: &'a Database, signature_bytes: &[u8], mut data_bytes: &[u8]) -> ParseResult<Vec<(&'a str,ArgumentSig)>> {
+impl<'a> ArgumentSig<'a> {
+    pub(crate) fn new(db: &'a Database, signature_bytes: &[u8], mut data_bytes: &'a [u8]) -> ParseResult<Vec<(&'a str,ArgumentSig<'a>)>> {
         let params = constructor_sig(db, signature_bytes)?;
         read_u16(&mut data_bytes);
         let mut args = Vec::with_capacity(params.len());
@@ -190,7 +190,7 @@ impl<'a> ArgumentSig {
         let named_args = read_u16(&mut data_bytes);
 
         for _ in 0..named_args{
-            let field_or_prop = read_u8(&mut data_bytes);
+            read_u8(&mut data_bytes);
             let arg_type = read_u8(&mut data_bytes);
 
             args.push(match arg_type{
@@ -200,10 +200,9 @@ impl<'a> ArgumentSig {
                 // 0x55 => { // Enum
 
                 // },
-                // 2 => {
-                //     // TODO: read name (string length followed by string bytes)
-                //     // 
-                // },
+                2 => (read_string(&mut data_bytes), ArgumentSig::Bool(read_u8(&mut data_bytes) != 0)),
+                8 => (read_string(&mut data_bytes), ArgumentSig::I32(read_i32(&mut data_bytes))),
+                14 => (read_string(&mut data_bytes), ArgumentSig::String(read_string(&mut data_bytes))),
                 _ => return Err(unsupported_blob()),
             });
         }
@@ -314,11 +313,11 @@ fn read_expected(bytes: &mut &[u8], expected: u32) -> ParseResult<bool> {
     })
 }
 
-fn read_string(bytes: &mut &[u8]) -> String{
+fn read_string<'a>(bytes: &mut &'a [u8]) -> &'a str{
     let length = read_unsigned(bytes).unwrap();
     let (string_bytes, rest) = bytes.split_at(length as usize);
     *bytes = rest;
-    String::from_utf8(Vec::from(string_bytes)).unwrap()
+    std::str::from_utf8(string_bytes).unwrap()
 }
 
 fn read_i8(bytes: &mut &[u8]) -> i8 {
