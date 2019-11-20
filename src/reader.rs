@@ -71,7 +71,6 @@ pub struct Reader {
 }
 
 impl<'a> Reader {
-    // TODO: Can't this be an iterator to avoid creating the collection in from_dir()?
     pub fn from_files<P: AsRef<std::path::Path>>(filenames: &[P]) -> Result<Self, Error> {
         let mut databases = std::vec::Vec::with_capacity(filenames.len());
         let mut namespaces = std::collections::BTreeMap::<String, NamespaceData>::new();
@@ -128,10 +127,16 @@ impl<'a> Reader {
         NamespaceIterator { reader: self, iter: self.namespaces.iter() }
     }
 
+    // TODO: do we need this version?
     pub fn find(&self, namespace: &str, name: &str) -> Option<TypeDef> {
         let types = self.namespaces.get(namespace)?;
         let &(db, index) = types.index.get(name)?;
         Some(TypeDef::new(&self.databases[db as usize].type_def(), index))
+    }
+
+    pub fn find2(&self, name: &str) -> Option<TypeDef> {
+        let index = name.rfind('.')?;
+        self.find(name.get(0..index)?, name.get(index + 1..)?)
     }
 }
 
