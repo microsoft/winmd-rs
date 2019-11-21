@@ -14,14 +14,14 @@ pub struct GenericSig<'a> {
 }
 
 impl<'a> GenericSig<'a> {
-    fn new(db: &'a File, bytes: &mut &[u8]) -> ParseResult<GenericSig<'a>> {
+    fn new(file: &'a File, bytes: &mut &[u8]) -> ParseResult<GenericSig<'a>> {
         read_unsigned(bytes)?;
-        let sig_type = TypeDefOrRef::decode(db, read_unsigned(bytes)?)?;
+        let sig_type = TypeDefOrRef::decode(file, read_unsigned(bytes)?)?;
         let arg_count = read_unsigned(bytes)?;
         let mut args = Vec::with_capacity(arg_count as usize);
 
         for _ in 0..arg_count {
-            args.push(TypeSig::new(db, bytes)?);
+            args.push(TypeSig::new(file, bytes)?);
         }
 
         Ok(GenericSig { sig_type, args })
@@ -47,20 +47,20 @@ pub struct ModifierSig<'a> {
 }
 
 impl<'a> ModifierSig<'a> {
-    fn new(db: &'a File, bytes: &mut &[u8]) -> ParseResult<ModifierSig<'a>> {
+    fn new(file: &'a File, bytes: &mut &[u8]) -> ParseResult<ModifierSig<'a>> {
         read_unsigned(bytes)?;
-        let sig_type = TypeDefOrRef::decode(db, read_unsigned(bytes)?)?;
+        let sig_type = TypeDefOrRef::decode(file, read_unsigned(bytes)?)?;
         Ok(ModifierSig { sig_type })
     }
 
-    fn vec(db: &'a File, bytes: &mut &[u8]) -> ParseResult<Vec<ModifierSig<'a>>> {
+    fn vec(file: &'a File, bytes: &mut &[u8]) -> ParseResult<Vec<ModifierSig<'a>>> {
         let mut modifiers = Vec::new();
         loop {
             let (element_type, _) = peek_unsigned(bytes)?;
             if element_type != 32 && element_type != 31 {
                 break;
             } else {
-                modifiers.push(ModifierSig::new(db, bytes)?);
+                modifiers.push(ModifierSig::new(file, bytes)?);
             }
         }
         Ok(modifiers)
@@ -80,13 +80,13 @@ impl<'a> MethodSig<'a> {
             read_unsigned(&mut bytes)?;
         }
         let param_count = read_unsigned(&mut bytes)?;
-        ModifierSig::vec(method.row.table.db, &mut bytes)?;
+        ModifierSig::vec(method.row.table.file, &mut bytes)?;
         read_expected(&mut bytes, 0x10)?;
-        let return_type = if read_expected(&mut bytes, 0x01)? { None } else { Some(TypeSig::new(method.row.table.db, &mut bytes)?) };
+        let return_type = if read_expected(&mut bytes, 0x01)? { None } else { Some(TypeSig::new(method.row.table.file, &mut bytes)?) };
         let mut params = Vec::with_capacity(param_count as usize);
         for param in method.params()? {
             if !return_type.is_some() || param.sequence()? != 0 {
-                params.push((param, ParamSig::new(method.row.table.db, &mut bytes)?));
+                params.push((param, ParamSig::new(method.row.table.file, &mut bytes)?));
             }
         }
         Ok(MethodSig { return_type, params })
@@ -101,20 +101,20 @@ impl<'a> MethodSig<'a> {
     }
 }
 
-pub(crate) fn constructor_sig<'a>(db: &'a File, mut bytes: &[u8]) -> ParseResult<Vec<ParamSig<'a>>> {
+pub(crate) fn constructor_sig<'a>(file: &'a File, mut bytes: &[u8]) -> ParseResult<Vec<ParamSig<'a>>> {
     let calling_convention = read_unsigned(&mut bytes)?;
     if calling_convention & 0x10 != 0 {
         read_unsigned(&mut bytes)?;
     }
     let param_count = read_unsigned(&mut bytes)?;
-    ModifierSig::vec(db, &mut bytes)?;
+    ModifierSig::vec(file, &mut bytes)?;
     read_expected(&mut bytes, 0x10)?;
     if !read_expected(&mut bytes, 0x01)? {
-        TypeSig::new(db, &mut bytes)?;
+        TypeSig::new(file, &mut bytes)?;
     };
     let mut params = Vec::with_capacity(param_count as usize);
     for _ in 0..param_count {
-        params.push(ParamSig::new(db, &mut bytes)?);
+        params.push(ParamSig::new(file, &mut bytes)?);
     }
     Ok(params)
 }
@@ -159,8 +159,8 @@ impl<'a> std::fmt::UpperHex for ArgumentSig<'a> {
 }
 
 impl<'a> ArgumentSig<'a> {
-    pub(crate) fn new(db: &'a File, signature_bytes: &[u8], mut data_bytes: &'a [u8]) -> ParseResult<Vec<(&'a str, ArgumentSig<'a>)>> {
-        let params = constructor_sig(db, signature_bytes)?;
+    pub(crate) fn new(file: &'a File, signature_bytes: &[u8], mut data_bytes: &'a [u8]) -> ParseResult<Vec<(&'a str, ArgumentSig<'a>)>> {
+        let params = constructor_sig(file, signature_bytes)?;
         read_u16(&mut data_bytes);
         let mut args = Vec::with_capacity(params.len());
 
@@ -223,10 +223,10 @@ pub struct ParamSig<'a> {
 }
 
 impl<'a> ParamSig<'a> {
-    fn new(db: &'a File, bytes: &mut &[u8]) -> ParseResult<ParamSig<'a>> {
-        let modifiers = ModifierSig::vec(db, bytes)?;
+    fn new(file: &'a File, bytes: &mut &[u8]) -> ParseResult<ParamSig<'a>> {
+        let modifiers = ModifierSig::vec(file, bytes)?;
         let by_ref = read_expected(bytes, 0x10)?;
-        let sig_type = TypeSig::new(db, bytes)?;
+        let sig_type = TypeSig::new(file, bytes)?;
         Ok(ParamSig { modifiers, by_ref, sig_type })
     }
 
@@ -244,7 +244,7 @@ pub enum TypeSigType<'a> {
 }
 
 impl<'a> TypeSigType<'a> {
-    fn new(db: &'a File, bytes: &mut &[u8]) -> ParseResult<TypeSigType<'a>> {
+    fn new(file: &'a File, bytes: &mut &[u8]) -> ParseResult<TypeSigType<'a>> {
         let element_type = read_unsigned(bytes)?;
 
         Ok(match element_type {
@@ -262,9 +262,9 @@ impl<'a> TypeSigType<'a> {
             0x0D => TypeSigType::ElementType(ElementType::F64),
             0x0E => TypeSigType::ElementType(ElementType::String),
             0x1C => TypeSigType::ElementType(ElementType::Object),
-            0x11 | 0x12 => TypeSigType::TypeDefOrRef(TypeDefOrRef::decode(db, read_unsigned(bytes)?)?),
+            0x11 | 0x12 => TypeSigType::TypeDefOrRef(TypeDefOrRef::decode(file, read_unsigned(bytes)?)?),
             0x13 => TypeSigType::GenericTypeIndex(read_unsigned(bytes)?),
-            0x15 => TypeSigType::GenericSig(GenericSig::new(db, bytes)?),
+            0x15 => TypeSigType::GenericSig(GenericSig::new(file, bytes)?),
             0x1e => TypeSigType::GenericMethodIndex(read_unsigned(bytes)?),
             _ => return Err(unsupported_blob()),
         })
@@ -290,10 +290,10 @@ pub struct TypeSig<'a> {
 }
 
 impl<'a> TypeSig<'a> {
-    fn new(db: &'a File, bytes: &mut &[u8]) -> ParseResult<TypeSig<'a>> {
+    fn new(file: &'a File, bytes: &mut &[u8]) -> ParseResult<TypeSig<'a>> {
         let array = read_expected(bytes, 0x1D)?;
-        let modifiers = ModifierSig::vec(db, bytes)?;
-        let sig_type = TypeSigType::new(db, bytes)?;
+        let modifiers = ModifierSig::vec(file, bytes)?;
+        let sig_type = TypeSigType::new(file, bytes)?;
         Ok(TypeSig { array, modifiers, sig_type })
     }
 

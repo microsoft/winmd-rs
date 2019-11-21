@@ -23,8 +23,8 @@ pub struct TypeIterator<'a> {
 impl<'a> Iterator for TypeIterator<'a> {
     type Item = TypeDef<'a>;
     fn next(&mut self) -> Option<TypeDef<'a>> {
-        let &(db, index) = self.iter.next()?;
-        Some(TypeDef::new(&self.reader.files[db as usize].type_def(), index))
+        let &(file, index) = self.iter.next()?;
+        Some(TypeDef::new(&self.reader.files[file as usize].type_def(), index))
     }
 }
 
@@ -76,14 +76,14 @@ impl<'a> Reader {
         let mut namespaces = std::collections::BTreeMap::<String, NamespaceData>::new();
 
         for filename in filenames {
-            let db = File::new(filename)?;
-            for t in db.type_def().iter::<TypeDef>() {
+            let file = File::new(filename)?;
+            for t in file.type_def().iter::<TypeDef>() {
                 if t.flags()?.windows_runtime() {
                     let types = namespaces.entry(t.namespace()?.to_string()).or_insert_with(|| Default::default());
                     types.index.entry(t.name()?.to_string()).or_insert((files.len() as u32, t.row.index));
                 }
             }
-            files.push(db);
+            files.push(file);
         }
 
         for (_, types) in &mut namespaces {
@@ -130,8 +130,8 @@ impl<'a> Reader {
     // TODO: do we need this version?
     pub fn find(&self, namespace: &str, name: &str) -> Option<TypeDef> {
         let types = self.namespaces.get(namespace)?;
-        let &(db, index) = types.index.get(name)?;
-        Some(TypeDef::new(&self.files[db as usize].type_def(), index))
+        let &(file, index) = types.index.get(name)?;
+        Some(TypeDef::new(&self.files[file as usize].type_def(), index))
     }
 
     pub fn find2(&self, name: &str) -> Option<TypeDef> {

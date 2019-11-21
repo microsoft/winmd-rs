@@ -77,7 +77,7 @@ impl<'a> RowData<'a> {
 
 #[derive(Copy, Clone)]
 pub struct Table<'a> {
-    pub(crate) db: &'a File,
+    pub(crate) file: &'a File,
     data: &'a TableData,
 }
 
@@ -100,33 +100,33 @@ impl<'a> Table<'a> {
     }
 
     pub fn str(&self, row: u32, column: u32) -> ParseResult<&str> {
-        let offset = (self.db.strings + self.u32(row, column)?) as usize;
-        let last = self.db.bytes[offset..].iter().position(|c| *c == b'\0').ok_or_else(unexpected_eof)?;
-        std::str::from_utf8(&self.db.bytes[offset..offset + last]).map_err(|_| ParseError::InvalidData("Bytes not valid UTF-8"))
+        let offset = (self.file.strings + self.u32(row, column)?) as usize;
+        let last = self.file.bytes[offset..].iter().position(|c| *c == b'\0').ok_or_else(unexpected_eof)?;
+        std::str::from_utf8(&self.file.bytes[offset..offset + last]).map_err(|_| ParseError::InvalidData("Bytes not valid UTF-8"))
     }
 
     pub fn blob(&self, row: u32, column: u32) -> ParseResult<&[u8]> {
-        let offset = (self.db.blobs + self.u32(row, column)?) as usize;
-        let initial_byte = self.db.bytes[offset];
+        let offset = (self.file.blobs + self.u32(row, column)?) as usize;
+        let initial_byte = self.file.bytes[offset];
         let (mut blob_size, blob_size_bytes) = match initial_byte >> 5 {
             0..=3 => (initial_byte & 0x7f, 1),
             4..=5 => (initial_byte & 0x3f, 2),
             6 => (initial_byte & 0x1f, 4),
             _ => return Err(ParseError::InvalidData("Invalid blob encoding")),
         };
-        for byte in &self.db.bytes[offset + 1..offset + blob_size_bytes] {
+        for byte in &self.file.bytes[offset + 1..offset + blob_size_bytes] {
             blob_size = (blob_size << 8) + byte;
         }
-        Ok(&self.db.bytes[offset + blob_size_bytes..offset + blob_size_bytes + blob_size as usize])
+        Ok(&self.file.bytes[offset + blob_size_bytes..offset + blob_size_bytes + blob_size as usize])
     }
 
     pub fn u32(&self, row: u32, column: u32) -> ParseResult<u32> {
         let offset = self.data.data + row * self.data.row_size + self.data.columns[column as usize].0;
         match self.data.columns[column as usize].1 {
-            1 => Ok(*(self.db.bytes.view_as::<u8>(offset)?) as u32),
-            2 => Ok(*(self.db.bytes.view_as::<u16>(offset)?) as u32),
-            4 => Ok(*(self.db.bytes.view_as::<u32>(offset)?) as u32),
-            _ => Ok(*(self.db.bytes.view_as::<u64>(offset)?) as u32),
+            1 => Ok(*(self.file.bytes.view_as::<u8>(offset)?) as u32),
+            2 => Ok(*(self.file.bytes.view_as::<u16>(offset)?) as u32),
+            4 => Ok(*(self.file.bytes.view_as::<u32>(offset)?) as u32),
+            _ => Ok(*(self.file.bytes.view_as::<u64>(offset)?) as u32),
         }
     }
 
@@ -208,8 +208,8 @@ pub struct TableData {
 }
 
 impl TableData {
-    pub fn table<'a>(&'a self, db: &'a File) -> Table<'a> {
-        Table { db, data: self }
+    pub fn table<'a>(&'a self, file: &'a File) -> Table<'a> {
+        Table { file, data: self }
     }
 
     fn index_size(&self) -> u32 {
@@ -277,22 +277,22 @@ pub struct File {
 
 impl File {
     pub fn new<P: AsRef<std::path::Path>>(filename: P) -> ParseResult<Self> {
-        let mut db = Self { bytes: std::fs::read(filename)?, ..Default::default() };
-        let dos = db.bytes.view_as::<ImageDosHeader>(0)?;
+        let mut file = Self { bytes: std::fs::read(filename)?, ..Default::default() };
+        let dos = file.bytes.view_as::<ImageDosHeader>(0)?;
 
         if dos.signature != IMAGE_DOS_SIGNATURE {
             return Err(ParseError::InvalidData("Invalid DOS signature"));
         }
 
-        let pe = db.bytes.view_as::<ImageNtHeader>(dos.lfanew as u32)?;
+        let pe = file.bytes.view_as::<ImageNtHeader>(dos.lfanew as u32)?;
 
         let (com_virtual_address, sections) = match pe.optional_header.magic {
-            MAGIC_PE32 => (pe.optional_header.data_directory[IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR as usize].virtual_address, db.bytes.view_as_slice_of::<ImageSectionHeader>(dos.lfanew as u32 + sizeof::<ImageNtHeader>(), pe.file_header.number_of_sections as u32)?),
-            MAGIC_PE32PLUS => (db.bytes.view_as::<ImageNtHeaderPlus>(dos.lfanew as u32)?.optional_header.data_directory[IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR as usize].virtual_address, db.bytes.view_as_slice_of::<ImageSectionHeader>(dos.lfanew as u32 + sizeof::<ImageNtHeaderPlus>(), pe.file_header.number_of_sections as u32)?),
+            MAGIC_PE32 => (pe.optional_header.data_directory[IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR as usize].virtual_address, file.bytes.view_as_slice_of::<ImageSectionHeader>(dos.lfanew as u32 + sizeof::<ImageNtHeader>(), pe.file_header.number_of_sections as u32)?),
+            MAGIC_PE32PLUS => (file.bytes.view_as::<ImageNtHeaderPlus>(dos.lfanew as u32)?.optional_header.data_directory[IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR as usize].virtual_address, file.bytes.view_as_slice_of::<ImageSectionHeader>(dos.lfanew as u32 + sizeof::<ImageNtHeaderPlus>(), pe.file_header.number_of_sections as u32)?),
             _ => return Err(ParseError::InvalidData("Invalid optional header magic value")),
         };
 
-        let cli = db.bytes.view_as::<ImageCorHeader>(offset_from_rva(section_from_rva(sections, com_virtual_address)?, com_virtual_address))?;
+        let cli = file.bytes.view_as::<ImageCorHeader>(offset_from_rva(section_from_rva(sections, com_virtual_address)?, com_virtual_address))?;
 
         if cli.cb != sizeof::<ImageCorHeader>() {
             return Err(ParseError::InvalidData("Invalid CLI header"));
@@ -300,22 +300,22 @@ impl File {
 
         let cli_offset = offset_from_rva(section_from_rva(sections, cli.meta_data.virtual_address)?, cli.meta_data.virtual_address);
 
-        if *db.bytes.view_as::<u32>(cli_offset)? != STORAGE_MAGIC_SIG {
+        if *file.bytes.view_as::<u32>(cli_offset)? != STORAGE_MAGIC_SIG {
             return Err(ParseError::InvalidData("CLI metadata magic signature not found"));
         }
 
-        let version_length = *db.bytes.view_as::<u32>(cli_offset + 12)?;
+        let version_length = *file.bytes.view_as::<u32>(cli_offset + 12)?;
         let mut view = cli_offset + version_length + 20;
         let mut tables_data: (u32, u32) = (0, 0);
 
-        for _ in 0..*db.bytes.view_as::<u16>(cli_offset + version_length + 18)? {
-            let stream_offset = *db.bytes.view_as::<u32>(view)?;
-            let stream_size = *db.bytes.view_as::<u32>(view + 4)?;
-            let stream_name = db.bytes.view_as_str(view + 8)?;
+        for _ in 0..*file.bytes.view_as::<u16>(cli_offset + version_length + 18)? {
+            let stream_offset = *file.bytes.view_as::<u32>(view)?;
+            let stream_size = *file.bytes.view_as::<u32>(view + 4)?;
+            let stream_name = file.bytes.view_as_str(view + 8)?;
             match stream_name {
-                b"#Strings" => db.strings = cli_offset + stream_offset,
-                b"#Blob" => db.blobs = cli_offset + stream_offset,
-                b"#GUID" => db.guids = cli_offset + stream_offset,
+                b"#Strings" => file.strings = cli_offset + stream_offset,
+                b"#Blob" => file.blobs = cli_offset + stream_offset,
+                b"#GUID" => file.guids = cli_offset + stream_offset,
                 b"#~" => tables_data = (cli_offset + stream_offset, stream_size),
                 b"#US" => {}
                 _ => return Err(ParseError::InvalidData("Unknown metadata stream")),
@@ -327,11 +327,11 @@ impl File {
             view = view + (8 + stream_name.len() + padding) as u32;
         }
 
-        let heap_sizes = *db.bytes.view_as::<u8>(tables_data.0 + 6)?;
+        let heap_sizes = *file.bytes.view_as::<u8>(tables_data.0 + 6)?;
         let string_index_size = if (heap_sizes & 1) == 1 { 4 } else { 2 };
         let guid_index_size = if (heap_sizes >> 1 & 1) == 1 { 4 } else { 2 };
         let blob_index_size = if (heap_sizes >> 2 & 1) == 1 { 4 } else { 2 };
-        let valid_bits = *db.bytes.view_as::<u64>(tables_data.0 + 8)?;
+        let valid_bits = *file.bytes.view_as::<u64>(tables_data.0 + 8)?;
         view = tables_data.0 + 24;
 
         // These tables are unused by WinRT, but needed temporarily to calculate sizes and offsets for subsequent tables.
@@ -369,20 +369,20 @@ impl File {
                 continue;
             }
 
-            let row_count = *db.bytes.view_as::<u32>(view)?;
+            let row_count = *file.bytes.view_as::<u32>(view)?;
             view = view + 4;
 
             match i {
                 0x00 => unused_module.row_count = row_count,
-                0x01 => db.type_ref.row_count = row_count,
-                0x02 => db.type_def.row_count = row_count,
-                0x04 => db.field.row_count = row_count,
-                0x06 => db.method_def.row_count = row_count,
-                0x08 => db.param.row_count = row_count,
-                0x09 => db.interface_impl.row_count = row_count,
-                0x0a => db.member_ref.row_count = row_count,
-                0x0b => db.constant.row_count = row_count,
-                0x0c => db.custom_attribute.row_count = row_count,
+                0x01 => file.type_ref.row_count = row_count,
+                0x02 => file.type_def.row_count = row_count,
+                0x04 => file.field.row_count = row_count,
+                0x06 => file.method_def.row_count = row_count,
+                0x08 => file.param.row_count = row_count,
+                0x09 => file.interface_impl.row_count = row_count,
+                0x0a => file.member_ref.row_count = row_count,
+                0x0b => file.constant.row_count = row_count,
+                0x0c => file.custom_attribute.row_count = row_count,
                 0x0d => unused_field_marshal.row_count = row_count,
                 0x0e => unused_decl_security.row_count = row_count,
                 0x0f => unused_class_layout.row_count = row_count,
@@ -395,7 +395,7 @@ impl File {
                 0x18 => unused_method_semantics.row_count = row_count,
                 0x19 => unused_method_impl.row_count = row_count,
                 0x1a => unused_module_ref.row_count = row_count,
-                0x1b => db.type_spec.row_count = row_count,
+                0x1b => file.type_spec.row_count = row_count,
                 0x1c => unused_impl_map.row_count = row_count,
                 0x1d => unused_field_rva.row_count = row_count,
                 0x20 => unused_assembly.row_count = row_count,
@@ -408,75 +408,75 @@ impl File {
                 0x27 => unused_exported_type.row_count = row_count,
                 0x28 => unused_manifest_resource.row_count = row_count,
                 0x29 => unused_nested_class.row_count = row_count,
-                0x2a => db.generic_param.row_count = row_count,
+                0x2a => file.generic_param.row_count = row_count,
                 0x2b => unused_method_spec.row_count = row_count,
                 0x2c => unused_generic_param_constraint.row_count = row_count,
                 _ => return Err(ParseError::InvalidData("Unknown metadata table")),
             };
         }
 
-        let has_constant = composite_index_size(&[&db.field, &db.param, &unused_property]);
-        let type_def_or_ref = composite_index_size(&[&db.type_def, &db.type_ref, &db.type_spec]);
-        let has_custom_attribute = composite_index_size(&[&db.method_def, &db.field, &db.type_ref, &db.type_def, &db.param, &db.interface_impl, &db.member_ref, &unused_module, &unused_property, &unused_event, &unused_standalone_sig, &unused_module_ref, &db.type_spec, &unused_assembly, &unused_assembly_ref, &unused_file, &unused_exported_type, &unused_manifest_resource, &db.generic_param, &unused_generic_param_constraint, &unused_method_spec]);
-        let has_field_marshal = composite_index_size(&[&db.field, &db.param]);
-        let has_decl_security = composite_index_size(&[&db.type_def, &db.method_def, &unused_assembly]);
-        let member_ref_parent = composite_index_size(&[&db.type_def, &db.type_ref, &unused_module_ref, &db.method_def, &db.type_spec]);
+        let has_constant = composite_index_size(&[&file.field, &file.param, &unused_property]);
+        let type_def_or_ref = composite_index_size(&[&file.type_def, &file.type_ref, &file.type_spec]);
+        let has_custom_attribute = composite_index_size(&[&file.method_def, &file.field, &file.type_ref, &file.type_def, &file.param, &file.interface_impl, &file.member_ref, &unused_module, &unused_property, &unused_event, &unused_standalone_sig, &unused_module_ref, &file.type_spec, &unused_assembly, &unused_assembly_ref, &unused_file, &unused_exported_type, &unused_manifest_resource, &file.generic_param, &unused_generic_param_constraint, &unused_method_spec]);
+        let has_field_marshal = composite_index_size(&[&file.field, &file.param]);
+        let has_decl_security = composite_index_size(&[&file.type_def, &file.method_def, &unused_assembly]);
+        let member_ref_parent = composite_index_size(&[&file.type_def, &file.type_ref, &unused_module_ref, &file.method_def, &file.type_spec]);
         let has_semantics = composite_index_size(&[&unused_event, &unused_property]);
-        let method_def_or_ref = composite_index_size(&[&db.method_def, &db.member_ref]);
-        let member_forwarded = composite_index_size(&[&db.field, &db.method_def]);
+        let method_def_or_ref = composite_index_size(&[&file.method_def, &file.member_ref]);
+        let member_forwarded = composite_index_size(&[&file.field, &file.method_def]);
         let implementation = composite_index_size(&[&unused_file, &unused_assembly_ref, &unused_exported_type]);
-        let custom_attribute_type = composite_index_size(&[&db.method_def, &db.member_ref, &unused_empty, &unused_empty, &unused_empty]);
-        let resolution_scope = composite_index_size(&[&unused_module, &unused_module_ref, &unused_assembly_ref, &db.type_ref]);
-        let type_or_method_def = composite_index_size(&[&db.type_def, &db.method_def]);
+        let custom_attribute_type = composite_index_size(&[&file.method_def, &file.member_ref, &unused_empty, &unused_empty, &unused_empty]);
+        let resolution_scope = composite_index_size(&[&unused_module, &unused_module_ref, &unused_assembly_ref, &file.type_ref]);
+        let type_or_method_def = composite_index_size(&[&file.type_def, &file.method_def]);
 
         unused_assembly_os.set_columns(4, 4, 4, 0, 0, 0);
         unused_assembly_processor.set_columns(4, 0, 0, 0, 0, 0);
         unused_assembly_ref.set_columns(8, 4, blob_index_size, string_index_size, string_index_size, blob_index_size);
         unused_assembly_ref_os.set_columns(4, 4, 4, unused_assembly_ref.index_size(), 0, 0);
         unused_assembly_ref_processor.set_columns(4, unused_assembly_ref.index_size(), 0, 0, 0, 0);
-        unused_class_layout.set_columns(2, 4, db.type_def.index_size(), 0, 0, 0);
-        db.constant.set_columns(2, has_constant, blob_index_size, 0, 0, 0);
-        db.custom_attribute.set_columns(has_custom_attribute, custom_attribute_type, blob_index_size, 0, 0, 0);
+        unused_class_layout.set_columns(2, 4, file.type_def.index_size(), 0, 0, 0);
+        file.constant.set_columns(2, has_constant, blob_index_size, 0, 0, 0);
+        file.custom_attribute.set_columns(has_custom_attribute, custom_attribute_type, blob_index_size, 0, 0, 0);
         unused_decl_security.set_columns(2, has_decl_security, blob_index_size, 0, 0, 0);
-        unused_event_map.set_columns(db.type_def.index_size(), unused_event.index_size(), 0, 0, 0, 0);
+        unused_event_map.set_columns(file.type_def.index_size(), unused_event.index_size(), 0, 0, 0, 0);
         unused_event.set_columns(2, string_index_size, type_def_or_ref, 0, 0, 0);
         unused_exported_type.set_columns(4, 4, string_index_size, string_index_size, implementation, 0);
-        db.field.set_columns(2, string_index_size, blob_index_size, 0, 0, 0);
-        unused_field_layout.set_columns(4, db.field.index_size(), 0, 0, 0, 0);
+        file.field.set_columns(2, string_index_size, blob_index_size, 0, 0, 0);
+        unused_field_layout.set_columns(4, file.field.index_size(), 0, 0, 0, 0);
         unused_field_marshal.set_columns(has_field_marshal, blob_index_size, 0, 0, 0, 0);
-        unused_field_rva.set_columns(4, db.field.index_size(), 0, 0, 0, 0);
+        unused_field_rva.set_columns(4, file.field.index_size(), 0, 0, 0, 0);
         unused_file.set_columns(4, string_index_size, blob_index_size, 0, 0, 0);
-        db.generic_param.set_columns(2, 2, type_or_method_def, string_index_size, 0, 0);
-        unused_generic_param_constraint.set_columns(db.generic_param.index_size(), type_def_or_ref, 0, 0, 0, 0);
+        file.generic_param.set_columns(2, 2, type_or_method_def, string_index_size, 0, 0);
+        unused_generic_param_constraint.set_columns(file.generic_param.index_size(), type_def_or_ref, 0, 0, 0, 0);
         unused_impl_map.set_columns(2, member_forwarded, string_index_size, unused_module_ref.index_size(), 0, 0);
-        db.interface_impl.set_columns(db.type_def.index_size(), type_def_or_ref, 0, 0, 0, 0);
+        file.interface_impl.set_columns(file.type_def.index_size(), type_def_or_ref, 0, 0, 0, 0);
         unused_manifest_resource.set_columns(4, 4, string_index_size, implementation, 0, 0);
-        db.member_ref.set_columns(member_ref_parent, string_index_size, blob_index_size, 0, 0, 0);
-        db.method_def.set_columns(4, 2, 2, string_index_size, blob_index_size, db.param.index_size());
-        unused_method_impl.set_columns(db.type_def.index_size(), method_def_or_ref, method_def_or_ref, 0, 0, 0);
-        unused_method_semantics.set_columns(2, db.method_def.index_size(), has_semantics, 0, 0, 0);
+        file.member_ref.set_columns(member_ref_parent, string_index_size, blob_index_size, 0, 0, 0);
+        file.method_def.set_columns(4, 2, 2, string_index_size, blob_index_size, file.param.index_size());
+        unused_method_impl.set_columns(file.type_def.index_size(), method_def_or_ref, method_def_or_ref, 0, 0, 0);
+        unused_method_semantics.set_columns(2, file.method_def.index_size(), has_semantics, 0, 0, 0);
         unused_method_spec.set_columns(method_def_or_ref, blob_index_size, 0, 0, 0, 0);
         unused_module.set_columns(2, string_index_size, guid_index_size, guid_index_size, guid_index_size, 0);
         unused_module_ref.set_columns(string_index_size, 0, 0, 0, 0, 0);
-        unused_nested_class.set_columns(db.type_def.index_size(), db.type_def.index_size(), 0, 0, 0, 0);
-        db.param.set_columns(2, 2, string_index_size, 0, 0, 0);
+        unused_nested_class.set_columns(file.type_def.index_size(), file.type_def.index_size(), 0, 0, 0, 0);
+        file.param.set_columns(2, 2, string_index_size, 0, 0, 0);
         unused_property.set_columns(2, string_index_size, blob_index_size, 0, 0, 0);
-        unused_property_map.set_columns(db.type_def.index_size(), unused_property.index_size(), 0, 0, 0, 0);
+        unused_property_map.set_columns(file.type_def.index_size(), unused_property.index_size(), 0, 0, 0, 0);
         unused_standalone_sig.set_columns(blob_index_size, 0, 0, 0, 0, 0);
-        db.type_def.set_columns(4, string_index_size, string_index_size, type_def_or_ref, db.field.index_size(), db.method_def.index_size());
-        db.type_ref.set_columns(resolution_scope, string_index_size, string_index_size, 0, 0, 0);
-        db.type_spec.set_columns(blob_index_size, 0, 0, 0, 0, 0);
+        file.type_def.set_columns(4, string_index_size, string_index_size, type_def_or_ref, file.field.index_size(), file.method_def.index_size());
+        file.type_ref.set_columns(resolution_scope, string_index_size, string_index_size, 0, 0, 0);
+        file.type_spec.set_columns(blob_index_size, 0, 0, 0, 0, 0);
 
         unused_module.set_data(&mut view);
-        db.type_ref.set_data(&mut view);
-        db.type_def.set_data(&mut view);
-        db.field.set_data(&mut view);
-        db.method_def.set_data(&mut view);
-        db.param.set_data(&mut view);
-        db.interface_impl.set_data(&mut view);
-        db.member_ref.set_data(&mut view);
-        db.constant.set_data(&mut view);
-        db.custom_attribute.set_data(&mut view);
+        file.type_ref.set_data(&mut view);
+        file.type_def.set_data(&mut view);
+        file.field.set_data(&mut view);
+        file.method_def.set_data(&mut view);
+        file.param.set_data(&mut view);
+        file.interface_impl.set_data(&mut view);
+        file.member_ref.set_data(&mut view);
+        file.constant.set_data(&mut view);
+        file.custom_attribute.set_data(&mut view);
         unused_field_marshal.set_data(&mut view);
         unused_decl_security.set_data(&mut view);
         unused_class_layout.set_data(&mut view);
@@ -489,7 +489,7 @@ impl File {
         unused_method_semantics.set_data(&mut view);
         unused_method_impl.set_data(&mut view);
         unused_module_ref.set_data(&mut view);
-        db.type_spec.set_data(&mut view);
+        file.type_spec.set_data(&mut view);
         unused_impl_map.set_data(&mut view);
         unused_field_rva.set_data(&mut view);
         unused_assembly.set_data(&mut view);
@@ -502,9 +502,9 @@ impl File {
         unused_exported_type.set_data(&mut view);
         unused_manifest_resource.set_data(&mut view);
         unused_nested_class.set_data(&mut view);
-        db.generic_param.set_data(&mut view);
+        file.generic_param.set_data(&mut view);
 
-        Ok(db)
+        Ok(file)
     }
 
     table_fn!(constant);
