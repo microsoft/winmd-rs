@@ -279,26 +279,35 @@ impl File {
     pub fn new<P: AsRef<std::path::Path>>(filename: P) -> ParseResult<Self> {
         let mut db = Self { bytes: std::fs::read(filename)?, ..Default::default() };
         let dos = db.bytes.view_as::<ImageDosHeader>(0)?;
+
         if dos.signature != IMAGE_DOS_SIGNATURE {
             return Err(ParseError::InvalidData("Invalid DOS signature"));
         }
+
         let pe = db.bytes.view_as::<ImageNtHeader>(dos.lfanew as u32)?;
+
         let (com_virtual_address, sections) = match pe.optional_header.magic {
             MAGIC_PE32 => (pe.optional_header.data_directory[IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR as usize].virtual_address, db.bytes.view_as_slice_of::<ImageSectionHeader>(dos.lfanew as u32 + sizeof::<ImageNtHeader>(), pe.file_header.number_of_sections as u32)?),
             MAGIC_PE32PLUS => (db.bytes.view_as::<ImageNtHeaderPlus>(dos.lfanew as u32)?.optional_header.data_directory[IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR as usize].virtual_address, db.bytes.view_as_slice_of::<ImageSectionHeader>(dos.lfanew as u32 + sizeof::<ImageNtHeaderPlus>(), pe.file_header.number_of_sections as u32)?),
             _ => return Err(ParseError::InvalidData("Invalid optional header magic value")),
         };
+
         let cli = db.bytes.view_as::<ImageCorHeader>(offset_from_rva(section_from_rva(sections, com_virtual_address)?, com_virtual_address))?;
+
         if cli.cb != sizeof::<ImageCorHeader>() {
             return Err(ParseError::InvalidData("Invalid CLI header"));
         }
+
         let cli_offset = offset_from_rva(section_from_rva(sections, cli.meta_data.virtual_address)?, cli.meta_data.virtual_address);
+
         if *db.bytes.view_as::<u32>(cli_offset)? != STORAGE_MAGIC_SIG {
             return Err(ParseError::InvalidData("CLI metadata magic signature not found"));
         }
+
         let version_length = *db.bytes.view_as::<u32>(cli_offset + 12)?;
         let mut view = cli_offset + version_length + 20;
         let mut tables_data: (u32, u32) = (0, 0);
+
         for _ in 0..*db.bytes.view_as::<u16>(cli_offset + version_length + 18)? {
             let stream_offset = *db.bytes.view_as::<u32>(view)?;
             let stream_size = *db.bytes.view_as::<u32>(view + 4)?;
@@ -317,6 +326,7 @@ impl File {
             }
             view = view + (8 + stream_name.len() + padding) as u32;
         }
+
         let heap_sizes = *db.bytes.view_as::<u8>(tables_data.0 + 6)?;
         let string_index_size = if (heap_sizes & 1) == 1 { 4 } else { 2 };
         let guid_index_size = if (heap_sizes >> 1 & 1) == 1 { 4 } else { 2 };
@@ -324,6 +334,8 @@ impl File {
         let valid_bits = *db.bytes.view_as::<u64>(tables_data.0 + 8)?;
         view = tables_data.0 + 24;
 
+        // These tables are unused by WinRT, but needed temporarily to calculate sizes and offsets for subsequent tables.
+        let unused_empty = TableData::default();
         let mut unused_assembly = TableData::default();
         let mut unused_assembly_os = TableData::default();
         let mut unused_assembly_processor = TableData::default();
@@ -356,8 +368,10 @@ impl File {
             if (valid_bits >> i & 1) == 0 {
                 continue;
             }
+
             let row_count = *db.bytes.view_as::<u32>(view)?;
             view = view + 4;
+
             match i {
                 0x00 => unused_module.row_count = row_count,
                 0x01 => db.type_ref.row_count = row_count,
@@ -400,7 +414,7 @@ impl File {
                 _ => return Err(ParseError::InvalidData("Unknown metadata table")),
             };
         }
-        let empty_table = TableData::default();
+
         let has_constant = composite_index_size(&[&db.field, &db.param, &unused_property]);
         let type_def_or_ref = composite_index_size(&[&db.type_def, &db.type_ref, &db.type_spec]);
         let has_custom_attribute = composite_index_size(&[&db.method_def, &db.field, &db.type_ref, &db.type_def, &db.param, &db.interface_impl, &db.member_ref, &unused_module, &unused_property, &unused_event, &unused_standalone_sig, &unused_module_ref, &db.type_spec, &unused_assembly, &unused_assembly_ref, &unused_file, &unused_exported_type, &unused_manifest_resource, &db.generic_param, &unused_generic_param_constraint, &unused_method_spec]);
@@ -411,7 +425,7 @@ impl File {
         let method_def_or_ref = composite_index_size(&[&db.method_def, &db.member_ref]);
         let member_forwarded = composite_index_size(&[&db.field, &db.method_def]);
         let implementation = composite_index_size(&[&unused_file, &unused_assembly_ref, &unused_exported_type]);
-        let custom_attribute_type = composite_index_size(&[&db.method_def, &db.member_ref, &empty_table, &empty_table, &empty_table]);
+        let custom_attribute_type = composite_index_size(&[&db.method_def, &db.member_ref, &unused_empty, &unused_empty, &unused_empty]);
         let resolution_scope = composite_index_size(&[&unused_module, &unused_module_ref, &unused_assembly_ref, &db.type_ref]);
         let type_or_method_def = composite_index_size(&[&db.type_def, &db.method_def]);
 
@@ -522,6 +536,7 @@ fn composite_index_size(tables: &[&TableData]) -> u32 {
     fn small(row_count: u32, bits: u8) -> bool {
         (row_count as u64) < (1u64 << (16 - bits))
     }
+
     fn bits_needed(value: usize) -> u8 {
         let mut value = value - 1;
         let mut bits: u8 = 1;
@@ -534,7 +549,9 @@ fn composite_index_size(tables: &[&TableData]) -> u32 {
         }
         bits
     }
+
     let bits_needed = bits_needed(tables.len());
+
     if tables.iter().all(|table| small(table.row_count, bits_needed)) {
         2
     } else {
