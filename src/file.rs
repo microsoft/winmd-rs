@@ -496,41 +496,14 @@ impl File {
         Ok(db)
     }
 
-    table_fn!(assembly);
-    table_fn!(assembly_os);
-    table_fn!(assembly_processor);
-    table_fn!(assembly_ref);
-    table_fn!(assembly_ref_os);
-    table_fn!(assembly_ref_processor);
-    table_fn!(class_layout);
     table_fn!(constant);
     table_fn!(custom_attribute);
-    table_fn!(decl_security);
-    table_fn!(event);
-    table_fn!(event_map);
-    table_fn!(exported_type);
     table_fn!(field);
-    table_fn!(field_layout);
-    table_fn!(field_marshal);
-    table_fn!(field_rva);
-    table_fn!(file);
     table_fn!(generic_param);
-    table_fn!(generic_param_constraint);
-    table_fn!(impl_map);
     table_fn!(interface_impl);
-    table_fn!(manifest_resource);
     table_fn!(member_ref);
     table_fn!(method_def);
-    table_fn!(method_impl);
-    table_fn!(method_semantics);
-    table_fn!(method_spec);
-    table_fn!(module);
-    table_fn!(module_ref);
-    table_fn!(nested_class);
     table_fn!(param);
-    table_fn!(property);
-    table_fn!(property_map);
-    table_fn!(standalone_sig);
     table_fn!(type_def);
     table_fn!(type_ref);
     table_fn!(type_spec);

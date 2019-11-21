@@ -55,28 +55,26 @@ pub enum HasCustomAttribute {
     Param,
     InterfaceImpl,
     MemberRef,
-    Module,
     not_used,
-    Property,
-    Event,
-    StandaloneSig,
-    ModuleRef,
+    not_used,
+    not_used,
+    not_used,
+    not_used,
+    not_used,
     TypeSpec,
-    Assembly,
-    AssemblyRef,
     not_used,
-    ExportedType,
-    ManifestResource,
+    not_used,
+    not_used,
+    not_used,
+    not_used,
     GenericParam,
-    GenericParamConstraint,
-    MethodSpec,
 }
 
 #[type_code(3)]
 pub enum MemberRefParent {
     TypeDef,
     TypeRef,
-    ModuleRef,
+    not_used,
     MethodDef,
     TypeSpec,
 }
@@ -85,7 +83,6 @@ pub enum MemberRefParent {
 pub enum HasConstant {
     Field,
     Param,
-    Property,
 }
 
 #[type_code(3)]
