@@ -2,7 +2,7 @@
 #![allow(dead_code)]
 
 use crate::codes::*;
-use crate::database::*;
+use crate::file::*;
 use crate::error::*;
 use crate::tables::*;
 use std::convert::*;
@@ -20,7 +20,7 @@ pub struct GenericSig<'a> {
 }
 
 impl<'a> GenericSig<'a> {
-    fn new(db: &'a Database, bytes: &mut &[u8]) -> ParseResult<GenericSig<'a>> {
+    fn new(db: &'a File, bytes: &mut &[u8]) -> ParseResult<GenericSig<'a>> {
         read_unsigned(bytes)?;
         let sig_type = TypeDefOrRef::decode(db, read_unsigned(bytes)?)?;
         let arg_count = read_unsigned(bytes)?;
@@ -53,13 +53,13 @@ pub struct ModifierSig<'a> {
 }
 
 impl<'a> ModifierSig<'a> {
-    fn new(db: &'a Database, bytes: &mut &[u8]) -> ParseResult<ModifierSig<'a>> {
+    fn new(db: &'a File, bytes: &mut &[u8]) -> ParseResult<ModifierSig<'a>> {
         read_unsigned(bytes)?;
         let sig_type = TypeDefOrRef::decode(db, read_unsigned(bytes)?)?;
         Ok(ModifierSig { sig_type })
     }
 
-    fn vec(db: &'a Database, bytes: &mut &[u8]) -> ParseResult<Vec<ModifierSig<'a>>> {
+    fn vec(db: &'a File, bytes: &mut &[u8]) -> ParseResult<Vec<ModifierSig<'a>>> {
         let mut modifiers = Vec::new();
         loop {
             let (element_type, _) = peek_unsigned(bytes)?;
@@ -107,7 +107,7 @@ impl<'a> MethodSig<'a> {
     }
 }
 
-pub(crate) fn constructor_sig<'a>(db: &'a Database, mut bytes: &[u8]) -> ParseResult<Vec<ParamSig<'a>>> {
+pub(crate) fn constructor_sig<'a>(db: &'a File, mut bytes: &[u8]) -> ParseResult<Vec<ParamSig<'a>>> {
     let calling_convention = read_unsigned(&mut bytes)?;
     if calling_convention & 0x10 != 0 {
         read_unsigned(&mut bytes)?;
@@ -163,7 +163,7 @@ impl<'a> std::fmt::UpperHex for ArgumentSig<'a> {
 }
 
 impl<'a> ArgumentSig<'a> {
-    pub(crate) fn new(db: &'a Database, signature_bytes: &[u8], mut data_bytes: &'a [u8]) -> ParseResult<Vec<(&'a str,ArgumentSig<'a>)>> {
+    pub(crate) fn new(db: &'a File, signature_bytes: &[u8], mut data_bytes: &'a [u8]) -> ParseResult<Vec<(&'a str,ArgumentSig<'a>)>> {
         let params = constructor_sig(db, signature_bytes)?;
         read_u16(&mut data_bytes);
         let mut args = Vec::with_capacity(params.len());
@@ -224,7 +224,7 @@ pub struct ParamSig<'a> {
 }
 
 impl<'a> ParamSig<'a> {
-    fn new(db: &'a Database, bytes: &mut &[u8]) -> ParseResult<ParamSig<'a>> {
+    fn new(db: &'a File, bytes: &mut &[u8]) -> ParseResult<ParamSig<'a>> {
         let modifiers = ModifierSig::vec(db, bytes)?;
         let by_ref = read_expected(bytes, 0x10)?;
         let sig_type = TypeSig::new(db, bytes)?;
@@ -245,7 +245,7 @@ pub enum TypeSigType<'a> {
 }
 
 impl<'a> TypeSigType<'a> {
-    fn new(db: &'a Database, bytes: &mut &[u8]) -> ParseResult<TypeSigType<'a>> {
+    fn new(db: &'a File, bytes: &mut &[u8]) -> ParseResult<TypeSigType<'a>> {
         let element_type = read_unsigned(bytes)?;
 
         Ok(match element_type {
@@ -291,7 +291,7 @@ pub struct TypeSig<'a> {
 }
 
 impl<'a> TypeSig<'a> {
-    fn new(db: &'a Database, bytes: &mut &[u8]) -> ParseResult<TypeSig<'a>> {
+    fn new(db: &'a File, bytes: &mut &[u8]) -> ParseResult<TypeSig<'a>> {
         let array = read_expected(bytes, 0x1D)?;
         let modifiers = ModifierSig::vec(db, bytes)?;
         let sig_type = TypeSigType::new(db, bytes)?;

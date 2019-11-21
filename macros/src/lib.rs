@@ -51,7 +51,7 @@ pub fn type_code(args: TokenStream, input: TokenStream) -> TokenStream {
             #variants
         }
         impl<'a> #name<'a> {
-            pub(crate) fn decode(db: &'a Database, code: u32) -> ParseResult<Self> {
+            pub(crate) fn decode(db: &'a File, code: u32) -> ParseResult<Self> {
                 let code = decode(#bits, code);
                 Ok(match code.0 {
                     #decodes

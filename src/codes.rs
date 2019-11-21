@@ -1,4 +1,4 @@
-use crate::database::*;
+use crate::file::*;
 use crate::error::*;
 use crate::tables::*;
 use winmd_macros::*;
@@ -64,7 +64,7 @@ pub enum HasCustomAttribute {
     TypeSpec,
     Assembly,
     AssemblyRef,
-    File,
+    not_used,
     ExportedType,
     ManifestResource,
     GenericParam,

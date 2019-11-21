@@ -79,7 +79,7 @@ impl<'a> RowData<'a> {
 
 #[derive(Copy, Clone)]
 pub struct Table<'a> {
-    pub(crate) db: &'a Database,
+    pub(crate) db: &'a File,
     data: &'a TableData,
 }
 
@@ -210,7 +210,7 @@ pub struct TableData {
 }
 
 impl TableData {
-    pub fn table<'a>(&'a self, db: &'a Database) -> Table<'a> {
+    pub fn table<'a>(&'a self, db: &'a File) -> Table<'a> {
         Table { db, data: self }
     }
 
@@ -251,14 +251,14 @@ impl TableData {
     }
 }
 
-impl PartialEq for Database {
+impl PartialEq for File {
     fn eq(&self, other: &Self) -> bool {
         &self.bytes as *const std::vec::Vec<u8> == &other.bytes as *const std::vec::Vec<u8>
     }
 }
 
 #[derive(Default)]
-pub struct Database {
+pub struct File {
     bytes: std::vec::Vec<u8>,
     strings: u32,
     blobs: u32,
@@ -304,7 +304,7 @@ pub struct Database {
     pub type_spec: TableData,
 }
 
-impl Database {
+impl File {
     pub fn new<P: AsRef<std::path::Path>>(filename: P) -> ParseResult<Self> {
         let mut db = Self { bytes: std::fs::read(filename)?, ..Default::default() };
         let dos = db.bytes.view_as::<ImageDosHeader>(0)?;

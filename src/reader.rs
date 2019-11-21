@@ -1,4 +1,4 @@
-use crate::database::*;
+use crate::file::*;
 use crate::error::*;
 use crate::tables::*;
 
@@ -24,7 +24,7 @@ impl<'a> Iterator for TypeIterator<'a> {
     type Item = TypeDef<'a>;
     fn next(&mut self) -> Option<TypeDef<'a>> {
         let &(db, index) = self.iter.next()?;
-        Some(TypeDef::new(&self.reader.databases[db as usize].type_def(), index))
+        Some(TypeDef::new(&self.reader.files[db as usize].type_def(), index))
     }
 }
 
@@ -66,29 +66,29 @@ impl<'a> Namespace<'a> {
 }
 
 pub struct Reader {
-    databases: std::vec::Vec<Database>,
+    files: std::vec::Vec<File>,
     namespaces: std::collections::BTreeMap<String, NamespaceData>,
 }
 
 impl<'a> Reader {
     pub fn from_files<P: AsRef<std::path::Path>>(filenames: &[P]) -> Result<Self, Error> {
-        let mut databases = std::vec::Vec::with_capacity(filenames.len());
+        let mut files = std::vec::Vec::with_capacity(filenames.len());
         let mut namespaces = std::collections::BTreeMap::<String, NamespaceData>::new();
 
         for filename in filenames {
-            let db = Database::new(filename)?;
+            let db = File::new(filename)?;
             for t in db.type_def().iter::<TypeDef>() {
                 if t.flags()?.windows_runtime() {
                     let types = namespaces.entry(t.namespace()?.to_string()).or_insert_with(|| Default::default());
-                    types.index.entry(t.name()?.to_string()).or_insert((databases.len() as u32, t.row.index));
+                    types.index.entry(t.name()?.to_string()).or_insert((files.len() as u32, t.row.index));
                 }
             }
-            databases.push(db);
+            files.push(db);
         }
 
         for (_, types) in &mut namespaces {
             for (_, index) in &types.index {
-                let t = TypeDef::new(&databases[index.0 as usize].type_def(), index.1);
+                let t = TypeDef::new(&files[index.0 as usize].type_def(), index.1);
                 if t.flags()?.interface() {
                     types.interfaces.push(*index);
                 } else {
@@ -107,7 +107,7 @@ impl<'a> Reader {
             }
         }
 
-        Ok(Self { databases, namespaces })
+        Ok(Self { files, namespaces })
     }
 
     pub fn from_dir<P: AsRef<std::path::Path>>(directory: P) -> Result<Self, Error> {
@@ -131,7 +131,7 @@ impl<'a> Reader {
     pub fn find(&self, namespace: &str, name: &str) -> Option<TypeDef> {
         let types = self.namespaces.get(namespace)?;
         let &(db, index) = types.index.get(name)?;
-        Some(TypeDef::new(&self.databases[db as usize].type_def(), index))
+        Some(TypeDef::new(&self.files[db as usize].type_def(), index))
     }
 
     pub fn find2(&self, name: &str) -> Option<TypeDef> {
