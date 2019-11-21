@@ -1,12 +1,13 @@
 #![allow(exceeding_bitshifts)]
 
 use crate::error::*;
+use crate::reader::*;
 use std::marker::PhantomData;
 
 macro_rules! table_fn {
     ($name:ident) => {
         pub fn $name(&self) -> Table {
-            self.$name.table(self)
+            self.data.$name.table(self)
         }
     };
 }
@@ -77,7 +78,7 @@ impl<'a> RowData<'a> {
 
 #[derive(Copy, Clone)]
 pub struct Table<'a> {
-    pub(crate) file: &'a File,
+    pub(crate) file: &'a File<'a>,
     data: &'a TableData,
 }
 
@@ -100,33 +101,33 @@ impl<'a> Table<'a> {
     }
 
     pub fn str(&self, row: u32, column: u32) -> ParseResult<&str> {
-        let offset = (self.file.strings + self.u32(row, column)?) as usize;
-        let last = self.file.bytes[offset..].iter().position(|c| *c == b'\0').ok_or_else(unexpected_eof)?;
-        std::str::from_utf8(&self.file.bytes[offset..offset + last]).map_err(|_| ParseError::InvalidData("Bytes not valid UTF-8"))
+        let offset = (self.file.data.strings + self.u32(row, column)?) as usize;
+        let last = self.file.data.bytes[offset..].iter().position(|c| *c == b'\0').ok_or_else(unexpected_eof)?;
+        std::str::from_utf8(&self.file.data.bytes[offset..offset + last]).map_err(|_| ParseError::InvalidData("Bytes not valid UTF-8"))
     }
 
     pub fn blob(&self, row: u32, column: u32) -> ParseResult<&[u8]> {
-        let offset = (self.file.blobs + self.u32(row, column)?) as usize;
-        let initial_byte = self.file.bytes[offset];
+        let offset = (self.file.data.blobs + self.u32(row, column)?) as usize;
+        let initial_byte = self.file.data.bytes[offset];
         let (mut blob_size, blob_size_bytes) = match initial_byte >> 5 {
             0..=3 => (initial_byte & 0x7f, 1),
             4..=5 => (initial_byte & 0x3f, 2),
             6 => (initial_byte & 0x1f, 4),
             _ => return Err(ParseError::InvalidData("Invalid blob encoding")),
         };
-        for byte in &self.file.bytes[offset + 1..offset + blob_size_bytes] {
+        for byte in &self.file.data.bytes[offset + 1..offset + blob_size_bytes] {
             blob_size = (blob_size << 8) + byte;
         }
-        Ok(&self.file.bytes[offset + blob_size_bytes..offset + blob_size_bytes + blob_size as usize])
+        Ok(&self.file.data.bytes[offset + blob_size_bytes..offset + blob_size_bytes + blob_size as usize])
     }
 
     pub fn u32(&self, row: u32, column: u32) -> ParseResult<u32> {
         let offset = self.data.data + row * self.data.row_size + self.data.columns[column as usize].0;
         match self.data.columns[column as usize].1 {
-            1 => Ok(*(self.file.bytes.view_as::<u8>(offset)?) as u32),
-            2 => Ok(*(self.file.bytes.view_as::<u16>(offset)?) as u32),
-            4 => Ok(*(self.file.bytes.view_as::<u32>(offset)?) as u32),
-            _ => Ok(*(self.file.bytes.view_as::<u64>(offset)?) as u32),
+            1 => Ok(*(self.file.data.bytes.view_as::<u8>(offset)?) as u32),
+            2 => Ok(*(self.file.data.bytes.view_as::<u16>(offset)?) as u32),
+            4 => Ok(*(self.file.data.bytes.view_as::<u32>(offset)?) as u32),
+            _ => Ok(*(self.file.data.bytes.view_as::<u64>(offset)?) as u32),
         }
     }
 
@@ -249,14 +250,33 @@ impl TableData {
     }
 }
 
-impl PartialEq for File {
+impl PartialEq for FileData {
     fn eq(&self, other: &Self) -> bool {
         &self.bytes as *const std::vec::Vec<u8> == &other.bytes as *const std::vec::Vec<u8>
     }
 }
 
+pub struct File<'a> {
+    pub(crate) reader: &'a Reader,
+    data: &'a FileData,
+}
+
+impl<'a> File<'a> {
+    table_fn!(constant);
+    table_fn!(custom_attribute);
+    table_fn!(field);
+    table_fn!(generic_param);
+    table_fn!(interface_impl);
+    table_fn!(member_ref);
+    table_fn!(method_def);
+    table_fn!(param);
+    table_fn!(type_def);
+    table_fn!(type_ref);
+    table_fn!(type_spec);
+}
+
 #[derive(Default)]
-pub struct File {
+pub struct FileData {
     bytes: std::vec::Vec<u8>,
     strings: u32,
     blobs: u32,
@@ -275,7 +295,7 @@ pub struct File {
     pub type_spec: TableData,
 }
 
-impl File {
+impl FileData {
     pub fn new<P: AsRef<std::path::Path>>(filename: P) -> ParseResult<Self> {
         let mut file = Self { bytes: std::fs::read(filename)?, ..Default::default() };
         let dos = file.bytes.view_as::<ImageDosHeader>(0)?;
@@ -506,18 +526,6 @@ impl File {
 
         Ok(file)
     }
-
-    table_fn!(constant);
-    table_fn!(custom_attribute);
-    table_fn!(field);
-    table_fn!(generic_param);
-    table_fn!(interface_impl);
-    table_fn!(member_ref);
-    table_fn!(method_def);
-    table_fn!(param);
-    table_fn!(type_def);
-    table_fn!(type_ref);
-    table_fn!(type_spec);
 }
 
 fn section_from_rva(sections: &[ImageSectionHeader], rva: u32) -> ParseResult<&ImageSectionHeader> {
