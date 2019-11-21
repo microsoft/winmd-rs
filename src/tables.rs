@@ -1,6 +1,3 @@
-// TODO: Many tables still need columns defined and tested.
-#![allow(dead_code)]
-
 use crate::codes::*;
 use crate::file::*;
 use crate::error::*;

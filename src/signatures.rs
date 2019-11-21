@@ -8,12 +8,6 @@ use crate::tables::*;
 use std::convert::*;
 use std::vec::*;
 
-impl std::convert::From<ParseError> for std::fmt::Error {
-    fn from(error: ParseError) -> Self {
-        std::fmt::Error{}
-    }
-}
-
 pub struct GenericSig<'a> {
     sig_type: TypeDefOrRef<'a>,
     args: Vec<TypeSig<'a>>,

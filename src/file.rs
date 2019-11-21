@@ -1,5 +1,3 @@
-// TODO: Many tables still need columns defined and tested.
-#![allow(dead_code)]
 #![allow(exceeding_bitshifts)]
 
 use crate::error::*;

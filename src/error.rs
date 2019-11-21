@@ -39,3 +39,9 @@ impl std::convert::From<io::Error> for ParseError {
         ParseError::Io(error)
     }
 }
+
+impl std::convert::From<ParseError> for std::fmt::Error {
+    fn from(_: ParseError) -> Self {
+        std::fmt::Error{}
+    }
+}
