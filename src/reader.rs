@@ -66,7 +66,7 @@ impl<'a> Namespace<'a> {
 }
 
 pub struct Reader {
-    files: std::vec::Vec<FileData>,
+    files: std::vec::Vec<File>,
     namespaces: std::collections::BTreeMap<String, NamespaceData>,
 }
 
@@ -76,7 +76,7 @@ impl<'a> Reader {
         let mut namespaces = std::collections::BTreeMap::<String, NamespaceData>::new();
 
         for filename in filenames {
-            let file = FileData::new(filename)?;
+            let file = File::new(filename)?;
             for t in file.type_def().iter::<TypeDef>() {
                 if t.flags()?.windows_runtime() {
                     let types = namespaces.entry(t.namespace()?.to_string()).or_insert_with(|| Default::default());
