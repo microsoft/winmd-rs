@@ -489,8 +489,6 @@ impl File {
         unused_manifest_resource.set_data(&mut view);
         unused_nested_class.set_data(&mut view);
         db.generic_param.set_data(&mut view);
-        unused_method_spec.set_data(&mut view);
-        unused_generic_param_constraint.set_data(&mut view);
 
         Ok(db)
     }
