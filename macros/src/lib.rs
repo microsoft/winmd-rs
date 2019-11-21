@@ -19,7 +19,7 @@ pub fn type_code(args: TokenStream, input: TokenStream) -> TokenStream {
     let mut variants = Vec::new();
     let mut decodes = Vec::new();
     let mut encodes = Vec::new();
-    let mut index = 0;
+    let mut enumerator = 0;
 
     for variant in input.variants.iter() {
         let camel = &variant.ident;
@@ -28,7 +28,7 @@ pub fn type_code(args: TokenStream, input: TokenStream) -> TokenStream {
         if let Some((_, value)) = &variant.discriminant {
             if let syn::Expr::Lit(value) = value {
                 if let syn::Lit::Int(value) = &value.lit {
-                    index = value.base10_parse::<u32>().unwrap();
+                    enumerator = value.base10_parse::<u32>().unwrap();
                 }
             }
         }
@@ -40,14 +40,14 @@ pub fn type_code(args: TokenStream, input: TokenStream) -> TokenStream {
         ));
 
         decodes.push(quote!(
-            #index => Self::#camel(db.#snake().row(code.1)),
+            #enumerator => Self::#camel(db.#snake().row(code.1)),
         ));
 
         encodes.push(quote!(
-            Self::#camel(value) => encode(#bits, #index, value.row.index),
+            Self::#camel(value) => ((value.row.index + 1) << #bits) | #enumerator,
         ));
 
-        index += 1;
+        enumerator += 1;
     }
 
     let variants = TokenStream2::from_iter(variants);
@@ -60,7 +60,7 @@ pub fn type_code(args: TokenStream, input: TokenStream) -> TokenStream {
         }
         impl<'a> #name<'a> {
             pub(crate) fn decode(db: &'a File, code: u32) -> ParseResult<Self> {
-                let code = decode(#bits, code);
+                let code = (code & ((1 << #bits) - 1), (code >> #bits) - 1);
                 Ok(match code.0 {
                     #decodes
                     _ => return Err(ParseError::InvalidData("Invalid type code")),
