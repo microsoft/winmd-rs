@@ -12,7 +12,8 @@ fn type_def() -> Result<(), winmd::Error> {
     assert!(t.methods()?.count() == 1);
 
     for m in t.methods()? {
-        assert!(m.name()? == "ToString");
+        assert!(m.name()? == "to_string");
+        assert!(m.abi_name()? == "ToString");
         let sig = m.signature()?;
         assert!(sig.return_type().is_some());
 

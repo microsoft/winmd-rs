@@ -115,7 +115,7 @@ impl<'a> MethodDef<'a> {
         Ok(MethodAttributes(self.row.u32(2)?))
     }
 
-    pub fn name(&self) -> ParseResult<&str> {
+    pub fn abi_name(&self) -> ParseResult<&str> {
         self.row.str(3)
     }
 
@@ -131,10 +131,10 @@ impl<'a> MethodDef<'a> {
         MethodSig::new(self)
     }
 
-    pub fn rust_name(&self) -> ParseResult<String> {
+    pub fn name(&self) -> ParseResult<String> {
         // TODO: need to account for OverloadAttribute considering that Rust doesn't support overloads.
 
-        let mut source = self.name()?;
+        let mut source = self.abi_name()?;
         let mut result = String::with_capacity(source.len() + 2);
 
         if self.flags()?.special() {
