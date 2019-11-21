@@ -55,18 +55,18 @@ pub enum HasCustomAttribute {
     Param,
     InterfaceImpl,
     MemberRef,
-    not_used,
-    not_used,
-    not_used,
-    not_used,
-    not_used,
-    not_used,
+    unused,
+    unused,
+    unused,
+    unused,
+    unused,
+    unused,
     TypeSpec,
-    not_used,
-    not_used,
-    not_used,
-    not_used,
-    not_used,
+    unused,
+    unused,
+    unused,
+    unused,
+    unused,
     GenericParam,
 }
 
@@ -74,7 +74,7 @@ pub enum HasCustomAttribute {
 pub enum MemberRefParent {
     TypeDef,
     TypeRef,
-    not_used,
+    unused,
     MethodDef,
     TypeSpec,
 }
@@ -87,8 +87,8 @@ pub enum HasConstant {
 
 #[type_code(3)]
 pub enum CustomAttributeType {
-    not_used,
-    not_used,
+    unused,
+    unused,
     MethodDef,
     MemberRef,
 }

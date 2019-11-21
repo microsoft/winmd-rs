@@ -24,7 +24,7 @@ pub fn type_code(args: TokenStream, input: TokenStream) -> TokenStream {
         let camel = &variant.ident;
         let camel_name = camel.to_string();
 
-        if camel_name != "not_used" {
+        if camel_name != "unused" {
             let snake = syn::Ident::new(&to_snake(&camel_name), camel.span());
             let index = index as u32;
 
