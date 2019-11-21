@@ -262,41 +262,14 @@ pub struct File {
     blobs: u32,
     guids: u32,
 
-    pub assembly: TableData,
-    pub assembly_os: TableData,
-    pub assembly_processor: TableData,
-    pub assembly_ref: TableData,
-    pub assembly_ref_os: TableData,
-    pub assembly_ref_processor: TableData,
-    pub class_layout: TableData,
     pub constant: TableData,
     pub custom_attribute: TableData,
-    pub decl_security: TableData,
-    pub event: TableData,
-    pub event_map: TableData,
-    pub exported_type: TableData,
     pub field: TableData,
-    pub field_layout: TableData,
-    pub field_marshal: TableData,
-    pub field_rva: TableData,
-    pub file: TableData,
     pub generic_param: TableData,
-    pub generic_param_constraint: TableData,
-    pub impl_map: TableData,
     pub interface_impl: TableData,
-    pub manifest_resource: TableData,
     pub member_ref: TableData,
     pub method_def: TableData,
-    pub method_impl: TableData,
-    pub method_semantics: TableData,
-    pub method_spec: TableData,
-    pub module: TableData,
-    pub module_ref: TableData,
-    pub nested_class: TableData,
     pub param: TableData,
-    pub property: TableData,
-    pub property_map: TableData,
-    pub standalone_sig: TableData,
     pub type_def: TableData,
     pub type_ref: TableData,
     pub type_spec: TableData,
@@ -350,6 +323,35 @@ impl File {
         let blob_index_size = if (heap_sizes >> 2 & 1) == 1 { 4 } else { 2 };
         let valid_bits = *db.bytes.view_as::<u64>(tables_data.0 + 8)?;
         view = tables_data.0 + 24;
+
+        let mut unused_assembly = TableData::default();
+        let mut unused_assembly_os = TableData::default();
+        let mut unused_assembly_processor = TableData::default();
+        let mut unused_assembly_ref = TableData::default();
+        let mut unused_assembly_ref_os = TableData::default();
+        let mut unused_assembly_ref_processor = TableData::default();
+        let mut unused_class_layout = TableData::default();
+        let mut unused_decl_security = TableData::default();
+        let mut unused_event = TableData::default();
+        let mut unused_event_map = TableData::default();
+        let mut unused_exported_type = TableData::default();
+        let mut unused_field_layout = TableData::default();
+        let mut unused_field_marshal = TableData::default();
+        let mut unused_field_rva = TableData::default();
+        let mut unused_file = TableData::default();
+        let mut unused_generic_param_constraint = TableData::default();
+        let mut unused_impl_map = TableData::default();
+        let mut unused_manifest_resource = TableData::default();
+        let mut unused_method_impl = TableData::default();
+        let mut unused_method_semantics = TableData::default();
+        let mut unused_method_spec = TableData::default();
+        let mut unused_module = TableData::default();
+        let mut unused_module_ref = TableData::default();
+        let mut unused_nested_class = TableData::default();
+        let mut unused_property = TableData::default();
+        let mut unused_property_map = TableData::default();
+        let mut unused_standalone_sig = TableData::default();
+
         for i in 0..64 {
             if (valid_bits >> i & 1) == 0 {
                 continue;
@@ -357,7 +359,7 @@ impl File {
             let row_count = *db.bytes.view_as::<u32>(view)?;
             view = view + 4;
             match i {
-                0x00 => db.module.row_count = row_count,
+                0x00 => unused_module.row_count = row_count,
                 0x01 => db.type_ref.row_count = row_count,
                 0x02 => db.type_def.row_count = row_count,
                 0x04 => db.field.row_count = row_count,
@@ -367,92 +369,91 @@ impl File {
                 0x0a => db.member_ref.row_count = row_count,
                 0x0b => db.constant.row_count = row_count,
                 0x0c => db.custom_attribute.row_count = row_count,
-                0x0d => db.field_marshal.row_count = row_count,
-                0x0e => db.decl_security.row_count = row_count,
-                0x0f => db.class_layout.row_count = row_count,
-                0x10 => db.field_layout.row_count = row_count,
-                0x11 => db.standalone_sig.row_count = row_count,
-                0x12 => db.event_map.row_count = row_count,
-                0x14 => db.event.row_count = row_count,
-                0x15 => db.property_map.row_count = row_count,
-                0x17 => db.property.row_count = row_count,
-                0x18 => db.method_semantics.row_count = row_count,
-                0x19 => db.method_impl.row_count = row_count,
-                0x1a => db.module_ref.row_count = row_count,
+                0x0d => unused_field_marshal.row_count = row_count,
+                0x0e => unused_decl_security.row_count = row_count,
+                0x0f => unused_class_layout.row_count = row_count,
+                0x10 => unused_field_layout.row_count = row_count,
+                0x11 => unused_standalone_sig.row_count = row_count,
+                0x12 => unused_event_map.row_count = row_count,
+                0x14 => unused_event.row_count = row_count,
+                0x15 => unused_property_map.row_count = row_count,
+                0x17 => unused_property.row_count = row_count,
+                0x18 => unused_method_semantics.row_count = row_count,
+                0x19 => unused_method_impl.row_count = row_count,
+                0x1a => unused_module_ref.row_count = row_count,
                 0x1b => db.type_spec.row_count = row_count,
-                0x1c => db.impl_map.row_count = row_count,
-                0x1d => db.field_rva.row_count = row_count,
-                0x20 => db.assembly.row_count = row_count,
-                0x21 => db.assembly_processor.row_count = row_count,
-                0x22 => db.assembly_os.row_count = row_count,
-                0x23 => db.assembly_ref.row_count = row_count,
-                0x24 => db.assembly_ref_processor.row_count = row_count,
-                0x25 => db.assembly_ref_os.row_count = row_count,
-                0x26 => db.file.row_count = row_count,
-                0x27 => db.exported_type.row_count = row_count,
-                0x28 => db.manifest_resource.row_count = row_count,
-                0x29 => db.nested_class.row_count = row_count,
+                0x1c => unused_impl_map.row_count = row_count,
+                0x1d => unused_field_rva.row_count = row_count,
+                0x20 => unused_assembly.row_count = row_count,
+                0x21 => unused_assembly_processor.row_count = row_count,
+                0x22 => unused_assembly_os.row_count = row_count,
+                0x23 => unused_assembly_ref.row_count = row_count,
+                0x24 => unused_assembly_ref_processor.row_count = row_count,
+                0x25 => unused_assembly_ref_os.row_count = row_count,
+                0x26 => unused_file.row_count = row_count,
+                0x27 => unused_exported_type.row_count = row_count,
+                0x28 => unused_manifest_resource.row_count = row_count,
+                0x29 => unused_nested_class.row_count = row_count,
                 0x2a => db.generic_param.row_count = row_count,
-                0x2b => db.method_spec.row_count = row_count,
-                0x2c => db.generic_param_constraint.row_count = row_count,
+                0x2b => unused_method_spec.row_count = row_count,
+                0x2c => unused_generic_param_constraint.row_count = row_count,
                 _ => return Err(ParseError::InvalidData("Unknown metadata table")),
             };
         }
         let empty_table = TableData::default();
-        let has_constant = composite_index_size(&[&db.field, &db.param, &db.property]);
+        let has_constant = composite_index_size(&[&db.field, &db.param, &unused_property]);
         let type_def_or_ref = composite_index_size(&[&db.type_def, &db.type_ref, &db.type_spec]);
-        let has_custom_attribute = composite_index_size(&[&db.method_def, &db.field, &db.type_ref, &db.type_def, &db.param, &db.interface_impl, &db.member_ref, &db.module, &db.property, &db.event, &db.standalone_sig, &db.module_ref, &db.type_spec, &db.assembly, &db.assembly_ref, &db.file, &db.exported_type, &db.manifest_resource, &db.generic_param, &db.generic_param_constraint, &db.method_spec]);
+        let has_custom_attribute = composite_index_size(&[&db.method_def, &db.field, &db.type_ref, &db.type_def, &db.param, &db.interface_impl, &db.member_ref, &unused_module, &unused_property, &unused_event, &unused_standalone_sig, &unused_module_ref, &db.type_spec, &unused_assembly, &unused_assembly_ref, &unused_file, &unused_exported_type, &unused_manifest_resource, &db.generic_param, &unused_generic_param_constraint, &unused_method_spec]);
         let has_field_marshal = composite_index_size(&[&db.field, &db.param]);
-        let has_decl_security = composite_index_size(&[&db.type_def, &db.method_def, &db.assembly]);
-        let member_ref_parent = composite_index_size(&[&db.type_def, &db.type_ref, &db.module_ref, &db.method_def, &db.type_spec]);
-        let has_semantics = composite_index_size(&[&db.event, &db.property]);
+        let has_decl_security = composite_index_size(&[&db.type_def, &db.method_def, &unused_assembly]);
+        let member_ref_parent = composite_index_size(&[&db.type_def, &db.type_ref, &unused_module_ref, &db.method_def, &db.type_spec]);
+        let has_semantics = composite_index_size(&[&unused_event, &unused_property]);
         let method_def_or_ref = composite_index_size(&[&db.method_def, &db.member_ref]);
         let member_forwarded = composite_index_size(&[&db.field, &db.method_def]);
-        let implementation = composite_index_size(&[&db.file, &db.assembly_ref, &db.exported_type]);
+        let implementation = composite_index_size(&[&unused_file, &unused_assembly_ref, &unused_exported_type]);
         let custom_attribute_type = composite_index_size(&[&db.method_def, &db.member_ref, &empty_table, &empty_table, &empty_table]);
-        let resolution_scope = composite_index_size(&[&db.module, &db.module_ref, &db.assembly_ref, &db.type_ref]);
+        let resolution_scope = composite_index_size(&[&unused_module, &unused_module_ref, &unused_assembly_ref, &db.type_ref]);
         let type_or_method_def = composite_index_size(&[&db.type_def, &db.method_def]);
 
-        db.assembly.set_columns(4, 8, 4, blob_index_size, string_index_size, string_index_size);
-        db.assembly_os.set_columns(4, 4, 4, 0, 0, 0);
-        db.assembly_processor.set_columns(4, 0, 0, 0, 0, 0);
-        db.assembly_ref.set_columns(8, 4, blob_index_size, string_index_size, string_index_size, blob_index_size);
-        db.assembly_ref_os.set_columns(4, 4, 4, db.assembly_ref.index_size(), 0, 0);
-        db.assembly_ref_processor.set_columns(4, db.assembly_ref.index_size(), 0, 0, 0, 0);
-        db.class_layout.set_columns(2, 4, db.type_def.index_size(), 0, 0, 0);
+        unused_assembly_os.set_columns(4, 4, 4, 0, 0, 0);
+        unused_assembly_processor.set_columns(4, 0, 0, 0, 0, 0);
+        unused_assembly_ref.set_columns(8, 4, blob_index_size, string_index_size, string_index_size, blob_index_size);
+        unused_assembly_ref_os.set_columns(4, 4, 4, unused_assembly_ref.index_size(), 0, 0);
+        unused_assembly_ref_processor.set_columns(4, unused_assembly_ref.index_size(), 0, 0, 0, 0);
+        unused_class_layout.set_columns(2, 4, db.type_def.index_size(), 0, 0, 0);
         db.constant.set_columns(2, has_constant, blob_index_size, 0, 0, 0);
         db.custom_attribute.set_columns(has_custom_attribute, custom_attribute_type, blob_index_size, 0, 0, 0);
-        db.decl_security.set_columns(2, has_decl_security, blob_index_size, 0, 0, 0);
-        db.event_map.set_columns(db.type_def.index_size(), db.event.index_size(), 0, 0, 0, 0);
-        db.event.set_columns(2, string_index_size, type_def_or_ref, 0, 0, 0);
-        db.exported_type.set_columns(4, 4, string_index_size, string_index_size, implementation, 0);
+        unused_decl_security.set_columns(2, has_decl_security, blob_index_size, 0, 0, 0);
+        unused_event_map.set_columns(db.type_def.index_size(), unused_event.index_size(), 0, 0, 0, 0);
+        unused_event.set_columns(2, string_index_size, type_def_or_ref, 0, 0, 0);
+        unused_exported_type.set_columns(4, 4, string_index_size, string_index_size, implementation, 0);
         db.field.set_columns(2, string_index_size, blob_index_size, 0, 0, 0);
-        db.field_layout.set_columns(4, db.field.index_size(), 0, 0, 0, 0);
-        db.field_marshal.set_columns(has_field_marshal, blob_index_size, 0, 0, 0, 0);
-        db.field_rva.set_columns(4, db.field.index_size(), 0, 0, 0, 0);
-        db.file.set_columns(4, string_index_size, blob_index_size, 0, 0, 0);
+        unused_field_layout.set_columns(4, db.field.index_size(), 0, 0, 0, 0);
+        unused_field_marshal.set_columns(has_field_marshal, blob_index_size, 0, 0, 0, 0);
+        unused_field_rva.set_columns(4, db.field.index_size(), 0, 0, 0, 0);
+        unused_file.set_columns(4, string_index_size, blob_index_size, 0, 0, 0);
         db.generic_param.set_columns(2, 2, type_or_method_def, string_index_size, 0, 0);
-        db.generic_param_constraint.set_columns(db.generic_param.index_size(), type_def_or_ref, 0, 0, 0, 0);
-        db.impl_map.set_columns(2, member_forwarded, string_index_size, db.module_ref.index_size(), 0, 0);
+        unused_generic_param_constraint.set_columns(db.generic_param.index_size(), type_def_or_ref, 0, 0, 0, 0);
+        unused_impl_map.set_columns(2, member_forwarded, string_index_size, unused_module_ref.index_size(), 0, 0);
         db.interface_impl.set_columns(db.type_def.index_size(), type_def_or_ref, 0, 0, 0, 0);
-        db.manifest_resource.set_columns(4, 4, string_index_size, implementation, 0, 0);
+        unused_manifest_resource.set_columns(4, 4, string_index_size, implementation, 0, 0);
         db.member_ref.set_columns(member_ref_parent, string_index_size, blob_index_size, 0, 0, 0);
         db.method_def.set_columns(4, 2, 2, string_index_size, blob_index_size, db.param.index_size());
-        db.method_impl.set_columns(db.type_def.index_size(), method_def_or_ref, method_def_or_ref, 0, 0, 0);
-        db.method_semantics.set_columns(2, db.method_def.index_size(), has_semantics, 0, 0, 0);
-        db.method_spec.set_columns(method_def_or_ref, blob_index_size, 0, 0, 0, 0);
-        db.module.set_columns(2, string_index_size, guid_index_size, guid_index_size, guid_index_size, 0);
-        db.module_ref.set_columns(string_index_size, 0, 0, 0, 0, 0);
-        db.nested_class.set_columns(db.type_def.index_size(), db.type_def.index_size(), 0, 0, 0, 0);
+        unused_method_impl.set_columns(db.type_def.index_size(), method_def_or_ref, method_def_or_ref, 0, 0, 0);
+        unused_method_semantics.set_columns(2, db.method_def.index_size(), has_semantics, 0, 0, 0);
+        unused_method_spec.set_columns(method_def_or_ref, blob_index_size, 0, 0, 0, 0);
+        unused_module.set_columns(2, string_index_size, guid_index_size, guid_index_size, guid_index_size, 0);
+        unused_module_ref.set_columns(string_index_size, 0, 0, 0, 0, 0);
+        unused_nested_class.set_columns(db.type_def.index_size(), db.type_def.index_size(), 0, 0, 0, 0);
         db.param.set_columns(2, 2, string_index_size, 0, 0, 0);
-        db.property.set_columns(2, string_index_size, blob_index_size, 0, 0, 0);
-        db.property_map.set_columns(db.type_def.index_size(), db.property.index_size(), 0, 0, 0, 0);
-        db.standalone_sig.set_columns(blob_index_size, 0, 0, 0, 0, 0);
+        unused_property.set_columns(2, string_index_size, blob_index_size, 0, 0, 0);
+        unused_property_map.set_columns(db.type_def.index_size(), unused_property.index_size(), 0, 0, 0, 0);
+        unused_standalone_sig.set_columns(blob_index_size, 0, 0, 0, 0, 0);
         db.type_def.set_columns(4, string_index_size, string_index_size, type_def_or_ref, db.field.index_size(), db.method_def.index_size());
         db.type_ref.set_columns(resolution_scope, string_index_size, string_index_size, 0, 0, 0);
         db.type_spec.set_columns(blob_index_size, 0, 0, 0, 0, 0);
 
-        db.module.set_data(&mut view);
+        unused_module.set_data(&mut view);
         db.type_ref.set_data(&mut view);
         db.type_def.set_data(&mut view);
         db.field.set_data(&mut view);
@@ -462,34 +463,34 @@ impl File {
         db.member_ref.set_data(&mut view);
         db.constant.set_data(&mut view);
         db.custom_attribute.set_data(&mut view);
-        db.field_marshal.set_data(&mut view);
-        db.decl_security.set_data(&mut view);
-        db.class_layout.set_data(&mut view);
-        db.field_layout.set_data(&mut view);
-        db.standalone_sig.set_data(&mut view);
-        db.event_map.set_data(&mut view);
-        db.event.set_data(&mut view);
-        db.property_map.set_data(&mut view);
-        db.property.set_data(&mut view);
-        db.method_semantics.set_data(&mut view);
-        db.method_impl.set_data(&mut view);
-        db.module_ref.set_data(&mut view);
+        unused_field_marshal.set_data(&mut view);
+        unused_decl_security.set_data(&mut view);
+        unused_class_layout.set_data(&mut view);
+        unused_field_layout.set_data(&mut view);
+        unused_standalone_sig.set_data(&mut view);
+        unused_event_map.set_data(&mut view);
+        unused_event.set_data(&mut view);
+        unused_property_map.set_data(&mut view);
+        unused_property.set_data(&mut view);
+        unused_method_semantics.set_data(&mut view);
+        unused_method_impl.set_data(&mut view);
+        unused_module_ref.set_data(&mut view);
         db.type_spec.set_data(&mut view);
-        db.impl_map.set_data(&mut view);
-        db.field_rva.set_data(&mut view);
-        db.assembly.set_data(&mut view);
-        db.assembly_processor.set_data(&mut view);
-        db.assembly_os.set_data(&mut view);
-        db.assembly_ref.set_data(&mut view);
-        db.assembly_ref_processor.set_data(&mut view);
-        db.assembly_ref_os.set_data(&mut view);
-        db.file.set_data(&mut view);
-        db.exported_type.set_data(&mut view);
-        db.manifest_resource.set_data(&mut view);
-        db.nested_class.set_data(&mut view);
+        unused_impl_map.set_data(&mut view);
+        unused_field_rva.set_data(&mut view);
+        unused_assembly.set_data(&mut view);
+        unused_assembly_processor.set_data(&mut view);
+        unused_assembly_os.set_data(&mut view);
+        unused_assembly_ref.set_data(&mut view);
+        unused_assembly_ref_processor.set_data(&mut view);
+        unused_assembly_ref_os.set_data(&mut view);
+        unused_file.set_data(&mut view);
+        unused_exported_type.set_data(&mut view);
+        unused_manifest_resource.set_data(&mut view);
+        unused_nested_class.set_data(&mut view);
         db.generic_param.set_data(&mut view);
-        db.method_spec.set_data(&mut view);
-        db.generic_param_constraint.set_data(&mut view);
+        unused_method_spec.set_data(&mut view);
+        unused_generic_param_constraint.set_data(&mut view);
 
         Ok(db)
     }
