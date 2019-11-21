@@ -1,6 +1,6 @@
 mod codes;
-mod file;
 mod error;
+mod file;
 mod flags;
 mod reader;
 mod signatures;

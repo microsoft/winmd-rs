@@ -1,5 +1,5 @@
-use crate::file::*;
 use crate::error::*;
+use crate::file::*;
 use crate::tables::*;
 use winmd_macros::*;
 
@@ -55,27 +55,15 @@ pub enum HasCustomAttribute {
     Param,
     InterfaceImpl,
     MemberRef,
-    unused,
-    unused,
-    unused,
-    unused,
-    unused,
-    unused,
-    TypeSpec,
-    unused,
-    unused,
-    unused,
-    unused,
-    unused,
-    GenericParam,
+    TypeSpec = 13,
+    GenericParam = 19,
 }
 
 #[type_code(3)]
 pub enum MemberRefParent {
     TypeDef,
     TypeRef,
-    unused,
-    MethodDef,
+    MethodDef = 3,
     TypeSpec,
 }
 
@@ -87,8 +75,6 @@ pub enum HasConstant {
 
 #[type_code(3)]
 pub enum CustomAttributeType {
-    unused,
-    unused,
-    MethodDef,
+    MethodDef = 2,
     MemberRef,
 }

@@ -15,7 +15,6 @@ const SYSTEM32: &str = "System32";
 #[cfg(target_pointer_width = "32")]
 const SYSTEM32: &str = "SysNative";
 
-
 #[test]
 fn attributes() -> Result<(), winmd::Error> {
     let reader = test_reader()?;
@@ -40,7 +39,6 @@ fn attributes() -> Result<(), winmd::Error> {
 
     assert!(args[3].0 == "T");
     assert!(args[3].1 == winmd::ArgumentSig::String("Test.TypeStruct"));
-
 
     Ok(())
 }

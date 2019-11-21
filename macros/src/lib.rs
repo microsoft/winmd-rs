@@ -19,27 +19,34 @@ pub fn type_code(args: TokenStream, input: TokenStream) -> TokenStream {
     let mut variants = Vec::new();
     let mut decodes = Vec::new();
     let mut encodes = Vec::new();
+    let mut index = 0;
 
-    for (index, variant) in input.variants.iter().enumerate() {
+    for variant in input.variants.iter() {
         let camel = &variant.ident;
         let camel_name = camel.to_string();
-
-        if camel_name != "unused" {
-            let snake = syn::Ident::new(&to_snake(&camel_name), camel.span());
-            let index = index as u32;
-
-            variants.push(quote!(
-                #camel(#camel<'a>),
-            ));
-
-            decodes.push(quote!(
-                #index => Self::#camel(db.#snake().row(code.1)),
-            ));
-
-            encodes.push(quote!(
-                Self::#camel(value) => encode(#bits, #index, value.row.index),
-            ));
+        if let Some((_, value)) = &variant.discriminant {
+            if let syn::Expr::Lit(value) = value {
+                if let syn::Lit::Int(value) = &value.lit {
+                    index = value.base10_parse::<u32>().unwrap();
+                }
+            }
         }
+
+        let snake = syn::Ident::new(&to_snake(&camel_name), camel.span());
+
+        variants.push(quote!(
+            #camel(#camel<'a>),
+        ));
+
+        decodes.push(quote!(
+            #index => Self::#camel(db.#snake().row(code.1)),
+        ));
+
+        encodes.push(quote!(
+            Self::#camel(value) => encode(#bits, #index, value.row.index),
+        ));
+
+        index += 1;
     }
 
     let variants = TokenStream2::from_iter(variants);

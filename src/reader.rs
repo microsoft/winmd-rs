@@ -1,5 +1,5 @@
-use crate::file::*;
 use crate::error::*;
+use crate::file::*;
 use crate::tables::*;
 
 pub struct NamespaceIterator<'a> {

@@ -2,8 +2,8 @@
 #![allow(dead_code)]
 
 use crate::codes::*;
-use crate::file::*;
 use crate::error::*;
+use crate::file::*;
 use crate::tables::*;
 use std::convert::*;
 use std::vec::*;
@@ -109,7 +109,9 @@ pub(crate) fn constructor_sig<'a>(db: &'a File, mut bytes: &[u8]) -> ParseResult
     let param_count = read_unsigned(&mut bytes)?;
     ModifierSig::vec(db, &mut bytes)?;
     read_expected(&mut bytes, 0x10)?;
-    if !read_expected(&mut bytes, 0x01)? { TypeSig::new(db, &mut bytes)?; };
+    if !read_expected(&mut bytes, 0x01)? {
+        TypeSig::new(db, &mut bytes)?;
+    };
     let mut params = Vec::with_capacity(param_count as usize);
     for _ in 0..param_count {
         params.push(ParamSig::new(db, &mut bytes)?);
@@ -157,46 +159,49 @@ impl<'a> std::fmt::UpperHex for ArgumentSig<'a> {
 }
 
 impl<'a> ArgumentSig<'a> {
-    pub(crate) fn new(db: &'a File, signature_bytes: &[u8], mut data_bytes: &'a [u8]) -> ParseResult<Vec<(&'a str,ArgumentSig<'a>)>> {
+    pub(crate) fn new(db: &'a File, signature_bytes: &[u8], mut data_bytes: &'a [u8]) -> ParseResult<Vec<(&'a str, ArgumentSig<'a>)>> {
         let params = constructor_sig(db, signature_bytes)?;
         read_u16(&mut data_bytes);
         let mut args = Vec::with_capacity(params.len());
 
         for param in params {
-            args.push(("",match param.sig_type.sig_type {
-                TypeSigType::ElementType(value) => {
-                    match value {
-                        //ElementType::Bool =>
-                        // ElementType::Char,
-                        ElementType::I8 => ArgumentSig::I8(read_i8(&mut data_bytes)),
-                        ElementType::U8 => ArgumentSig::U8(read_u8(&mut data_bytes)),
-                        ElementType::I16 => ArgumentSig::I16(read_i16(&mut data_bytes)),
-                        ElementType::U16 => ArgumentSig::U16(read_u16(&mut data_bytes)),
-                        ElementType::I32 => ArgumentSig::I32(read_i32(&mut data_bytes)),
-                        ElementType::U32 => ArgumentSig::U32(read_u32(&mut data_bytes)),
-                        ElementType::I64 => ArgumentSig::I64(read_i64(&mut data_bytes)),
-                        ElementType::U64 => ArgumentSig::U64(read_u64(&mut data_bytes)),
-                        // ElementType::F32,
-                        // ElementType::F64,
-                        // ElementType::String,
-                        _ => return Err(unsupported_blob()),
+            args.push((
+                "",
+                match param.sig_type.sig_type {
+                    TypeSigType::ElementType(value) => {
+                        match value {
+                            //ElementType::Bool =>
+                            // ElementType::Char,
+                            ElementType::I8 => ArgumentSig::I8(read_i8(&mut data_bytes)),
+                            ElementType::U8 => ArgumentSig::U8(read_u8(&mut data_bytes)),
+                            ElementType::I16 => ArgumentSig::I16(read_i16(&mut data_bytes)),
+                            ElementType::U16 => ArgumentSig::U16(read_u16(&mut data_bytes)),
+                            ElementType::I32 => ArgumentSig::I32(read_i32(&mut data_bytes)),
+                            ElementType::U32 => ArgumentSig::U32(read_u32(&mut data_bytes)),
+                            ElementType::I64 => ArgumentSig::I64(read_i64(&mut data_bytes)),
+                            ElementType::U64 => ArgumentSig::U64(read_u64(&mut data_bytes)),
+                            // ElementType::F32,
+                            // ElementType::F64,
+                            // ElementType::String,
+                            _ => return Err(unsupported_blob()),
+                        }
                     }
-                }
-                // TypeSigType::TypeDefOrRef(value) => {
+                    // TypeSigType::TypeDefOrRef(value) => {
 
-                // }
-                _ => return Err(unsupported_blob()),
-            }));
+                    // }
+                    _ => return Err(unsupported_blob()),
+                },
+            ));
         }
 
         let named_args = read_u16(&mut data_bytes);
 
-        for _ in 0..named_args{
+        for _ in 0..named_args {
             read_u8(&mut data_bytes);
             let arg_type = read_u8(&mut data_bytes);
 
-            args.push(match arg_type{
-                0x50 => (read_string(&mut data_bytes),ArgumentSig::String(read_string(&mut data_bytes))),
+            args.push(match arg_type {
+                0x50 => (read_string(&mut data_bytes), ArgumentSig::String(read_string(&mut data_bytes))),
                 // 0x55 => { // Enum
 
                 // },
@@ -313,7 +318,7 @@ fn read_expected(bytes: &mut &[u8], expected: u32) -> ParseResult<bool> {
     })
 }
 
-fn read_string<'a>(bytes: &mut &'a [u8]) -> &'a str{
+fn read_string<'a>(bytes: &mut &'a [u8]) -> &'a str {
     let length = read_unsigned(bytes).unwrap();
     let (string_bytes, rest) = bytes.split_at(length as usize);
     *bytes = rest;
