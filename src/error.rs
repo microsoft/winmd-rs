@@ -4,6 +4,7 @@ use std::io;
 pub enum ParseError {
     Io(io::Error),
     MissingType(String),
+    MissingAttribute,
     InvalidFile,
     InvalidTypeName,
     InvalidBlob,

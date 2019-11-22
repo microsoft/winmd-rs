@@ -223,13 +223,13 @@ impl<'a> TypeDef<'a> {
         Ok(false)
     }
 
-    pub fn find_attribute(&self, name: &str) -> ParseResult<Option<CustomAttribute<'a>>> {
+    pub fn find_attribute(&self, name: &str) -> ParseResult<CustomAttribute<'a>> {
         for attribute in self.attributes()? {
             if attribute.has_name(name)? {
-                return Ok(Some(attribute));
+                return Ok(attribute);
             }
         }
-        Ok(None)
+        Err(ParseError::MissingAttribute)
     }
 }
 

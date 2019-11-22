@@ -66,7 +66,7 @@ impl<'a> std::fmt::Display for TypeDefOrRef<'a> {
         match self {
             TypeDefOrRef::TypeDef(value) => write!(f, "{}.{}", value.namespace()?, value.name()?),
             TypeDefOrRef::TypeRef(value) => write!(f, "{}.{}", value.namespace()?, value.name()?),
-            TypeDefOrRef::TypeSpec(_) => write!(f, "TypeSpec"),
+            TypeDefOrRef::TypeSpec(_) => panic!("Cannot format a TypeSpec"),
         }
     }
 }
