@@ -1,6 +1,6 @@
 use crate::error::*;
-use crate::helpers::*;
 use crate::file::*;
+use crate::helpers::*;
 use crate::tables::*;
 
 pub struct Reader {

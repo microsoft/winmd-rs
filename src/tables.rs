@@ -1,8 +1,8 @@
 use crate::codes::*;
-use crate::helpers::*;
 use crate::error::*;
 use crate::file::*;
 use crate::flags::*;
+use crate::helpers::*;
 use crate::signatures::*;
 
 macro_rules! table {

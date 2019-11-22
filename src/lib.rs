@@ -2,10 +2,10 @@ mod codes;
 mod error;
 mod file;
 mod flags;
+mod helpers;
 mod reader;
 mod signatures;
 mod tables;
-mod helpers;
 
 pub use codes::*;
 pub use error::*;
