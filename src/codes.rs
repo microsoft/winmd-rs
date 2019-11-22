@@ -1,6 +1,5 @@
 use crate::error::*;
 use crate::file::*;
-use crate::reader::*;
 use crate::tables::*;
 use winmd_macros::*;
 

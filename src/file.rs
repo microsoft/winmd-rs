@@ -1,13 +1,12 @@
 #![allow(exceeding_bitshifts)]
 
 use crate::error::*;
-use crate::reader::*;
 use std::marker::PhantomData;
 
 macro_rules! table_fn {
     ($name:ident) => {
-        pub fn $name(&self, reader: &Reader) -> Table {
-            self.$name.table(self, reader)
+        pub fn $name(&self) -> Table {
+            self.$name.table(self)
         }
     };
 }
@@ -42,7 +41,6 @@ pub struct TableData {
 
 #[derive(Copy, Clone)]
 pub struct Table<'a> {
-    pub(crate) reader: &'a Reader,
     pub(crate) file: &'a File,
     data: &'a TableData,
 }
@@ -230,8 +228,8 @@ impl<'a> Table<'a> {
 }
 
 impl TableData {
-    pub fn table<'a>(&'a self, file: &'a File, reader: &'a Reader) -> Table<'a> {
-        Table { reader, file, data: self }
+    pub fn table<'a>(&'a self, file: &'a File) -> Table<'a> {
+        Table { file, data: self }
     }
 
     fn index_size(&self) -> u32 {
