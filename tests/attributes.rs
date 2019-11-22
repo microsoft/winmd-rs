@@ -19,7 +19,7 @@ const SYSTEM32: &str = "SysNative";
 fn attributes() -> Result<(), winmd::Error> {
     let reader = test_reader()?;
 
-    let t: winmd::TypeDef = reader.find("Test", "ITypeAttribute").unwrap();
+    let t: winmd::TypeDef = reader.find("Test.ITypeAttribute").unwrap();
 
     let attribute = t.find_attribute("Test", "TypeAttribute")?.unwrap();
     let args = attribute.arguments()?;

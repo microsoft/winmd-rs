@@ -1,7 +1,7 @@
 #[test]
 fn type_def() -> Result<(), winmd::Error> {
     let reader = winmd::Reader::from_os()?;
-    let t: winmd::TypeDef = reader.find("Windows.Foundation", "IStringable").unwrap();
+    let t: winmd::TypeDef = reader.find("Windows.Foundation.IStringable").unwrap();
 
     let flags = t.flags()?;
     assert!(flags.windows_runtime());
@@ -41,7 +41,7 @@ fn type_def() -> Result<(), winmd::Error> {
 #[test]
 fn type_ref() -> Result<(), winmd::Error> {
     let reader = winmd::Reader::from_os()?;
-    let t = reader.find("Windows.Foundation", "AsyncStatus").unwrap();
+    let t = reader.find("Windows.Foundation.AsyncStatus").unwrap();
 
     if let winmd::TypeDefOrRef::TypeRef(value) = t.extends()? {
         let t: winmd::TypeRef = value;
