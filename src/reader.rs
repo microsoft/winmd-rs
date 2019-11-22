@@ -73,23 +73,22 @@ impl<'a> Namespace<'a> {
 
 impl<'a> Reader {
     pub fn from_files<P: AsRef<std::path::Path>>(filenames: &[P]) -> Result<Self, Error> {
-        let mut files = std::vec::Vec::with_capacity(filenames.len());
-        let mut namespaces = std::collections::BTreeMap::<String, NamespaceData>::new();
+        let mut reader = Reader{ files: std::vec::Vec::with_capacity(filenames.len()), namespaces: std::collections::BTreeMap::new() };
 
         for filename in filenames {
             let file = File::new(filename)?;
             for t in file.type_def().iter::<TypeDef>() {
                 if t.flags()?.windows_runtime() {
-                    let types = namespaces.entry(t.namespace()?.to_string()).or_insert_with(|| Default::default());
-                    types.index.entry(t.name()?.to_string()).or_insert((files.len() as u32, t.row.index));
+                    let types = reader.namespaces.entry(t.namespace()?.to_string()).or_insert_with(|| Default::default());
+                    types.index.entry(t.name()?.to_string()).or_insert((reader.files.len() as u32, t.row.index));
                 }
             }
-            files.push(file);
+            reader.files.push(file);
         }
 
-        for (_, types) in &mut namespaces {
+        for (_, types) in &mut reader.namespaces {
             for (_, index) in &types.index {
-                let t = TypeDef::new(&files[index.0 as usize].type_def(), index.1);
+                let t = TypeDef::new(&reader.files[index.0 as usize].type_def(), index.1);
                 if t.flags()?.interface() {
                     types.interfaces.push(*index);
                 } else {
@@ -108,7 +107,7 @@ impl<'a> Reader {
             }
         }
 
-        Ok(Self { files, namespaces })
+        Ok(reader)
     }
 
     pub fn from_dir<P: AsRef<std::path::Path>>(directory: P) -> Result<Self, Error> {
