@@ -239,13 +239,13 @@ impl<'a> ArgumentSig<'a> {
             let arg_type = read_u8(&mut data_bytes);
 
             args.push(match arg_type {
+                2 => (read_string(&mut data_bytes), ArgumentSig::Bool(read_u8(&mut data_bytes) != 0)),
+                8 => (read_string(&mut data_bytes), ArgumentSig::I32(read_i32(&mut data_bytes))),
+                14 => (read_string(&mut data_bytes), ArgumentSig::String(read_string(&mut data_bytes))),
                 0x50 => (read_string(&mut data_bytes), ArgumentSig::Type(table.reader.find(read_string(&mut data_bytes))?)),
                 // 0x55 => { // Enum
 
                 // },
-                2 => (read_string(&mut data_bytes), ArgumentSig::Bool(read_u8(&mut data_bytes) != 0)),
-                8 => (read_string(&mut data_bytes), ArgumentSig::I32(read_i32(&mut data_bytes))),
-                14 => (read_string(&mut data_bytes), ArgumentSig::String(read_string(&mut data_bytes))),
                 _ => return Err(ParseError::InvalidBlob),
             });
         }
