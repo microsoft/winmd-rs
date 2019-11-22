@@ -4,7 +4,7 @@ use crate::file::*;
 use crate::flags::*;
 use crate::signatures::*;
 
-macro_rules! row {
+macro_rules! table {
     ($name:ident) => {
         #[derive(Copy, Clone)]
         pub struct $name<'a> {
@@ -23,17 +23,17 @@ macro_rules! row {
     };
 }
 
-row!(Constant);
-row!(CustomAttribute);
-row!(Field);
-row!(GenericParam);
-row!(InterfaceImpl);
-row!(MemberRef);
-row!(MethodDef);
-row!(Param);
-row!(TypeDef);
-row!(TypeRef);
-row!(TypeSpec);
+table!(Constant);
+table!(CustomAttribute);
+table!(Field);
+table!(GenericParam);
+table!(InterfaceImpl);
+table!(MemberRef);
+table!(MethodDef);
+table!(Param);
+table!(TypeDef);
+table!(TypeRef);
+table!(TypeSpec);
 
 pub enum ConstantValue {
     I32(i32),
