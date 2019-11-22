@@ -244,7 +244,8 @@ impl<'a> ArgumentSig<'a> {
                 14 => (read_string(&mut data_bytes), ArgumentSig::String(read_string(&mut data_bytes))),
                 0x50 => (read_string(&mut data_bytes), ArgumentSig::Type(table.reader.find(read_string(&mut data_bytes))?)),
                 // 0x55 => { // Enum
-
+                //     let enum_type = table.reader.find(read_string(&mut data_bytes))?;
+                //     let name = read_string(&mut data_bytes);
                 // },
                 _ => return Err(ParseError::InvalidBlob),
             });
