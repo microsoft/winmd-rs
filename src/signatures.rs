@@ -13,6 +13,71 @@ pub struct GenericSig<'a> {
     args: Vec<TypeSig<'a>>,
 }
 
+pub struct ModifierSig<'a> {
+    sig_type: TypeDefOrRef<'a>,
+}
+
+pub struct MethodSig<'a> {
+    return_type: Option<TypeSig<'a>>,
+    params: Vec<(Param<'a>, ParamSig<'a>)>,
+}
+
+pub struct ParamSig<'a> {
+    modifiers: Vec<ModifierSig<'a>>,
+    by_ref: bool,
+    sig_type: TypeSig<'a>,
+}
+
+pub struct TypeSig<'a> {
+    array: bool,
+    modifiers: Vec<ModifierSig<'a>>,
+    sig_type: TypeSigType<'a>,
+}
+
+#[derive(PartialEq)]
+pub enum ArgumentSig<'a> {
+    Bool(bool),
+    Char(char),
+    I8(i8),
+    U8(u8),
+    I16(i16),
+    U16(u16),
+    I32(i32),
+    U32(u32),
+    I64(i64),
+    U64(u64),
+    F32(f32),
+    F64(f64),
+    String(&'a str),
+    Type(TypeDef<'a>),
+}
+
+pub enum TypeSigType<'a> {
+    ElementType(ElementType),
+    TypeDefOrRef(TypeDefOrRef<'a>),
+    GenericSig(GenericSig<'a>),
+    GenericTypeIndex(u32),
+    GenericMethodIndex(u32),
+}
+
+#[derive(PartialEq)]
+pub enum ElementType {
+    Bool,
+    Char,
+    I8,
+    U8,
+    I16,
+    U16,
+    I32,
+    U32,
+    I64,
+    U64,
+    F32,
+    F64,
+    String,
+    Object,
+}
+
 impl<'a> GenericSig<'a> {
     fn new(file: &'a File, bytes: &mut &[u8]) -> ParseResult<GenericSig<'a>> {
         read_unsigned(bytes)?;
@@ -42,10 +107,6 @@ impl<'a> std::fmt::Display for GenericSig<'a> {
     }
 }
 
-pub struct ModifierSig<'a> {
-    sig_type: TypeDefOrRef<'a>,
-}
-
 impl<'a> ModifierSig<'a> {
     fn new(file: &'a File, bytes: &mut &[u8]) -> ParseResult<ModifierSig<'a>> {
         read_unsigned(bytes)?;
@@ -65,11 +126,6 @@ impl<'a> ModifierSig<'a> {
         }
         Ok(modifiers)
     }
-}
-
-pub struct MethodSig<'a> {
-    return_type: Option<TypeSig<'a>>,
-    params: Vec<(Param<'a>, ParamSig<'a>)>,
 }
 
 impl<'a> MethodSig<'a> {
@@ -117,24 +173,6 @@ pub(crate) fn constructor_sig<'a>(file: &'a File, mut bytes: &[u8]) -> ParseResu
         params.push(ParamSig::new(file, &mut bytes)?);
     }
     Ok(params)
-}
-
-#[derive(PartialEq)]
-pub enum ArgumentSig<'a> {
-    Bool(bool),
-    Char(char),
-    I8(i8),
-    U8(u8),
-    I16(i16),
-    U16(u16),
-    I32(i32),
-    U32(u32),
-    I64(i64),
-    U64(u64),
-    F32(f32),
-    F64(f64),
-    String(&'a str),
-    Type(TypeDef<'a>),
 }
 
 impl<'a> std::fmt::UpperHex for ArgumentSig<'a> {
@@ -216,12 +254,6 @@ impl<'a> ArgumentSig<'a> {
     }
 }
 
-pub struct ParamSig<'a> {
-    modifiers: Vec<ModifierSig<'a>>,
-    by_ref: bool,
-    sig_type: TypeSig<'a>,
-}
-
 impl<'a> ParamSig<'a> {
     fn new(file: &'a File, bytes: &mut &[u8]) -> ParseResult<ParamSig<'a>> {
         let modifiers = ModifierSig::vec(file, bytes)?;
@@ -233,14 +265,6 @@ impl<'a> ParamSig<'a> {
     pub fn sig_type(&self) -> &TypeSig<'a> {
         &self.sig_type
     }
-}
-
-pub enum TypeSigType<'a> {
-    ElementType(ElementType),
-    TypeDefOrRef(TypeDefOrRef<'a>),
-    GenericSig(GenericSig<'a>),
-    GenericTypeIndex(u32),
-    GenericMethodIndex(u32),
 }
 
 impl<'a> TypeSigType<'a> {
@@ -281,12 +305,6 @@ impl<'a> std::fmt::Display for TypeSigType<'a> {
             TypeSigType::GenericMethodIndex(value) => write!(f, "{}", value),
         }
     }
-}
-
-pub struct TypeSig<'a> {
-    array: bool,
-    modifiers: Vec<ModifierSig<'a>>,
-    sig_type: TypeSigType<'a>,
 }
 
 impl<'a> TypeSig<'a> {
@@ -404,24 +422,6 @@ fn read_unsigned<'a>(bytes: &mut &[u8]) -> ParseResult<u32> {
     let (value, bytes_read) = peek_unsigned(bytes)?;
     *bytes = seek(bytes, bytes_read);
     Ok(value)
-}
-
-#[derive(PartialEq)]
-pub enum ElementType {
-    Bool,
-    Char,
-    I8,
-    U8,
-    I16,
-    U16,
-    I32,
-    U32,
-    I64,
-    U64,
-    F32,
-    F64,
-    String,
-    Object,
 }
 
 impl std::fmt::Display for ElementType {

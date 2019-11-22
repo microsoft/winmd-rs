@@ -1,10 +1,18 @@
 use std::io;
 
 #[derive(Debug)]
+pub enum ParseError {
+    Io(io::Error),
+    InvalidData(&'static str),
+}
+
+#[derive(Debug)]
 pub enum Error {
     Io(io::Error),
     ParseError(ParseError),
 }
+
+pub type ParseResult<T> = Result<T, ParseError>;
 
 impl std::convert::From<io::Error> for Error {
     fn from(error: io::Error) -> Self {
@@ -16,14 +24,6 @@ impl std::convert::From<ParseError> for Error {
     fn from(error: ParseError) -> Self {
         Error::ParseError(error)
     }
-}
-
-pub type ParseResult<T> = Result<T, ParseError>;
-
-#[derive(Debug)]
-pub enum ParseError {
-    Io(io::Error),
-    InvalidData(&'static str),
 }
 
 pub(crate) fn unexpected_eof() -> ParseError {

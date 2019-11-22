@@ -11,11 +11,61 @@ macro_rules! table_fn {
     };
 }
 
+#[derive(Default)]
+pub struct File {
+    bytes: std::vec::Vec<u8>,
+    strings: u32,
+    blobs: u32,
+    guids: u32,
+
+    pub constant: TableData,
+    pub custom_attribute: TableData,
+    pub field: TableData,
+    pub generic_param: TableData,
+    pub interface_impl: TableData,
+    pub member_ref: TableData,
+    pub method_def: TableData,
+    pub param: TableData,
+    pub type_def: TableData,
+    pub type_ref: TableData,
+    pub type_spec: TableData,
+}
+
+#[derive(Default)]
+pub struct TableData {
+    data: u32,
+    row_count: u32,
+    row_size: u32,
+    columns: [(u32, u32); 6],
+}
+
+#[derive(Copy, Clone)]
+pub struct Table<'a> {
+    pub(crate) file: &'a File,
+    data: &'a TableData,
+}
+
+#[derive(Copy, Clone)]
+pub(crate) struct RowData<'a> {
+    pub(crate) table: Table<'a>,
+    pub(crate) index: u32,
+}
+
 pub struct RowIterator<'a, T: Row<'a>> {
     table: Table<'a>,
     first: u32,
     last: u32,
     phantom: PhantomData<T>,
+}
+
+pub trait Row<'a> {
+    fn new(table: &Table<'a>, index: u32) -> Self;
+    fn from_rows(table: &Table<'a>, range: (u32, u32)) -> RowIterator<'a, Self>
+    where
+        Self: Sized,
+    {
+        RowIterator::new(table, range.0, range.1)
+    }
 }
 
 impl<'a, T: Row<'a>> RowIterator<'a, T> {
@@ -33,22 +83,6 @@ impl<'a, T: Row<'a>> Iterator for RowIterator<'a, T> {
         self.first += 1;
         Some(T::new(&self.table, self.first - 1))
     }
-}
-
-pub trait Row<'a> {
-    fn new(table: &Table<'a>, index: u32) -> Self;
-    fn from_rows(table: &Table<'a>, range: (u32, u32)) -> RowIterator<'a, Self>
-    where
-        Self: Sized,
-    {
-        RowIterator::new(table, range.0, range.1)
-    }
-}
-
-#[derive(Copy, Clone)]
-pub(crate) struct RowData<'a> {
-    pub(crate) table: Table<'a>,
-    pub(crate) index: u32,
 }
 
 impl<'a> RowData<'a> {
@@ -73,12 +107,6 @@ impl<'a> RowData<'a> {
         let last = if self.index + 1 < self.table.len() { self.table.u32(self.index + 1, column)? - 1 } else { table.len() };
         Ok(RowIterator::new(table, first, last))
     }
-}
-
-#[derive(Copy, Clone)]
-pub struct Table<'a> {
-    pub(crate) file: &'a File,
-    data: &'a TableData,
 }
 
 impl<'a> Table<'a> {
@@ -199,14 +227,6 @@ impl<'a> Table<'a> {
     }
 }
 
-#[derive(Default)]
-pub struct TableData {
-    data: u32,
-    row_count: u32,
-    row_size: u32,
-    columns: [(u32, u32); 6],
-}
-
 impl TableData {
     pub fn table<'a>(&'a self, file: &'a File) -> Table<'a> {
         Table { file, data: self }
@@ -253,26 +273,6 @@ impl PartialEq for File {
     fn eq(&self, other: &Self) -> bool {
         &self.bytes as *const std::vec::Vec<u8> == &other.bytes as *const std::vec::Vec<u8>
     }
-}
-
-#[derive(Default)]
-pub struct File {
-    bytes: std::vec::Vec<u8>,
-    strings: u32,
-    blobs: u32,
-    guids: u32,
-
-    pub constant: TableData,
-    pub custom_attribute: TableData,
-    pub field: TableData,
-    pub generic_param: TableData,
-    pub interface_impl: TableData,
-    pub member_ref: TableData,
-    pub method_def: TableData,
-    pub param: TableData,
-    pub type_def: TableData,
-    pub type_ref: TableData,
-    pub type_spec: TableData,
 }
 
 impl File {

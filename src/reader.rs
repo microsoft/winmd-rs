@@ -2,17 +2,14 @@ use crate::error::*;
 use crate::file::*;
 use crate::tables::*;
 
+pub struct Reader {
+    files: std::vec::Vec<File>,
+    namespaces: std::collections::BTreeMap<String, NamespaceData>,
+}
+
 pub struct NamespaceIterator<'a> {
     reader: &'a Reader,
     iter: std::collections::btree_map::Iter<'a, String, NamespaceData>,
-}
-
-impl<'a> Iterator for NamespaceIterator<'a> {
-    type Item = Namespace<'a>;
-    fn next(&mut self) -> Option<Self::Item> {
-        let (key, value) = self.iter.next()?;
-        Some(Namespace { reader: self.reader, name: key, types: value })
-    }
 }
 
 pub struct TypeIterator<'a> {
@@ -20,12 +17,10 @@ pub struct TypeIterator<'a> {
     iter: std::slice::Iter<'a, (u32, u32)>,
 }
 
-impl<'a> Iterator for TypeIterator<'a> {
-    type Item = TypeDef<'a>;
-    fn next(&mut self) -> Option<TypeDef<'a>> {
-        let &(file, index) = self.iter.next()?;
-        Some(TypeDef::new(&self.reader.files[file as usize].type_def(), index))
-    }
+pub struct Namespace<'a> {
+    reader: &'a Reader,
+    name: &'a str,
+    types: &'a NamespaceData,
 }
 
 #[derive(Default)]
@@ -38,10 +33,20 @@ struct NamespaceData {
     delegates: std::vec::Vec<(u32, u32)>,
 }
 
-pub struct Namespace<'a> {
-    reader: &'a Reader,
-    name: &'a str,
-    types: &'a NamespaceData,
+impl<'a> Iterator for NamespaceIterator<'a> {
+    type Item = Namespace<'a>;
+    fn next(&mut self) -> Option<Self::Item> {
+        let (key, value) = self.iter.next()?;
+        Some(Namespace { reader: self.reader, name: key, types: value })
+    }
+}
+
+impl<'a> Iterator for TypeIterator<'a> {
+    type Item = TypeDef<'a>;
+    fn next(&mut self) -> Option<TypeDef<'a>> {
+        let &(file, index) = self.iter.next()?;
+        Some(TypeDef::new(&self.reader.files[file as usize].type_def(), index))
+    }
 }
 
 impl<'a> Namespace<'a> {
@@ -63,11 +68,6 @@ impl<'a> Namespace<'a> {
     pub fn delegates(&self) -> TypeIterator {
         TypeIterator { reader: self.reader, iter: self.types.delegates.iter() }
     }
-}
-
-pub struct Reader {
-    files: std::vec::Vec<File>,
-    namespaces: std::collections::BTreeMap<String, NamespaceData>,
 }
 
 impl<'a> Reader {
