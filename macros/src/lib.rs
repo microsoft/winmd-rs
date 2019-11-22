@@ -63,7 +63,7 @@ pub fn type_code(args: TokenStream, input: TokenStream) -> TokenStream {
                 let code = (code & ((1 << #bits) - 1), (code >> #bits) - 1);
                 Ok(match code.0 {
                     #decodes
-                    _ => return Err(ParseError::InvalidData("Invalid type code")),
+                    _ => return Err(ParseError::InvalidFile),
                 })
             }
             pub fn encode(&self) -> u32 {

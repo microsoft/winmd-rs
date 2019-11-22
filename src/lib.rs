@@ -5,6 +5,7 @@ mod flags;
 mod reader;
 mod signatures;
 mod tables;
+mod helpers;
 
 pub use codes::*;
 pub use error::*;

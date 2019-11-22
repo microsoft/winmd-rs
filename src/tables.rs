@@ -1,4 +1,5 @@
 use crate::codes::*;
+use crate::helpers::*;
 use crate::error::*;
 use crate::file::*;
 use crate::flags::*;
@@ -54,7 +55,7 @@ impl<'a> Constant<'a> {
         match self.row.u32(0)? {
             0x08 => Ok(ConstantValue::I32(*self.row.blob_as::<i32>(2)?)),
             0x09 => Ok(ConstantValue::U32(*self.row.blob_as::<u32>(2)?)),
-            _ => Err(ParseError::InvalidData("Unsupported constant type")),
+            _ => Err(ParseError::InvalidFile),
         }
     }
 }
@@ -75,7 +76,8 @@ impl<'a> CustomAttribute<'a> {
         })
     }
 
-    pub fn has_name(&self, namespace: &str, name: &str) -> ParseResult<bool> {
+    pub fn has_name(&self, name: &str) -> ParseResult<bool> {
+        let (namespace, name) = split_type_name(name)?;
         Ok(match self.constructor()? {
             CustomAttributeType::MethodDef(value) => {
                 let parent = value.parent()?;
@@ -212,18 +214,18 @@ impl<'a> TypeDef<'a> {
         self.row.table.file.custom_attribute().equal_range(0, HasCustomAttribute::TypeDef(*self).encode())
     }
 
-    pub fn has_attribute(&self, namespace: &str, name: &str) -> ParseResult<bool> {
+    pub fn has_attribute(&self, name: &str) -> ParseResult<bool> {
         for attribute in self.attributes()? {
-            if attribute.has_name(namespace, name)? {
+            if attribute.has_name(name)? {
                 return Ok(true);
             }
         }
         Ok(false)
     }
 
-    pub fn find_attribute(&self, namespace: &str, name: &str) -> ParseResult<Option<CustomAttribute<'a>>> {
+    pub fn find_attribute(&self, name: &str) -> ParseResult<Option<CustomAttribute<'a>>> {
         for attribute in self.attributes()? {
-            if attribute.has_name(namespace, name)? {
+            if attribute.has_name(name)? {
                 return Ok(Some(attribute));
             }
         }

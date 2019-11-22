@@ -221,13 +221,13 @@ impl<'a> ArgumentSig<'a> {
                             // ElementType::F32,
                             // ElementType::F64,
                             // ElementType::String,
-                            _ => return Err(unsupported_blob()),
+                            _ => return Err(ParseError::InvalidBlob),
                         }
                     }
                     // TypeSigType::TypeDefOrRef(value) => {
 
                     // }
-                    _ => return Err(unsupported_blob()),
+                    _ => return Err(ParseError::InvalidBlob),
                 },
             ));
         }
@@ -246,7 +246,7 @@ impl<'a> ArgumentSig<'a> {
                 2 => (read_string(&mut data_bytes), ArgumentSig::Bool(read_u8(&mut data_bytes) != 0)),
                 8 => (read_string(&mut data_bytes), ArgumentSig::I32(read_i32(&mut data_bytes))),
                 14 => (read_string(&mut data_bytes), ArgumentSig::String(read_string(&mut data_bytes))),
-                _ => return Err(unsupported_blob()),
+                _ => return Err(ParseError::InvalidBlob),
             });
         }
 
@@ -290,7 +290,7 @@ impl<'a> TypeSigType<'a> {
             0x13 => TypeSigType::GenericTypeIndex(read_unsigned(bytes)?),
             0x15 => TypeSigType::GenericSig(GenericSig::new(file, bytes)?),
             0x1e => TypeSigType::GenericMethodIndex(read_unsigned(bytes)?),
-            _ => return Err(unsupported_blob()),
+            _ => return Err(ParseError::InvalidBlob),
         })
     }
 }
@@ -397,22 +397,22 @@ fn seek(bytes: &[u8], bytes_read: usize) -> &[u8] {
 
 fn peek_unsigned<'a>(bytes: &[u8]) -> ParseResult<(u32, usize)> {
     if bytes.is_empty() {
-        return Err(unsupported_blob());
+        return Err(ParseError::InvalidBlob);
     }
     let (bytes_read, value) = if bytes[0] & 0x80 == 0 {
         (1, bytes[0] as u32)
     } else if bytes[0] & 0xC0 == 0x80 {
         if bytes.len() < 2 {
-            return Err(unsupported_blob());
+            return Err(ParseError::InvalidBlob);
         }
         (2, (((bytes[0] & 0x3F) as u32) << 8) | bytes[1] as u32)
     } else if bytes[0] & 0xE0 == 0xC0 {
         if bytes.len() < 4 {
-            return Err(unsupported_blob());
+            return Err(ParseError::InvalidBlob);
         }
         (4, (((bytes[0] & 0x1F) as u32) << 24) | (bytes[1] as u32) << 16 | (bytes[2] as u32) << 8 | bytes[3] as u32)
     } else {
-        return Err(unsupported_blob());
+        return Err(ParseError::InvalidBlob);
     };
 
     Ok((value, bytes_read))

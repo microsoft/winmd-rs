@@ -129,8 +129,8 @@ impl<'a> Table<'a> {
 
     pub fn str(&self, row: u32, column: u32) -> ParseResult<&str> {
         let offset = (self.file.strings + self.u32(row, column)?) as usize;
-        let last = self.file.bytes[offset..].iter().position(|c| *c == b'\0').ok_or_else(unexpected_eof)?;
-        std::str::from_utf8(&self.file.bytes[offset..offset + last]).map_err(|_| ParseError::InvalidData("Bytes not valid UTF-8"))
+        let last = self.file.bytes[offset..].iter().position(|c| *c == b'\0').ok_or_else(|| ParseError::InvalidFile)?;
+        std::str::from_utf8(&self.file.bytes[offset..offset + last]).map_err(|_| ParseError::InvalidFile)
     }
 
     pub fn blob(&self, row: u32, column: u32) -> ParseResult<&[u8]> {
@@ -140,7 +140,7 @@ impl<'a> Table<'a> {
             0..=3 => (initial_byte & 0x7f, 1),
             4..=5 => (initial_byte & 0x3f, 2),
             6 => (initial_byte & 0x1f, 4),
-            _ => return Err(ParseError::InvalidData("Invalid blob encoding")),
+            _ => return Err(ParseError::InvalidFile),
         };
         for byte in &self.file.bytes[offset + 1..offset + blob_size_bytes] {
             blob_size = (blob_size << 8) + byte;
@@ -176,7 +176,7 @@ impl<'a> Table<'a> {
     pub fn upper_bound<T: Row<'a>>(&self, column: u32, value: u32) -> ParseResult<T> {
         let index = self.upper_bound_of(0, self.data.row_count, column, value)?;
         if index == self.data.row_count {
-            return Err(ParseError::InvalidData("Invalid row index"));
+            return Err(ParseError::InvalidFile);
         }
         Ok(T::new(self, index))
     }
@@ -281,7 +281,7 @@ impl File {
         let dos = file.bytes.view_as::<ImageDosHeader>(0)?;
 
         if dos.signature != IMAGE_DOS_SIGNATURE {
-            return Err(ParseError::InvalidData("Invalid DOS signature"));
+            return Err(ParseError::InvalidFile);
         }
 
         let pe = file.bytes.view_as::<ImageNtHeader>(dos.lfanew as u32)?;
@@ -289,19 +289,19 @@ impl File {
         let (com_virtual_address, sections) = match pe.optional_header.magic {
             MAGIC_PE32 => (pe.optional_header.data_directory[IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR as usize].virtual_address, file.bytes.view_as_slice_of::<ImageSectionHeader>(dos.lfanew as u32 + sizeof::<ImageNtHeader>(), pe.file_header.number_of_sections as u32)?),
             MAGIC_PE32PLUS => (file.bytes.view_as::<ImageNtHeaderPlus>(dos.lfanew as u32)?.optional_header.data_directory[IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR as usize].virtual_address, file.bytes.view_as_slice_of::<ImageSectionHeader>(dos.lfanew as u32 + sizeof::<ImageNtHeaderPlus>(), pe.file_header.number_of_sections as u32)?),
-            _ => return Err(ParseError::InvalidData("Invalid optional header magic value")),
+            _ => return Err(ParseError::InvalidFile),
         };
 
         let cli = file.bytes.view_as::<ImageCorHeader>(offset_from_rva(section_from_rva(sections, com_virtual_address)?, com_virtual_address))?;
 
         if cli.cb != sizeof::<ImageCorHeader>() {
-            return Err(ParseError::InvalidData("Invalid CLI header"));
+            return Err(ParseError::InvalidFile);
         }
 
         let cli_offset = offset_from_rva(section_from_rva(sections, cli.meta_data.virtual_address)?, cli.meta_data.virtual_address);
 
         if *file.bytes.view_as::<u32>(cli_offset)? != STORAGE_MAGIC_SIG {
-            return Err(ParseError::InvalidData("CLI metadata magic signature not found"));
+            return Err(ParseError::InvalidFile);
         }
 
         let version_length = *file.bytes.view_as::<u32>(cli_offset + 12)?;
@@ -318,7 +318,7 @@ impl File {
                 b"#GUID" => file.guids = cli_offset + stream_offset,
                 b"#~" => tables_data = (cli_offset + stream_offset, stream_size),
                 b"#US" => {}
-                _ => return Err(ParseError::InvalidData("Unknown metadata stream")),
+                _ => return Err(ParseError::InvalidFile),
             }
             let mut padding = 4 - stream_name.len() % 4;
             if padding == 0 {
@@ -411,7 +411,7 @@ impl File {
                 0x2a => file.generic_param.row_count = row_count,
                 0x2b => unused_method_spec.row_count = row_count,
                 0x2c => unused_generic_param_constraint.row_count = row_count,
-                _ => return Err(ParseError::InvalidData("Unknown metadata table")),
+                _ => return Err(ParseError::InvalidFile),
             };
         }
 
@@ -521,7 +521,7 @@ impl File {
 }
 
 fn section_from_rva(sections: &[ImageSectionHeader], rva: u32) -> ParseResult<&ImageSectionHeader> {
-    sections.iter().find(|&s| rva >= s.virtual_address && rva < s.virtual_address + s.physical_address_or_virtual_size).ok_or_else(|| ParseError::InvalidData("Section containing RVA not found"))
+    sections.iter().find(|&s| rva >= s.virtual_address && rva < s.virtual_address + s.physical_address_or_virtual_size).ok_or_else(|| ParseError::InvalidFile)
 }
 
 fn offset_from_rva(section: &ImageSectionHeader, rva: u32) -> u32 {
@@ -571,21 +571,21 @@ trait View {
 impl View for [u8] {
     fn view_as<T>(&self, cli_offset: u32) -> ParseResult<&T> {
         if cli_offset + sizeof::<T>() > self.len() as u32 {
-            return Err(unexpected_eof());
+            return Err(ParseError::InvalidFile);
         }
         unsafe { Ok(&*(&self[cli_offset as usize] as *const u8 as *const T)) }
     }
 
     fn view_as_slice_of<T>(&self, cli_offset: u32, len: u32) -> ParseResult<&[T]> {
         if cli_offset + sizeof::<T>() * len > self.len() as u32 {
-            return Err(unexpected_eof());
+            return Err(ParseError::InvalidFile);
         }
         unsafe { Ok(std::slice::from_raw_parts(&self[cli_offset as usize] as *const u8 as *const T, len as usize)) }
     }
 
     fn view_as_str(&self, cli_offset: u32) -> ParseResult<&[u8]> {
-        let buffer = self.get(cli_offset as usize..).ok_or_else(unexpected_eof)?;
-        let index = buffer.iter().position(|c| *c == b'\0').ok_or_else(unexpected_eof)?;
+        let buffer = self.get(cli_offset as usize..).ok_or_else(|| ParseError::InvalidFile)?;
+        let index = buffer.iter().position(|c| *c == b'\0').ok_or_else(|| ParseError::InvalidFile)?;
         Ok(&self[cli_offset as usize..cli_offset as usize + index])
     }
 }

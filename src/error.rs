@@ -3,7 +3,10 @@ use std::io;
 #[derive(Debug)]
 pub enum ParseError {
     Io(io::Error),
-    InvalidData(&'static str),
+    MissingType(String),
+    InvalidFile,
+    InvalidTypeName,
+    InvalidBlob,
 }
 
 #[derive(Debug)]
@@ -24,14 +27,6 @@ impl std::convert::From<ParseError> for Error {
     fn from(error: ParseError) -> Self {
         Error::ParseError(error)
     }
-}
-
-pub(crate) fn unexpected_eof() -> ParseError {
-    ParseError::Io(io::Error::from(io::ErrorKind::UnexpectedEof))
-}
-
-pub(crate) fn unsupported_blob() -> ParseError {
-    ParseError::InvalidData("Unsupported blob")
 }
 
 impl std::convert::From<io::Error> for ParseError {

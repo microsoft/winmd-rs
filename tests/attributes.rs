@@ -21,7 +21,7 @@ fn attributes() -> Result<(), winmd::Error> {
 
     let t: winmd::TypeDef = reader.find("Test.ITypeAttribute").unwrap();
 
-    let attribute = t.find_attribute("Test", "TypeAttribute")?.unwrap();
+    let attribute = t.find_attribute("Test.TypeAttribute")?.unwrap();
     let args = attribute.arguments()?;
 
     println!("{}", args.len());

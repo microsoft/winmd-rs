@@ -28,9 +28,9 @@ fn type_def() -> Result<(), winmd::Error> {
         }
     }
 
-    assert!(t.has_attribute("Windows.Foundation.Metadata", "GuidAttribute")?);
+    assert!(t.has_attribute("Windows.Foundation.Metadata.GuidAttribute")?);
 
-    let attribute = t.find_attribute("Windows.Foundation.Metadata", "GuidAttribute")?.unwrap();
+    let attribute = t.find_attribute("Windows.Foundation.Metadata.GuidAttribute")?.unwrap();
     let args = attribute.arguments()?;
     let format = format!("{:X}-{:X}-{:X}-{:X}{:X}-{:X}{:X}{:X}{:X}{:X}{:X}", args[0].1, args[1].1, args[2].1, args[3].1, args[4].1, args[5].1, args[6].1, args[7].1, args[8].1, args[9].1, args[10].1,);
     assert!(format == "96369F54-8EB6-48F0-ABCE-C1B211E627C3");

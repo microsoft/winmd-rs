@@ -1,4 +1,5 @@
 use crate::error::*;
+use crate::helpers::*;
 use crate::file::*;
 use crate::tables::*;
 
@@ -97,7 +98,7 @@ impl<'a> Reader {
                         "MulticastDelegate" => types.delegates.push(*index),
                         "Attribute" => {}
                         "ValueType" => {
-                            if !t.has_attribute("Windows.Foundation.Metadata", "ApiContractAttribute")? {
+                            if !t.has_attribute("Windows.Foundation.Metadata.ApiContractAttribute")? {
                                 types.structs.push(*index);
                             }
                         }
@@ -127,11 +128,11 @@ impl<'a> Reader {
         NamespaceIterator { reader: self, iter: self.namespaces.iter() }
     }
 
-    pub fn find(&self, name: &str) -> Option<TypeDef> {
-        let index = name.rfind('.')?;
-        let types = self.namespaces.get(name.get(0..index)?)?;
-        let &(file, index) = types.index.get(name.get(index + 1..)?)?;
-        Some(TypeDef::new(&self.files[file as usize].type_def(), index))
+    pub fn find(&self, full_name: &str) -> ParseResult<TypeDef> {
+        let (namespace, name) = split_type_name(full_name)?;
+        let types = self.namespaces.get(namespace).ok_or_else(|| ParseError::MissingType(full_name.to_string()))?;
+        let &(file, index) = types.index.get(name).ok_or_else(|| ParseError::MissingType(full_name.to_string()))?;
+        Ok(TypeDef::new(&self.files[file as usize].type_def(), index))
     }
 }
 
