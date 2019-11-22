@@ -49,7 +49,7 @@ pub enum ArgumentSig<'a> {
     F32(f32),
     F64(f64),
     String(&'a str),
-    Type(&'a str),
+    Type(TypeDef<'a>),
 }
 
 pub enum TypeSigType<'a> {
@@ -191,7 +191,7 @@ impl<'a> std::fmt::UpperHex for ArgumentSig<'a> {
             ArgumentSig::F32(value) => write!(f, "{}", value),
             ArgumentSig::F64(value) => write!(f, "{}", value),
             ArgumentSig::String(value) => write!(f, "{}", value),
-            ArgumentSig::Type(value) => write!(f, "{}", value),
+            ArgumentSig::Type(value) => write!(f, "{}.{}", value.namespace()?, value.name()?),
         }
     }
 }
@@ -239,7 +239,7 @@ impl<'a> ArgumentSig<'a> {
             let arg_type = read_u8(&mut data_bytes);
 
             args.push(match arg_type {
-                0x50 => (read_string(&mut data_bytes), ArgumentSig::String(read_string(&mut data_bytes))),
+                0x50 => (read_string(&mut data_bytes), ArgumentSig::Type(table.reader.find(read_string(&mut data_bytes))?)),
                 // 0x55 => { // Enum
 
                 // },

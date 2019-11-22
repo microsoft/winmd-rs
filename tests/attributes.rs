@@ -38,7 +38,7 @@ fn attributes() -> Result<(), winmd::Error> {
     assert!(args[2].1 == winmd::ArgumentSig::String("Test"));
 
     assert!(args[3].0 == "T");
-    assert!(args[3].1 == winmd::ArgumentSig::String("Test.TypeStruct"));
+    assert!(args[3].1 == winmd::ArgumentSig::Type(reader.find("Test.TypeStruct")?));
 
     Ok(())
 }
