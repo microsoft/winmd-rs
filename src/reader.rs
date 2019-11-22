@@ -75,7 +75,7 @@ impl<'a> Reader {
     pub fn from_files<P: AsRef<std::path::Path>>(filenames: &[P]) -> Result<Self, Error> {
         let mut files = std::vec::Vec::with_capacity(filenames.len());
         let mut namespaces = std::collections::BTreeMap::<String, NamespaceData>::new();
-        let mut reader = Reader{ files: std::vec::Vec::with_capacity(filenames.len()), namespaces: std::collections::BTreeMap::new() };
+        let mut reader = Reader{ files: std::vec::Vec::new(), namespaces: std::collections::BTreeMap::new() };
 
         for filename in filenames {
             let file = File::new(filename)?;
