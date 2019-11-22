@@ -62,17 +62,17 @@ impl<'a> Constant<'a> {
 
 impl<'a> CustomAttribute<'a> {
     pub fn parent(&self) -> ParseResult<HasCustomAttribute> {
-        Ok(HasCustomAttribute::decode(&self.row.table.file, self.row.u32(0)?)?)
+        Ok(HasCustomAttribute::decode(&self.row.table, self.row.u32(0)?)?)
     }
 
     pub fn constructor(&self) -> ParseResult<CustomAttributeType> {
-        Ok(CustomAttributeType::decode(&self.row.table.file, self.row.u32(1)?)?)
+        Ok(CustomAttributeType::decode(&self.row.table, self.row.u32(1)?)?)
     }
 
     pub fn arguments(&'a self) -> ParseResult<Vec<(&'a str, ArgumentSig)>> {
         Ok(match self.constructor()? {
-            CustomAttributeType::MethodDef(value) => ArgumentSig::new(&self.row.table.file, value.row.blob(4)?, self.row.blob(2)?)?,
-            CustomAttributeType::MemberRef(value) => ArgumentSig::new(&self.row.table.file, value.row.blob(2)?, self.row.blob(2)?)?,
+            CustomAttributeType::MethodDef(value) => ArgumentSig::new(&self.row.table, value.row.blob(4)?, self.row.blob(2)?)?,
+            CustomAttributeType::MemberRef(value) => ArgumentSig::new(&self.row.table, value.row.blob(2)?, self.row.blob(2)?)?,
         })
     }
 
@@ -98,13 +98,13 @@ impl<'a> Field<'a> {
     }
 
     pub fn constants(&self) -> ParseResult<RowIterator<'a, Constant<'a>>> {
-        self.row.table.file.constant().equal_range(1, HasConstant::Field(*self).encode())
+        self.row.table.file.constant(self.row.table.reader).equal_range(1, HasConstant::Field(*self).encode())
     }
 }
 
 impl<'a> MemberRef<'a> {
     pub fn parent(&self) -> ParseResult<MemberRefParent> {
-        Ok(MemberRefParent::decode(&self.row.table.file, self.row.u32(0)?)?)
+        Ok(MemberRefParent::decode(&self.row.table, self.row.u32(0)?)?)
     }
 
     pub fn name(&self) -> ParseResult<&str> {
@@ -122,11 +122,11 @@ impl<'a> MethodDef<'a> {
     }
 
     pub(crate) fn params(&self) -> ParseResult<RowIterator<'a, Param<'a>>> {
-        self.row.list(5, &self.row.table.file.param())
+        self.row.list(5, &self.row.table.file.param(self.row.table.reader))
     }
 
     pub fn parent(&self) -> ParseResult<TypeDef> {
-        self.row.table.file.type_def().upper_bound(6, self.row.index)
+        self.row.table.file.type_def(self.row.table.reader).upper_bound(6, self.row.index)
     }
 
     pub fn signature(&self) -> ParseResult<MethodSig> {
@@ -199,19 +199,19 @@ impl<'a> TypeDef<'a> {
     }
 
     pub fn extends(&self) -> ParseResult<TypeDefOrRef> {
-        Ok(TypeDefOrRef::decode(&self.row.table.file, self.row.u32(3)?)?)
+        Ok(TypeDefOrRef::decode(&self.row.table, self.row.u32(3)?)?)
     }
 
     pub fn fields(&self) -> ParseResult<RowIterator<'a, Field<'a>>> {
-        self.row.list(4, &self.row.table.file.field())
+        self.row.list(4, &self.row.table.file.field(self.row.table.reader))
     }
 
     pub fn methods(&self) -> ParseResult<RowIterator<'a, MethodDef<'a>>> {
-        self.row.list(5, &self.row.table.file.method_def())
+        self.row.list(5, &self.row.table.file.method_def(self.row.table.reader))
     }
 
     pub fn attributes(&self) -> ParseResult<RowIterator<'a, CustomAttribute<'a>>> {
-        self.row.table.file.custom_attribute().equal_range(0, HasCustomAttribute::TypeDef(*self).encode())
+        self.row.table.file.custom_attribute(self.row.table.reader).equal_range(0, HasCustomAttribute::TypeDef(*self).encode())
     }
 
     pub fn has_attribute(&self, name: &str) -> ParseResult<bool> {
