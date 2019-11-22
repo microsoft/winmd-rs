@@ -40,7 +40,7 @@ pub fn type_code(args: TokenStream, input: TokenStream) -> TokenStream {
         ));
 
         decodes.push(quote!(
-            #enumerator => Self::#camel(file.#snake().row(code.1)),
+            #enumerator => Self::#camel(file.#snake(reader).row(code.1)),
         ));
 
         encodes.push(quote!(
@@ -59,7 +59,7 @@ pub fn type_code(args: TokenStream, input: TokenStream) -> TokenStream {
             #variants
         }
         impl<'a> #name<'a> {
-            pub(crate) fn decode(file: &'a File, code: u32) -> ParseResult<Self> {
+            pub(crate) fn decode(file: &'a File, reader: &'a Reader, code: u32) -> ParseResult<Self> {
                 let code = (code & ((1 << #bits) - 1), (code >> #bits) - 1);
                 Ok(match code.0 {
                     #decodes
