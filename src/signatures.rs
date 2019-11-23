@@ -157,6 +157,13 @@ impl<'a> MethodSig<'a> {
     }
 }
 
+pub(crate) fn field_sig<'a>(field: &'a Field<'a>) -> ParseResult<TypeSig<'a>> {
+    let mut bytes = field.row.blob(2)?;
+    read_unsigned(&mut bytes)?;
+    ModifierSig::vec(&field.row.table, &mut bytes)?;
+    TypeSig::new(&field.row.table, &mut bytes)
+}
+
 pub(crate) fn constructor_sig<'a>(table: &'a Table, mut bytes: &[u8]) -> ParseResult<Vec<ParamSig<'a>>> {
     let calling_convention = read_unsigned(&mut bytes)?;
     if calling_convention & 0x10 != 0 {
@@ -246,6 +253,7 @@ impl<'a> ArgumentSig<'a> {
                 // 0x55 => { // Enum
                 //     let enum_type = table.reader.find(read_string(&mut data_bytes))?;
                 //     let name = read_string(&mut data_bytes);
+                //     let underlying_type = enum_type.fields()?.next()?.signature()?.type();
                 // },
                 _ => return Err(ParseError::InvalidBlob),
             });

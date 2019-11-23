@@ -100,6 +100,10 @@ impl<'a> Field<'a> {
     pub fn constants(&self) -> ParseResult<RowIterator<'a, Constant<'a>>> {
         self.row.table.file.constant(self.row.table.reader).equal_range(1, HasConstant::Field(*self).encode())
     }
+
+    pub fn signature(&self) -> ParseResult<TypeSig> {
+        field_sig(self)
+    }
 }
 
 impl<'a> MemberRef<'a> {
