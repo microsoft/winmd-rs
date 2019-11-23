@@ -252,8 +252,18 @@ impl<'a> ArgumentSig<'a> {
                 0x50 => (read_string(&mut data_bytes), ArgumentSig::Type(table.reader.find(read_string(&mut data_bytes))?)),
                 // 0x55 => { // Enum
                 //     let enum_type = table.reader.find(read_string(&mut data_bytes))?;
-                //     let name = read_string(&mut data_bytes);
-                //     let underlying_type = enum_type.fields()?.next()?.signature()?.type();
+
+                //     (read_string(&mut data_bytes), match enum_type.fields()?.next()?.signature()?.sig_type()
+                //     {
+                //         TypeSigType::ElementType(value) => {
+                //             match value {
+                //                 ElementType::I32 => ArgumentSig::I32(read_i32(&mut data_bytes)),
+                //                 ElementType::U32 => ArgumentSig::I32(read_u32(&mut data_bytes)),
+                //                 _ => return Err(ParseError::InvalidBlob),
+                //             }
+                //         },
+                //         _ => return Err(ParseError::InvalidBlob),
+                //     }),
                 // },
                 _ => return Err(ParseError::InvalidBlob),
             });
