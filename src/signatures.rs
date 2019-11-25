@@ -213,19 +213,17 @@ impl<'a> ArgumentSig<'a> {
             args.push((
                 "",
                 match param.sig_type.sig_type {
-                    TypeSigType::ElementType(value) => {
-                        match value {
-                            ElementType::I8 => ArgumentSig::I8(read_i8(&mut data_bytes)),
-                            ElementType::U8 => ArgumentSig::U8(read_u8(&mut data_bytes)),
-                            ElementType::I16 => ArgumentSig::I16(read_i16(&mut data_bytes)),
-                            ElementType::U16 => ArgumentSig::U16(read_u16(&mut data_bytes)),
-                            ElementType::I32 => ArgumentSig::I32(read_i32(&mut data_bytes)),
-                            ElementType::U32 => ArgumentSig::U32(read_u32(&mut data_bytes)),
-                            ElementType::I64 => ArgumentSig::I64(read_i64(&mut data_bytes)),
-                            ElementType::U64 => ArgumentSig::U64(read_u64(&mut data_bytes)),
-                            _ => return Err(ParseError::InvalidBlob),
-                        }
-                    }
+                    TypeSigType::ElementType(value) => match value {
+                        ElementType::I8 => ArgumentSig::I8(read_i8(&mut data_bytes)),
+                        ElementType::U8 => ArgumentSig::U8(read_u8(&mut data_bytes)),
+                        ElementType::I16 => ArgumentSig::I16(read_i16(&mut data_bytes)),
+                        ElementType::U16 => ArgumentSig::U16(read_u16(&mut data_bytes)),
+                        ElementType::I32 => ArgumentSig::I32(read_i32(&mut data_bytes)),
+                        ElementType::U32 => ArgumentSig::U32(read_u32(&mut data_bytes)),
+                        ElementType::I64 => ArgumentSig::I64(read_i64(&mut data_bytes)),
+                        ElementType::U64 => ArgumentSig::U64(read_u64(&mut data_bytes)),
+                        _ => return Err(ParseError::InvalidBlob),
+                    },
                     _ => return Err(ParseError::InvalidBlob),
                 },
             ));
