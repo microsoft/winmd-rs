@@ -2,12 +2,12 @@
 
 # Rust winmd parser
 
-A parser for winmd files written in Rust.
+A winmd parser written in Rust and based on the [ECMA-335](http://www.ecma-international.org/publications/standards/Ecma-335.htm) standard.
 
-## Status
+This repo is still in early and active development. You can find more information about future plans for
+[this project here](https://kennykerr.ca/2019/11/05/rust/).
 
-This repo is still in very early and active development. You can find more information about future plans for
-this project [here](https://kennykerr.ca/2019/11/05/rust/).
+The Rust winmd parser is part of the [xlang](https://github.com/microsoft/xlang) family of projects that help developers create APIs that can run on multiple platforms and be used with a variety of languages.
 
 ## Contributing
 
