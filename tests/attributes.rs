@@ -28,20 +28,20 @@ fn attributes() -> Result<(), winmd::Error> {
 
     assert!(args.len() == 5);
 
-    assert!(args[0].0 == "B");
-    assert!(args[0].1 == winmd::ArgumentSig::Bool(true));
+    assert!(args[0].0 == "Bools");
+    assert!(args[0].1 == winmd::ArgumentSig::Bool(false));
 
-    assert!(args[1].0 == "I32");
-    assert!(args[1].1 == winmd::ArgumentSig::I32(123));
+    assert!(args[1].0 == "Integers");
+    assert!(args[1].1 == winmd::ArgumentSig::I32(321));
 
-    assert!(args[2].0 == "S");
-    assert!(args[2].1 == winmd::ArgumentSig::String("Test"));
+    assert!(args[2].0 == "Strings");
+    assert!(args[2].1 == winmd::ArgumentSig::String("Hello world"));
 
-    assert!(args[3].0 == "T");
+    assert!(args[3].0 == "Types");
     assert!(args[3].1 == winmd::ArgumentSig::Type(reader.find("Test.TypeStruct")?));
 
-    assert!(args[4].0 == "E");
-    assert!(args[4].1 == winmd::ArgumentSig::I32(2));
+    assert!(args[4].0 == "Enums");
+    assert!(args[4].1 == winmd::ArgumentSig::I32(3));
 
     Ok(())
 }

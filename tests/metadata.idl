@@ -14,11 +14,11 @@ namespace Test
     {
         // These are the only types that MIDL appears to support for attributes.
 
-        Boolean B;
-        Int32 I32;
-        String S;
-        type T;
-        TypeAttributeEnum E;
+        Boolean Bools;
+        Int32 Integers;
+        String Strings;
+        type Types;
+        TypeAttributeEnum Enums;
     };
 
     struct TypeStruct
@@ -37,7 +37,7 @@ namespace Test
         String S;
     };
 
-    [Type(TRUE, 123, "Test", TypeStruct, TypeAttributeEnum.Green)]
+    [Type(FALSE, 321, "Hello world", TypeStruct, TypeAttributeEnum.Blue)]
     interface ITypeAttribute
     {
         void Call();
