@@ -18,7 +18,7 @@ namespace Test
         Int32 I32;
         String S;
         type T;
-        //TypeAttributeEnum E;
+        TypeAttributeEnum E;
     };
 
     struct TypeStruct
@@ -37,7 +37,7 @@ namespace Test
         String S;
     };
 
-    [Type(TRUE, 123, "Test", TypeStruct)]//, TypeAttributeEnum.Green)]
+    [Type(TRUE, 123, "Test", TypeStruct, TypeAttributeEnum.Green)]
     interface ITypeAttribute
     {
         void Call();
