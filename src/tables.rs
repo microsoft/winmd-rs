@@ -155,20 +155,16 @@ impl<'a> MethodDef<'a> {
             }
         }
 
-        let mut last = false;
         for c in source.chars() {
             if c.is_uppercase() {
-                if last {
+                if !result.is_empty() {
                     result.push('_');
-                    last = false;
                 }
-
-                for lower in c.to_lowercase() {
-                    result.push(lower);
+                for c in c.to_lowercase() {
+                    result.push(c);
                 }
             } else {
                 result.push(c);
-                last = true;
             }
         }
 

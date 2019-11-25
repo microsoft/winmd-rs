@@ -78,18 +78,18 @@ pub fn type_code(args: TokenStream, input: TokenStream) -> TokenStream {
 }
 
 fn to_snake(camel: &str) -> String {
-    let mut snake = String::new();
+    let mut result = String::new();
     for c in camel.chars() {
         if c.is_uppercase() {
-            if !snake.is_empty() {
-                snake.push('_');
+            if !result.is_empty() {
+                result.push('_');
             }
             for c in c.to_lowercase() {
-                snake.push(c);
+                result.push(c);
             }
         } else {
-            snake.push(c);
+            result.push(c);
         }
     }
-    snake
+    result
 }

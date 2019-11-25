@@ -3,7 +3,7 @@ pub struct TypeAttributes(pub(crate) u32);
 
 impl MethodAttributes {
     pub fn special(&self) -> bool {
-        self.0 & 0b100000000000 != 0
+        self.0 & 0b1000_0000_0000 != 0
     }
 }
 
