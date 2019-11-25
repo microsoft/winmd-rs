@@ -215,8 +215,6 @@ impl<'a> ArgumentSig<'a> {
                 match param.sig_type.sig_type {
                     TypeSigType::ElementType(value) => {
                         match value {
-                            //ElementType::Bool =>
-                            // ElementType::Char,
                             ElementType::I8 => ArgumentSig::I8(read_i8(&mut data_bytes)),
                             ElementType::U8 => ArgumentSig::U8(read_u8(&mut data_bytes)),
                             ElementType::I16 => ArgumentSig::I16(read_i16(&mut data_bytes)),
@@ -225,15 +223,9 @@ impl<'a> ArgumentSig<'a> {
                             ElementType::U32 => ArgumentSig::U32(read_u32(&mut data_bytes)),
                             ElementType::I64 => ArgumentSig::I64(read_i64(&mut data_bytes)),
                             ElementType::U64 => ArgumentSig::U64(read_u64(&mut data_bytes)),
-                            // ElementType::F32,
-                            // ElementType::F64,
-                            // ElementType::String,
                             _ => return Err(ParseError::InvalidBlob),
                         }
                     }
-                    // TypeSigType::TypeDefOrRef(value) => {
-
-                    // }
                     _ => return Err(ParseError::InvalidBlob),
                 },
             ));
