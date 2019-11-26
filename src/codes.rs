@@ -1,21 +1,46 @@
-use crate::database::*;
 use crate::error::*;
+use crate::file::*;
 use crate::tables::*;
 use winmd_macros::*;
-
-fn decode(bits: u32, code: u32) -> (u32, u32) {
-    (code & ((1 << bits) - 1), (code >> bits) - 1)
-}
-
-fn encode(bits: u32, enumerator: u32, index: u32) -> u32 {
-    ((index + 1) << bits) | enumerator
-}
 
 #[type_code(2)]
 pub enum TypeDefOrRef {
     TypeDef,
     TypeRef,
     TypeSpec,
+}
+
+#[type_code(5)]
+pub enum HasCustomAttribute {
+    MethodDef,
+    Field,
+    TypeRef,
+    TypeDef,
+    Param,
+    InterfaceImpl,
+    MemberRef,
+    TypeSpec = 13,
+    GenericParam = 19,
+}
+
+#[type_code(3)]
+pub enum MemberRefParent {
+    TypeDef,
+    TypeRef,
+    MethodDef = 3,
+    TypeSpec,
+}
+
+#[type_code(2)]
+pub enum HasConstant {
+    Field,
+    Param,
+}
+
+#[type_code(3)]
+pub enum CustomAttributeType {
+    MethodDef = 2,
+    MemberRef,
 }
 
 impl<'a> TypeDefOrRef<'a> {
@@ -39,59 +64,9 @@ impl<'a> TypeDefOrRef<'a> {
 impl<'a> std::fmt::Display for TypeDefOrRef<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TypeDefOrRef::TypeDef(value) => write!(f, "{}.{}", value.namespace().unwrap(), value.name().unwrap()),
-            TypeDefOrRef::TypeRef(value) => write!(f, "{}.{}", value.namespace().unwrap(), value.name().unwrap()),
-            TypeDefOrRef::TypeSpec(_) => write!(f, "TypeSpec"),
+            TypeDefOrRef::TypeDef(value) => write!(f, "{}.{}", value.namespace()?, value.name()?),
+            TypeDefOrRef::TypeRef(value) => write!(f, "{}.{}", value.namespace()?, value.name()?),
+            TypeDefOrRef::TypeSpec(_) => panic!("Cannot format a TypeSpec"),
         }
     }
-}
-
-#[type_code(5)]
-pub enum HasCustomAttribute {
-    MethodDef,
-    Field,
-    TypeRef,
-    TypeDef,
-    Param,
-    InterfaceImpl,
-    MemberRef,
-    Module,
-    not_used,
-    Property,
-    Event,
-    StandaloneSig,
-    ModuleRef,
-    TypeSpec,
-    Assembly,
-    AssemblyRef,
-    File,
-    ExportedType,
-    ManifestResource,
-    GenericParam,
-    GenericParamConstraint,
-    MethodSpec,
-}
-
-#[type_code(3)]
-pub enum MemberRefParent {
-    TypeDef,
-    TypeRef,
-    ModuleRef,
-    MethodDef,
-    TypeSpec,
-}
-
-#[type_code(2)]
-pub enum HasConstant {
-    Field,
-    Param,
-    Property,
-}
-
-#[type_code(3)]
-pub enum CustomAttributeType {
-    not_used,
-    not_used,
-    MethodDef,
-    MemberRef,
 }

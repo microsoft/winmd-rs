@@ -19,27 +19,35 @@ pub fn type_code(args: TokenStream, input: TokenStream) -> TokenStream {
     let mut variants = Vec::new();
     let mut decodes = Vec::new();
     let mut encodes = Vec::new();
+    let mut enumerator = 0;
 
-    for (index, variant) in input.variants.iter().enumerate() {
+    for variant in input.variants.iter() {
         let camel = &variant.ident;
         let camel_name = camel.to_string();
 
-        if camel_name != "not_used" {
-            let snake = syn::Ident::new(&to_snake(&camel_name), camel.span());
-            let index = index as u32;
-
-            variants.push(quote!(
-                #camel(#camel<'a>),
-            ));
-
-            decodes.push(quote!(
-                #index => Self::#camel(db.#snake().row(code.1)),
-            ));
-
-            encodes.push(quote!(
-                Self::#camel(value) => encode(#bits, #index, value.row.index),
-            ));
+        if let Some((_, value)) = &variant.discriminant {
+            if let syn::Expr::Lit(value) = value {
+                if let syn::Lit::Int(value) = &value.lit {
+                    enumerator = value.base10_parse::<u32>().unwrap();
+                }
+            }
         }
+
+        let snake = syn::Ident::new(&to_snake(&camel_name), camel.span());
+
+        variants.push(quote!(
+            #camel(#camel<'a>),
+        ));
+
+        decodes.push(quote!(
+            #enumerator => Self::#camel(table.file.#snake(table.reader).row(code.1)),
+        ));
+
+        encodes.push(quote!(
+            Self::#camel(value) => ((value.row.index + 1) << #bits) | #enumerator,
+        ));
+
+        enumerator += 1;
     }
 
     let variants = TokenStream2::from_iter(variants);
@@ -51,11 +59,11 @@ pub fn type_code(args: TokenStream, input: TokenStream) -> TokenStream {
             #variants
         }
         impl<'a> #name<'a> {
-            pub(crate) fn decode(db: &'a Database, code: u32) -> ParseResult<Self> {
-                let code = decode(#bits, code);
+            pub(crate) fn decode(table: &'a Table, code: u32) -> ParseResult<Self> {
+                let code = (code & ((1 << #bits) - 1), (code >> #bits) - 1);
                 Ok(match code.0 {
                     #decodes
-                    _ => return Err(ParseError::InvalidData("Invalid type code")),
+                    _ => return Err(ParseError::InvalidFile),
                 })
             }
             pub fn encode(&self) -> u32 {
@@ -70,18 +78,18 @@ pub fn type_code(args: TokenStream, input: TokenStream) -> TokenStream {
 }
 
 fn to_snake(camel: &str) -> String {
-    let mut snake = String::new();
+    let mut result = String::new();
     for c in camel.chars() {
         if c.is_uppercase() {
-            if !snake.is_empty() {
-                snake.push('_');
+            if !result.is_empty() {
+                result.push('_');
             }
             for c in c.to_lowercase() {
-                snake.push(c);
+                result.push(c);
             }
         } else {
-            snake.push(c);
+            result.push(c);
         }
     }
-    snake
+    result
 }

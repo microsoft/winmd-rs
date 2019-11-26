@@ -1,7 +1,7 @@
 #[test]
 fn type_def() -> Result<(), winmd::Error> {
     let reader = winmd::Reader::from_os()?;
-    let t: winmd::TypeDef = reader.find("Windows.Foundation", "IStringable").unwrap();
+    let t: winmd::TypeDef = reader.find("Windows.Foundation.IStringable").unwrap();
 
     let flags = t.flags()?;
     assert!(flags.windows_runtime());
@@ -12,7 +12,8 @@ fn type_def() -> Result<(), winmd::Error> {
     assert!(t.methods()?.count() == 1);
 
     for m in t.methods()? {
-        assert!(m.name()? == "ToString");
+        assert!(m.name()? == "to_string");
+        assert!(m.abi_name()? == "ToString");
         let sig = m.signature()?;
         assert!(sig.return_type().is_some());
 
@@ -27,14 +28,22 @@ fn type_def() -> Result<(), winmd::Error> {
         }
     }
 
-    assert!(t.has_attribute("Windows.Foundation.Metadata", "GuidAttribute")?);
+    assert!(t.has_attribute("Windows.Foundation.Metadata.GuidAttribute")?);
+
+    let attribute = t.find_attribute("Windows.Foundation.Metadata.GuidAttribute")?;
+    let args = attribute.arguments()?;
+    let format = format!("{:X}-{:X}-{:X}-{:X}{:X}-{:X}{:X}{:X}{:X}{:X}{:X}", args[0].1, args[1].1, args[2].1, args[3].1, args[4].1, args[5].1, args[6].1, args[7].1, args[8].1, args[9].1, args[10].1,);
+    assert!(format == "96369F54-8EB6-48F0-ABCE-C1B211E627C3");
+
+    assert!(t.find_attribute("Windows.Foundation.Metadata.Nonexistent").is_err());
+
     Ok(())
 }
 
 #[test]
 fn type_ref() -> Result<(), winmd::Error> {
     let reader = winmd::Reader::from_os()?;
-    let t = reader.find("Windows.Foundation", "AsyncStatus").unwrap();
+    let t = reader.find("Windows.Foundation.AsyncStatus").unwrap();
 
     if let winmd::TypeDefOrRef::TypeRef(value) = t.extends()? {
         let t: winmd::TypeRef = value;

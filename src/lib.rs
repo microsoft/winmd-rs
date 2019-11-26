@@ -1,7 +1,8 @@
 mod codes;
-mod database;
 mod error;
+mod file;
 mod flags;
+mod helpers;
 mod reader;
 mod signatures;
 mod tables;

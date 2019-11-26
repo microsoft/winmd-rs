@@ -18,7 +18,7 @@ fn run() -> Result<(), winmd::Error> {
             println!("\n    interface {}", t.name()?);
             for m in t.methods()? {
                 let sig = m.signature()?;
-                print!("        fn {}(", m.rust_name()?);
+                print!("        fn {}(", m.name()?);
 
                 if let Some((last, rest)) = sig.params().split_last() {
                     for (param, signature) in rest {

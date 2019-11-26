@@ -27,9 +27,9 @@ fn namespaces_and_iterators() {
 fn finding_types() {
     let reader = winmd::Reader::from_os().unwrap();
 
-    assert!(reader.find("Windows.Foundation", "Nonexistent").is_none());
-    assert!(reader.find("Nonexistent", "IStringable").is_none());
+    assert!(reader.find("Windows.Foundation.Nonexistent").is_err());
+    assert!(reader.find("Nonexistent.IStringable").is_err());
 
-    let t = reader.find("Windows.Foundation", "IStringable").unwrap();
+    let t = reader.find("Windows.Foundation.IStringable").unwrap();
     assert!(t.name().unwrap() == "IStringable");
 }
