@@ -4,7 +4,7 @@ use crate::helpers::*;
 use crate::tables::*;
 
 pub struct Reader {
-    files: std::vec::Vec<File>,
+    files: Vec<File>,
     namespaces: std::collections::BTreeMap<String, NamespaceData>,
 }
 
@@ -27,11 +27,11 @@ pub struct Namespace<'a> {
 #[derive(Default)]
 struct NamespaceData {
     index: std::collections::BTreeMap<String, (u32, u32)>,
-    interfaces: std::vec::Vec<(u32, u32)>,
-    classes: std::vec::Vec<(u32, u32)>,
-    enums: std::vec::Vec<(u32, u32)>,
-    structs: std::vec::Vec<(u32, u32)>,
-    delegates: std::vec::Vec<(u32, u32)>,
+    interfaces: Vec<(u32, u32)>,
+    classes: Vec<(u32, u32)>,
+    enums: Vec<(u32, u32)>,
+    structs: Vec<(u32, u32)>,
+    delegates: Vec<(u32, u32)>,
 }
 
 impl<'a> Iterator for NamespaceIterator<'a> {
@@ -73,9 +73,9 @@ impl<'a> Namespace<'a> {
 
 impl<'a> Reader {
     pub fn from_files<P: AsRef<std::path::Path>>(filenames: &[P]) -> Result<Self, Error> {
-        let mut files = std::vec::Vec::with_capacity(filenames.len());
+        let mut files = Vec::with_capacity(filenames.len());
         let mut namespaces = std::collections::BTreeMap::<String, NamespaceData>::new();
-        let reader = Reader { files: std::vec::Vec::new(), namespaces: std::collections::BTreeMap::new() };
+        let reader = Reader { files: Vec::new(), namespaces: std::collections::BTreeMap::new() };
 
         for filename in filenames {
             let file = File::new(filename)?;

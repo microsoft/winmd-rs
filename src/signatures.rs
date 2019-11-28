@@ -6,7 +6,6 @@ use crate::error::*;
 use crate::file::*;
 use crate::tables::*;
 use std::convert::*;
-use std::vec::*;
 
 pub struct GenericSig<'a> {
     sig_type: TypeDefOrRef<'a>,
