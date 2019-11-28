@@ -25,11 +25,9 @@ pub fn type_code(args: TokenStream, input: TokenStream) -> TokenStream {
         let camel = &variant.ident;
         let camel_name = camel.to_string();
 
-        if let Some((_, value)) = &variant.discriminant {
-            if let syn::Expr::Lit(value) = value {
-                if let syn::Lit::Int(value) = &value.lit {
-                    enumerator = value.base10_parse::<u32>().unwrap();
-                }
+        if let Some((_, syn::Expr::Lit(value))) = &variant.discriminant {
+            if let syn::Lit::Int(value) = &value.lit {
+                enumerator = value.base10_parse::<u32>().unwrap();
             }
         }
 

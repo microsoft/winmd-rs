@@ -14,7 +14,7 @@ macro_rules! table_fn {
 
 #[derive(Default)]
 pub struct File {
-    bytes: std::vec::Vec<u8>,
+    bytes: Vec<u8>,
     strings: u32,
     blobs: u32,
     guids: u32,
@@ -273,7 +273,7 @@ impl TableData {
 
 impl PartialEq for File {
     fn eq(&self, other: &Self) -> bool {
-        &self.bytes as *const std::vec::Vec<u8> == &other.bytes as *const std::vec::Vec<u8>
+        &self.bytes as *const Vec<u8> == &other.bytes as *const Vec<u8>
     }
 }
 
