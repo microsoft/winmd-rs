@@ -14,7 +14,11 @@ macro_rules! table_fn {
 
 #[derive(Default)]
 pub struct File {
+<<<<<<< HEAD
     bytes: Vec<u8>,
+=======
+    bytes: std::vec::Vec<u8>,
+>>>>>>> master
     strings: u32,
     blobs: u32,
     guids: u32,
