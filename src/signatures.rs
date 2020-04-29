@@ -7,33 +7,38 @@ use crate::file::*;
 use crate::tables::*;
 use std::convert::*;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GenericSig<'a> {
     sig_type: TypeDefOrRef<'a>,
     args: Vec<TypeSig<'a>>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ModifierSig<'a> {
     sig_type: TypeDefOrRef<'a>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MethodSig<'a> {
     return_type: Option<TypeSig<'a>>,
     params: Vec<(Param<'a>, ParamSig<'a>)>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParamSig<'a> {
     modifiers: Vec<ModifierSig<'a>>,
     by_ref: bool,
     sig_type: TypeSig<'a>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TypeSig<'a> {
     array: bool,
     modifiers: Vec<ModifierSig<'a>>,
     sig_type: TypeSigType<'a>,
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ArgumentSig<'a> {
     Bool(bool),
     Char(char),
@@ -51,6 +56,7 @@ pub enum ArgumentSig<'a> {
     Type(TypeDef<'a>),
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TypeSigType<'a> {
     ElementType(ElementType),
     TypeDefOrRef(TypeDefOrRef<'a>),
@@ -59,7 +65,7 @@ pub enum TypeSigType<'a> {
     GenericMethodIndex(u32),
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ElementType {
     Bool,
     Char,

@@ -1,5 +1,3 @@
-#![allow(exceeding_bitshifts)]
-
 use crate::error::*;
 use crate::reader::*;
 use std::marker::PhantomData;
@@ -12,7 +10,7 @@ macro_rules! table_fn {
     };
 }
 
-#[derive(Default)]
+#[derive(Debug, Clone, Eq, Default)]
 pub struct File {
     bytes: Vec<u8>,
     strings: u32,
@@ -32,7 +30,7 @@ pub struct File {
     pub type_spec: TableData,
 }
 
-#[derive(Default)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
 pub struct TableData {
     data: u32,
     row_count: u32,
@@ -40,19 +38,20 @@ pub struct TableData {
     columns: [(u32, u32); 6],
 }
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Table<'a> {
     pub(crate) file: &'a File,
     pub(crate) reader: &'a Reader,
     data: &'a TableData,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub(crate) struct RowData<'a> {
     pub(crate) table: Table<'a>,
     pub(crate) index: u32,
 }
 
+#[derive(Debug, Copy, Clone)]
 pub struct RowIterator<'a, T: Row<'a>> {
     table: Table<'a>,
     first: u32,
@@ -527,7 +526,7 @@ fn section_from_rva(sections: &[ImageSectionHeader], rva: u32) -> ParseResult<&I
 }
 
 fn offset_from_rva(section: &ImageSectionHeader, rva: u32) -> u32 {
-    (rva - section.virtual_address + section.pointer_to_raw_data)
+    rva - section.virtual_address + section.pointer_to_raw_data
 }
 
 fn sizeof<T>() -> u32 {
@@ -599,6 +598,7 @@ const IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR: u32 = 14;
 const STORAGE_MAGIC_SIG: u32 = 0x424A5342;
 
 #[repr(C)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 struct ImageDosHeader {
     signature: u16,
     cblp: u16,
@@ -622,6 +622,7 @@ struct ImageDosHeader {
 }
 
 #[repr(C)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 struct ImageFileHeader {
     machine: u16,
     number_of_sections: u16,
@@ -633,12 +634,14 @@ struct ImageFileHeader {
 }
 
 #[repr(C)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 struct ImageDataDirectory {
     virtual_address: u32,
     size: u32,
 }
 
 #[repr(C)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 struct ImageOptionalHeader {
     magic: u16,
     major_linker_version: u8,
@@ -674,6 +677,7 @@ struct ImageOptionalHeader {
 }
 
 #[repr(C)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 struct ImageNtHeader {
     signature: u32,
     file_header: ImageFileHeader,
@@ -681,6 +685,7 @@ struct ImageNtHeader {
 }
 
 #[repr(C)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 struct ImageOptionalHeaderPlus {
     magic: u16,
     major_linker_version: u8,
@@ -715,6 +720,7 @@ struct ImageOptionalHeaderPlus {
 }
 
 #[repr(C)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 struct ImageNtHeaderPlus {
     signature: u32,
     file_header: ImageFileHeader,
@@ -722,6 +728,7 @@ struct ImageNtHeaderPlus {
 }
 
 #[repr(C)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 struct ImageSectionHeader {
     name: [u8; 8],
     physical_address_or_virtual_size: u32,
@@ -736,6 +743,7 @@ struct ImageSectionHeader {
 }
 
 #[repr(C)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 struct ImageCorHeader {
     cb: u32,
     major_runtime_version: u16,

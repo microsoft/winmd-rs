@@ -7,7 +7,7 @@ use crate::signatures::*;
 
 macro_rules! table {
     ($name:ident) => {
-        #[derive(Copy, Clone)]
+        #[derive(Debug, Copy, Clone, Eq)]
         pub struct $name<'a> {
             pub(crate) row: RowData<'a>,
         }
@@ -36,6 +36,7 @@ table!(TypeDef);
 table!(TypeRef);
 table!(TypeSpec);
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ConstantValue {
     I32(i32),
     U32(u32),

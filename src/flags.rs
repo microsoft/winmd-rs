@@ -1,4 +1,9 @@
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[repr(transparent)]
 pub struct MethodAttributes(pub(crate) u32);
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[repr(transparent)]
 pub struct TypeAttributes(pub(crate) u32);
 
 impl MethodAttributes {

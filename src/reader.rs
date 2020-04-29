@@ -3,28 +3,32 @@ use crate::file::*;
 use crate::helpers::*;
 use crate::tables::*;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Reader {
     files: Vec<File>,
     namespaces: std::collections::BTreeMap<String, NamespaceData>,
 }
 
+#[derive(Debug, Clone)]
 pub struct NamespaceIterator<'a> {
     reader: &'a Reader,
     iter: std::collections::btree_map::Iter<'a, String, NamespaceData>,
 }
 
+#[derive(Debug, Clone)]
 pub struct TypeIterator<'a> {
     reader: &'a Reader,
     iter: std::slice::Iter<'a, (u32, u32)>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Namespace<'a> {
     reader: &'a Reader,
     name: &'a str,
     types: &'a NamespaceData,
 }
 
-#[derive(Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 struct NamespaceData {
     index: std::collections::BTreeMap<String, (u32, u32)>,
     interfaces: Vec<(u32, u32)>,
