@@ -1,3 +1,5 @@
+#![allow(arithmetic_overflow)]
+
 use crate::error::*;
 use crate::reader::*;
 use std::marker::PhantomData;
