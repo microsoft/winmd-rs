@@ -68,7 +68,7 @@ impl TypeDef {
             .unwrap()
     }
 
-    pub fn ignore(self, reader: &TypeReader) -> bool {
+    pub fn is_win32(self, reader: &TypeReader) -> bool {
         let flags = self.flags(reader);
 
         if !flags.windows_runtime() {
@@ -85,6 +85,10 @@ impl TypeDef {
                 _ => false,
             }
         }
+    }
+
+    pub fn is_winrt(self, reader: &TypeReader) -> bool {
+        !self.is_win32(reader)
     }
 
     pub fn category(self, reader: &TypeReader) -> TypeCategory {

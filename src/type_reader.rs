@@ -18,6 +18,38 @@ impl TypeReader {
         Self::new(File::from_os())
     }
 
+    pub fn from_win32<P: AsRef<std::path::Path>>(file: P) -> Self {
+        let mut reader = Self {
+            files: Vec::default(),
+            types: BTreeMap::default(),
+        };
+
+        let file = File::new(file);
+        let row_count = file.type_def_table().row_count;
+        reader.files.push(file);
+
+        for row in 0..row_count {
+            let def = TypeDef(Row::new(row, TableIndex::TypeDef, 0));
+
+            if !def.is_win32(&reader) {
+                continue;
+            }
+
+            let (namespace, name) = def.name(&reader);
+            let namespace = namespace.to_string();
+            let name = name.to_string();
+
+            reader
+                .types
+                .entry(namespace)
+                .or_default()
+                .entry(name)
+                .or_insert(def);
+        }
+
+        reader
+    }
+
     pub fn from_iter<I: IntoIterator<Item = std::path::PathBuf>>(files: I) -> Self {
         let mut reader = Self {
             files: Vec::default(),
@@ -31,7 +63,7 @@ impl TypeReader {
             for row in 0..row_count {
                 let def = TypeDef(Row::new(row, TableIndex::TypeDef, file_index as u16));
 
-                if def.ignore(&reader) {
+                if !def.is_winrt(&reader) {
                     continue;
                 }
 
@@ -86,7 +118,7 @@ impl TypeReader {
             for row in 0..row_count {
                 let def = TypeDef(Row::new(row, TableIndex::TypeDef, file_index as u16));
 
-                if def.ignore(&reader) {
+                if !def.is_winrt(&reader) {
                     continue;
                 }
 
