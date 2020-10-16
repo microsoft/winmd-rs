@@ -29,11 +29,7 @@ impl TypeReader {
             reader.files.push(file);
 
             for row in 0..row_count {
-                let def = TypeDef(Row::new(
-                    row,
-                    TableIndex::TypeDef,
-                    file_index as u16,
-                ));
+                let def = TypeDef(Row::new(row, TableIndex::TypeDef, file_index as u16));
 
                 if def.ignore(&reader) {
                     continue;
@@ -88,11 +84,7 @@ impl TypeReader {
             reader.files.push(file);
 
             for row in 0..row_count {
-                let def = TypeDef(Row::new(
-                    row,
-                    TableIndex::TypeDef,
-                    file_index as u16,
-                ));
+                let def = TypeDef(Row::new(row, TableIndex::TypeDef, file_index as u16));
 
                 if def.ignore(&reader) {
                     continue;
@@ -123,10 +115,7 @@ impl TypeReader {
     /// # Panics
     ///
     /// Panics if the namespace does not exist
-    pub fn namespace_types(
-        &self,
-        namespace: &str,
-    ) -> impl Iterator<Item = (&str, &TypeDef)> {
+    pub fn namespace_types(&self, namespace: &str) -> impl Iterator<Item = (&str, &TypeDef)> {
         self.types[namespace].iter().map(|(n, t)| (n.as_str(), t))
     }
 
@@ -174,12 +163,7 @@ impl TypeReader {
         T::decode(self.u32(row, column), row.file_index)
     }
 
-    pub fn list(
-        &self,
-        row: Row,
-        table: TableIndex,
-        column: u32,
-    ) -> impl Iterator<Item = Row> {
+    pub fn list(&self, row: Row, table: TableIndex, column: u32) -> impl Iterator<Item = Row> {
         let file = &self.files[row.file_index as usize];
         let first = self.u32(row, column) - 1;
 
@@ -250,13 +234,7 @@ impl TypeReader {
         first
     }
 
-    pub fn upper_bound(
-        &self,
-        file: u16,
-        table: TableIndex,
-        column: u32,
-        value: u32,
-    ) -> Row {
+    pub fn upper_bound(&self, file: u16, table: TableIndex, column: u32, value: u32) -> Row {
         Row::new(
             self.upper_bound_of(
                 table,

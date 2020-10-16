@@ -38,14 +38,10 @@ impl ElementType {
             0x0c => ElementType::R4,
             0x0d => ElementType::R8,
             0x0e => ElementType::String,
-            0x11 => ElementType::ValueType(TypeDefOrRef::decode(
-                blob.read_unsigned(),
-                blob.file_index,
-            )),
-            0x12 => ElementType::Class(TypeDefOrRef::decode(
-                blob.read_unsigned(),
-                blob.file_index,
-            )),
+            0x11 => {
+                ElementType::ValueType(TypeDefOrRef::decode(blob.read_unsigned(), blob.file_index))
+            }
+            0x12 => ElementType::Class(TypeDefOrRef::decode(blob.read_unsigned(), blob.file_index)),
 
             unknown_type => panic!(format!("Unexpected ElementType: {:x}", unknown_type)),
         }

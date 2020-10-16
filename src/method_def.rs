@@ -9,18 +9,11 @@ impl MethodDef {
     }
 
     pub fn parent(self, reader: &TypeReader) -> TypeDef {
-        TypeDef(reader.upper_bound(
-            self.0.file_index,
-            TableIndex::TypeDef,
-            6,
-            self.0.index,
-        ))
+        TypeDef(reader.upper_bound(self.0.file_index, TableIndex::TypeDef, 6, self.0.index))
     }
 
     pub fn params(self, reader: &TypeReader) -> impl Iterator<Item = Param> {
-        reader
-            .list(self.0, TableIndex::Param, 5)
-            .map(Param)
+        reader.list(self.0, TableIndex::Param, 5).map(Param)
     }
 
     pub fn name(self, reader: &TypeReader) -> &str {
@@ -63,11 +56,7 @@ impl MethodDef {
             .map(Attribute)
     }
 
-    pub fn find_attribute(
-        self,
-        reader: &TypeReader,
-        name: (&str, &str),
-    ) -> Option<Attribute> {
+    pub fn find_attribute(self, reader: &TypeReader, name: (&str, &str)) -> Option<Attribute> {
         self.attributes(reader)
             .find(|attribute| attribute.name(reader) == name)
     }

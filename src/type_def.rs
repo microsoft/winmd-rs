@@ -17,15 +17,11 @@ impl TypeDef {
     }
 
     pub fn fields(self, reader: &TypeReader) -> impl Iterator<Item = Field> {
-        reader
-            .list(self.0, TableIndex::Field, 4)
-            .map(Field)
+        reader.list(self.0, TableIndex::Field, 4).map(Field)
     }
 
     pub fn methods(self, reader: &TypeReader) -> impl Iterator<Item = MethodDef> {
-        reader
-            .list(self.0, TableIndex::MethodDef, 5)
-            .map(MethodDef)
+        reader.list(self.0, TableIndex::MethodDef, 5).map(MethodDef)
     }
 
     pub fn generics(self, reader: &TypeReader) -> impl Iterator<Item = GenericParam> {
@@ -106,7 +102,7 @@ impl TypeDef {
         }
     }
 
-    pub fn underlying_type(self, reader:&TypeReader) -> ElementType {
+    pub fn underlying_type(self, reader: &TypeReader) -> ElementType {
         for field in self.fields(reader) {
             for constant in field.constants(reader) {
                 return match constant.value_type(reader) {

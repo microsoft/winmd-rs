@@ -26,12 +26,8 @@ impl Attribute {
 
     pub fn args(self, reader: &TypeReader) -> Vec<(String, AttributeArg)> {
         let (mut sig, mut values) = match self.constructor(reader) {
-            AttributeType::MethodDef(method) => {
-                (reader.blob(method.0, 4), reader.blob(self.0, 2))
-            }
-            AttributeType::MemberRef(method) => {
-                (reader.blob(method.0, 2), reader.blob(self.0, 2))
-            }
+            AttributeType::MethodDef(method) => (reader.blob(method.0, 4), reader.blob(self.0, 2)),
+            AttributeType::MemberRef(method) => (reader.blob(method.0, 2), reader.blob(self.0, 2)),
         };
 
         let prolog = values.read_u16();
@@ -41,8 +37,7 @@ impl Attribute {
         let fixed_arg_count = sig.read_unsigned();
         let _ret_type = sig.read_unsigned();
 
-        let mut args: Vec<(String, AttributeArg)> =
-            Vec::with_capacity(fixed_arg_count as usize);
+        let mut args: Vec<(String, AttributeArg)> = Vec::with_capacity(fixed_arg_count as usize);
 
         for _ in 0..fixed_arg_count {
             let arg = match ElementType::from_blob(&mut sig) {
@@ -54,11 +49,8 @@ impl Attribute {
                 ElementType::U4 => AttributeArg::U32(values.read_u32()),
                 ElementType::I8 => AttributeArg::I64(values.read_i64()),
                 ElementType::U8 => AttributeArg::U64(values.read_u64()),
-                ElementType::String => {
-                    AttributeArg::String(values.read_str().to_string())
-                }
-                ElementType::ValueType(type_def_or_ref)
-                | ElementType::Class(type_def_or_ref) => {
+                ElementType::String => AttributeArg::String(values.read_str().to_string()),
+                ElementType::ValueType(type_def_or_ref) | ElementType::Class(type_def_or_ref) => {
                     let (namespace, type_name) = match type_def_or_ref {
                         TypeDefOrRef::TypeDef(type_def) => type_def.name(reader),
                         TypeDefOrRef::TypeRef(type_ref) => type_ref.name(reader),
@@ -76,12 +68,8 @@ impl Attribute {
                             TypeDefOrRef::TypeRef(value) => {
                                 reader.resolve_type_def(value.name(reader))
                             }
-                            TypeDefOrRef::TypeDef(value) => {
-                                value
-                            }
-                            TypeDefOrRef::TypeSpec(_) => {
-                                panic!("Unsupported underlying type")
-                            }
+                            TypeDefOrRef::TypeDef(value) => value,
+                            TypeDefOrRef::TypeSpec(_) => panic!("Unsupported underlying type"),
                         };
 
                         let underlying_type = def.underlying_type(reader);
