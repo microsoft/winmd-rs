@@ -4,4 +4,4 @@
 
 ## Rust winmd parser
 
-A winmd parser written in Rust and based on the [ECMA-335](http://www.ecma-international.org/publications/standards/Ecma-335.htm) standard. This winmd parser powers [Rust/WinRT](https://github.com/microsoft/winrt-rs).
+A winmd parser written in Rust and based on the [ECMA-335](http://www.ecma-international.org/publications/standards/Ecma-335.htm) standard. This winmd parser powers [Rust/WinRT](https://github.com/microsoft/winrt-rs). A C++ winmd parser [can be found here](https://github.com/microsoft/winmd).
