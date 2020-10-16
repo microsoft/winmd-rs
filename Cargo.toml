@@ -1,0 +1,17 @@
+[package]
+name = "winmd"
+version = "0.2.0"
+authors = ["Microsoft"]
+edition = "2018"
+license = "MIT"
+description = "Winmd parser"
+repository = "https://github.com/microsoft/winmd-rs"
+documentation = "https://docs.rs/winmd"
+readme = "README.md"
+
+[dependencies]
+winmd-macros = { path = "macros",  version = "0.2.0" }
+
+[package.metadata.docs.rs]
+default-target = "x86_64-pc-windows-msvc"
+targets = ["x86_64-pc-windows-msvc", "i686-pc-windows-msvc"]
