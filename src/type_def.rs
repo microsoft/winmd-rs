@@ -68,27 +68,23 @@ impl TypeDef {
             .unwrap()
     }
 
-    pub fn is_win32(self, reader: &TypeReader) -> bool {
+    pub fn is_winrt(self, reader: &TypeReader) -> bool {
         let flags = self.flags(reader);
 
         if !flags.windows_runtime() {
-            true
-        } else if flags.interface() {
             false
+        } else if flags.interface() {
+            true
         } else {
             match self.extends(reader).name(reader) {
-                ("System", "ValueType") => self.has_attribute(
+                ("System", "ValueType") => !self.has_attribute(
                     reader,
                     ("Windows.Foundation.Metadata", "ApiContractAttribute"),
                 ),
-                ("System", "Attribute") => true,
-                _ => false,
+                ("System", "Attribute") => false,
+                _ => true,
             }
         }
-    }
-
-    pub fn is_winrt(self, reader: &TypeReader) -> bool {
-        !self.is_win32(reader)
     }
 
     pub fn category(self, reader: &TypeReader) -> TypeCategory {

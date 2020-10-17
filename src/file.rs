@@ -72,33 +72,6 @@ impl TableData {
 }
 
 impl File {
-    /// Get [`File`]s from the operating system
-    ///
-    /// This searches well known paths for Windows metadata related to
-    /// operating system APIs.
-    pub fn from_os() -> Vec<File> {
-        let windir = std::env::var("windir").expect("No `windir` environent variable set");
-        let mut path = std::path::PathBuf::from(windir);
-        path.push(SYSTEM32);
-        path.push("winmetadata");
-        Self::from_dir(path)
-    }
-
-    /// Get [`File`]s from a directory
-    pub fn from_dir<P: AsRef<std::path::Path>>(directory: P) -> Vec<File> {
-        let files = std::fs::read_dir(directory)
-            .unwrap()
-            .filter_map(|value| value.ok())
-            .map(|value| value.path());
-        // TODO: filter out directories and non-metadata files
-        Self::from_files(files)
-    }
-
-    /// Get [`File`]s from an iterator of file paths
-    pub fn from_files<P: IntoIterator<Item = std::path::PathBuf>>(filenames: P) -> Vec<File> {
-        filenames.into_iter().map(File::new).collect()
-    }
-
     pub fn new<P: AsRef<std::path::Path>>(filename: P) -> Self {
         let bytes = std::fs::read(filename.as_ref())
             .unwrap_or_else(|e| panic!("Could not read file {:?}: {:?}", filename.as_ref(), e));
@@ -717,12 +690,6 @@ impl View for [u8] {
         &self[cli_offset as usize..cli_offset as usize + index]
     }
 }
-
-#[cfg(target_pointer_width = "64")]
-const SYSTEM32: &str = "System32";
-
-#[cfg(target_pointer_width = "32")]
-const SYSTEM32: &str = "SysNative";
 
 const IMAGE_DOS_SIGNATURE: u16 = 0x5A4D;
 const MAGIC_PE32: u16 = 0x10B;
