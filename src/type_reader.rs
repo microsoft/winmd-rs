@@ -15,7 +15,17 @@ pub struct TypeReader {
 
 impl TypeReader {
     pub fn from_os() -> Self {
-        Self::new(File::from_os())
+        let dir = std::env::var("windir").expect("No `windir` environent variable set");
+        let mut dir = std::path::PathBuf::from(dir);
+        dir.push(SYSTEM32);
+        dir.push("winmetadata");
+
+        let files = std::fs::read_dir(dir)
+            .unwrap()
+            .filter_map(|value| value.ok())
+            .map(|value| value.path());
+
+        Self::from_iter(files)
     }
 
     pub fn from_win32<P: AsRef<std::path::Path>>(file: P) -> Self {
@@ -25,27 +35,7 @@ impl TypeReader {
         };
 
         let file = File::new(file);
-        let row_count = file.type_def_table().row_count;
-        reader.files.push(file);
-
-        for row in 0..row_count {
-            let def = TypeDef(Row::new(row, TableIndex::TypeDef, 0));
-
-            if !def.is_win32(&reader) {
-                continue;
-            }
-
-            let (namespace, name) = def.name(&reader);
-            let namespace = namespace.to_string();
-            let name = name.to_string();
-
-            reader
-                .types
-                .entry(namespace)
-                .or_default()
-                .entry(name)
-                .or_insert(def);
-        }
+        reader.index_file(file, 0, false);
 
         reader
     }
@@ -57,84 +47,32 @@ impl TypeReader {
         };
         for (file_index, file) in files.into_iter().enumerate() {
             let file = File::new(file);
-            let row_count = file.type_def_table().row_count;
-            reader.files.push(file);
-
-            for row in 0..row_count {
-                let def = TypeDef(Row::new(row, TableIndex::TypeDef, file_index as u16));
-
-                if !def.is_winrt(&reader) {
-                    continue;
-                }
-
-                let (namespace, name) = def.name(&reader);
-                let namespace = namespace.to_string();
-                let name = name.to_string();
-
-                reader
-                    .types
-                    .entry(namespace)
-                    .or_default()
-                    .entry(name)
-                    .or_insert(def);
-            }
+            reader.index_file(file, file_index, true);
         }
         reader
     }
 
-    pub fn from_foundation() -> Self {
-        Self::new(File::from_dir("winmds"))
-    }
+    fn index_file(&mut self, file: File, file_index: usize, winrt_only: bool) {
+        let row_count = file.type_def_table().row_count;
+        self.files.push(file);
 
-    pub fn from_build() -> &'static Self {
-        use std::{mem::MaybeUninit, sync::Once};
-        static ONCE: Once = Once::new();
-        static mut VALUE: MaybeUninit<TypeReader> = MaybeUninit::uninit();
+        for row in 0..row_count {
+            let def = TypeDef(Row::new(row, TableIndex::TypeDef, file_index as u16));
 
-        ONCE.call_once(|| {
-            // This is safe because `Once` provides thread-safe one-time initialization
-            unsafe {
-                VALUE = MaybeUninit::new(
-                    // TODO: load all the winmd files from the target/nuget folder
-                    Self::from_os(),
-                )
+            if winrt_only && !def.is_winrt(&self) {
+                continue;
             }
-        });
 
-        // This is safe because `call_once` has already been called.
-        unsafe { &*VALUE.as_ptr() }
-    }
+            let (namespace, name) = def.name(&self);
+            let namespace = namespace.to_string();
+            let name = name.to_string();
 
-    /// Create a new [`TypeReader`] from a [`File`]s
-    pub fn new(files: Vec<File>) -> Self {
-        let mut reader = Self {
-            files: Vec::default(),
-            types: BTreeMap::default(),
-        };
-        for (file_index, file) in files.into_iter().enumerate() {
-            let row_count = file.type_def_table().row_count;
-            reader.files.push(file);
-
-            for row in 0..row_count {
-                let def = TypeDef(Row::new(row, TableIndex::TypeDef, file_index as u16));
-
-                if !def.is_winrt(&reader) {
-                    continue;
-                }
-
-                let (namespace, name) = def.name(&reader);
-                let namespace = namespace.to_string();
-                let name = name.to_string();
-
-                reader
-                    .types
-                    .entry(namespace)
-                    .or_default()
-                    .entry(name)
-                    .or_insert(def);
-            }
+            self.types
+                .entry(namespace)
+                .or_default()
+                .entry(name)
+                .or_insert(def);
         }
-        reader
     }
 
     /// Get all the namespace names that the [`TypeReader`] knows about
@@ -342,3 +280,9 @@ impl TypeReader {
         (first, last)
     }
 }
+
+#[cfg(target_pointer_width = "64")]
+const SYSTEM32: &str = "System32";
+
+#[cfg(target_pointer_width = "32")]
+const SYSTEM32: &str = "SysNative";
