@@ -88,8 +88,6 @@ impl TypeDef {
     }
 
     pub fn category(self, reader: &TypeReader) -> TypeCategory {
-        debug_assert!(self.flags(reader).windows_runtime());
-
         if self.flags(reader).interface() {
             TypeCategory::Interface
         } else {
@@ -105,11 +103,7 @@ impl TypeDef {
     pub fn underlying_type(self, reader: &TypeReader) -> ElementType {
         for field in self.fields(reader) {
             for constant in field.constants(reader) {
-                return match constant.value_type(reader) {
-                    0x08 => ElementType::I4,
-                    0x09 => ElementType::U4,
-                    _ => panic!("TypeDef::underlying_type"),
-                };
+                return constant.value_type(reader);
             }
         }
 

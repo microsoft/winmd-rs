@@ -46,4 +46,24 @@ impl ElementType {
             unknown_type => panic!(format!("Unexpected ElementType: {:x}", unknown_type)),
         }
     }
+
+    pub fn from_code(code: u32) -> ElementType {
+        match code {
+            0x01 => ElementType::Void,
+            0x02 => ElementType::Boolean,
+            0x03 => ElementType::Char,
+            0x04 => ElementType::I1,
+            0x05 => ElementType::U1,
+            0x06 => ElementType::I2,
+            0x07 => ElementType::U2,
+            0x08 => ElementType::I4,
+            0x09 => ElementType::U4,
+            0x0a => ElementType::I8,
+            0x0b => ElementType::U8,
+            0x0c => ElementType::R4,
+            0x0d => ElementType::R8,
+            0x0e => ElementType::String,
+            unknown_code => panic!(format!("Unexpected ElementType: {:x}", unknown_code)),
+        }
+    }
 }
