@@ -1,4 +1,4 @@
-use crate::*;
+use crate::traits::*;
 
 #[derive(Default)]
 pub struct TableData {
@@ -8,15 +8,22 @@ pub struct TableData {
     pub columns: [(u32, u32); 6],
 }
 
+/// A Windows Metadata File
 #[derive(Default)]
 pub struct File {
-    pub bytes: Vec<u8>,
-    pub strings: u32,
-    pub blobs: u32,
-    pub guids: u32,
-    pub tables: [TableData; 11],
+    /// The files raw bytes
+    pub(crate) bytes: Vec<u8>,
+    /// The index of the strings data
+    pub(crate) strings: u32,
+    /// The index of the blobs data
+    pub(crate) blobs: u32,
+    /// The index of the guids data
+    pub(crate) guids: u32,
+    /// The table data
+    pub(crate) tables: [TableData; 11],
 }
 
+/// A well-known index of data into the winmd tables array
 #[repr(u16)]
 #[derive(Copy, Clone, Eq, PartialEq, Debug, PartialOrd, Ord)]
 pub enum TableIndex {
@@ -72,7 +79,12 @@ impl TableData {
 }
 
 impl File {
-    pub fn new<P: AsRef<std::path::Path>>(filename: P) -> Self {
+    /// Parse a Windows metadata file at the given path
+    ///
+    /// # Panics
+    ///
+    /// Panics if the file at the path cannot be read or if there is a fatal error when parsing the file
+    pub(crate) fn new<P: AsRef<std::path::Path>>(filename: P) -> Self {
         let bytes = std::fs::read(filename.as_ref())
             .unwrap_or_else(|e| panic!("Could not read file {:?}: {:?}", filename.as_ref(), e));
         let mut file = Self {
@@ -572,7 +584,7 @@ impl File {
         file
     }
 
-    pub fn type_def_table(&self) -> &TableData {
+    pub(crate) fn type_def_table(&self) -> &TableData {
         &self.tables[TableIndex::TypeDef as usize]
     }
 }

@@ -1,4 +1,4 @@
-use crate::*;
+use super::*;
 
 pub struct MethodFlags(pub u32);
 pub struct TypeFlags(pub u32);
