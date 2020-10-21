@@ -1,6 +1,11 @@
-use crate::*;
+use crate::{
+    parsed::*,
+    traits::{Decode, View},
+    File, TableIndex,
+};
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
 
 /// A reader of type information from Windows Metadata
 pub struct TypeReader {
@@ -9,57 +14,76 @@ pub struct TypeReader {
     /// Types known to this [`TypeReader`]
     ///
     /// This is a mapping between namespace names and the types inside
-    /// that namespace
+    /// that namespace. The keys are the namespace and the values is a mapping
+    /// of type names to type definitions
     pub types: BTreeMap<String, BTreeMap<String, TypeDef>>,
 }
 
 impl TypeReader {
+    /// Access the windows metadata data directory on Windows.
+    ///
+    /// This is set in the `windir` environment variable
+    ///
+    /// # Panics
+    ///
+    /// This function panics if the `windir` environment variable is set or if the files
+    /// where the windows metadata is stored cannot be read.
     pub fn from_os() -> Self {
         let dir = std::env::var("windir").expect("No `windir` environent variable set");
-        let mut dir = std::path::PathBuf::from(dir);
+        let mut dir = PathBuf::from(dir);
         dir.push(SYSTEM32);
         dir.push("winmetadata");
 
         let files = std::fs::read_dir(dir)
-            .unwrap()
+            .expect("Could not read Windowws metadata path")
             .filter_map(|value| value.ok())
             .map(|value| value.path());
 
         Self::from_iter(files)
     }
 
-    pub fn from_win32<P: AsRef<std::path::Path>>(file: P) -> Self {
+    /// Insert win32 metadata at a given path
+    ///
+    /// # Panics
+    ///
+    /// This function panics if the if the file where the windows metadata is stored cannot be read.
+    pub fn from_win32<P: AsRef<Path>>(file: P) -> Self {
         let mut reader = Self {
             files: Vec::default(),
             types: BTreeMap::default(),
         };
 
         let file = File::new(file);
-        reader.index_file(file, 0, false);
+        reader.insert_file_at_index(file, 0, InsertMode::All);
 
         reader
     }
 
-    pub fn from_iter<I: IntoIterator<Item = std::path::PathBuf>>(files: I) -> Self {
+    /// Insert WinRT metadata at the given paths
+    ///
+    /// # Panics
+    ///
+    /// This function panics if the if the files where the windows metadata are stored cannot be read.
+    pub fn from_iter<I: IntoIterator<Item = PathBuf>>(files: I) -> Self {
         let mut reader = Self {
             files: Vec::default(),
             types: BTreeMap::default(),
         };
         for (file_index, file) in files.into_iter().enumerate() {
             let file = File::new(file);
-            reader.index_file(file, file_index, true);
+            reader.insert_file_at_index(file, file_index, InsertMode::WinrtOnly);
         }
         reader
     }
 
-    fn index_file(&mut self, file: File, file_index: usize, winrt_only: bool) {
+    fn insert_file_at_index(&mut self, file: File, file_index: usize, insert_mode: InsertMode) {
         let row_count = file.type_def_table().row_count;
         self.files.push(file);
 
         for row in 0..row_count {
             let def = TypeDef(Row::new(row, TableIndex::TypeDef, file_index as u16));
 
-            if winrt_only && !def.is_winrt(&self) {
+            if insert_mode == InsertMode::WinrtOnly && !def.is_winrt(&self) {
                 continue;
             }
 
@@ -129,11 +153,16 @@ impl TypeReader {
     }
 
     /// Read a `T: Decode` value from a specific [`Row`] and column
-    pub fn decode<T: Decode>(&self, row: Row, column: u32) -> T {
+    pub(crate) fn decode<T: Decode>(&self, row: Row, column: u32) -> T {
         T::decode(self.u32(row, column), row.file_index)
     }
 
-    pub fn list(&self, row: Row, table: TableIndex, column: u32) -> impl Iterator<Item = Row> {
+    pub(crate) fn list(
+        &self,
+        row: Row,
+        table: TableIndex,
+        column: u32,
+    ) -> impl Iterator<Item = Row> {
         let file = &self.files[row.file_index as usize];
         let first = self.u32(row, column) - 1;
 
@@ -146,6 +175,7 @@ impl TypeReader {
         (first..last).map(move |value| Row::new(value, table, row.file_index))
     }
 
+    /// Read a blob for a given row and column
     pub fn blob(&self, row: Row, column: u32) -> Blob {
         let file = &self.files[row.file_index as usize];
         let offset = (file.blobs + self.u32(row, column)) as usize;
@@ -162,7 +192,7 @@ impl TypeReader {
         Blob::new(self, row.file_index, offset + blob_size_bytes)
     }
 
-    pub fn equal_range(
+    pub(crate) fn equal_range(
         &self,
         file: u16,
         table: TableIndex,
@@ -204,7 +234,7 @@ impl TypeReader {
         first
     }
 
-    pub fn upper_bound(&self, file: u16, table: TableIndex, column: u32, value: u32) -> Row {
+    pub(crate) fn upper_bound(&self, file: u16, table: TableIndex, column: u32, value: u32) -> Row {
         Row::new(
             self.upper_bound_of(
                 table,
@@ -279,6 +309,12 @@ impl TypeReader {
         }
         (first, last)
     }
+}
+
+#[derive(Debug, PartialEq)]
+enum InsertMode {
+    All,
+    WinrtOnly,
 }
 
 #[cfg(target_pointer_width = "64")]

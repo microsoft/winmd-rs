@@ -1,4 +1,5 @@
-use crate::*;
+use super::*;
+use crate::{TableIndex, TypeReader};
 
 #[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Ord, Debug)]
 pub struct TypeDef(pub Row);
