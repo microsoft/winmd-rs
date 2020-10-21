@@ -6,4 +6,5 @@ mod type_reader;
 
 pub use file::{File, TableIndex};
 pub use parsed::*;
+pub use traits::*;
 pub use type_reader::TypeReader;
