@@ -1,6 +1,6 @@
 [package]
 name = "winmd"
-version = "0.4.0"
+version = "0.5.0"
 authors = ["Microsoft"]
 edition = "2018"
 license = "MIT"
@@ -10,7 +10,7 @@ documentation = "https://docs.rs/winmd"
 readme = "README.md"
 
 [dependencies]
-winmd-macros = { path = "macros",  version = "0.4.0" }
+winmd-macros = { path = "macros",  version = "0.5.0" }
 
 [package.metadata.docs.rs]
 default-target = "x86_64-pc-windows-msvc"

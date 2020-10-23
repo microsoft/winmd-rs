@@ -42,16 +42,16 @@ impl Attribute {
 
         for _ in 0..fixed_arg_count {
             let arg = match ElementType::from_blob(&mut sig) {
-                ElementType::I1 => AttributeArg::I8(values.read_i8()),
-                ElementType::U1 => AttributeArg::U8(values.read_u8()),
-                ElementType::I2 => AttributeArg::I16(values.read_i16()),
-                ElementType::U2 => AttributeArg::U16(values.read_u16()),
-                ElementType::I4 => AttributeArg::I32(values.read_i32()),
-                ElementType::U4 => AttributeArg::U32(values.read_u32()),
-                ElementType::I8 => AttributeArg::I64(values.read_i64()),
-                ElementType::U8 => AttributeArg::U64(values.read_u64()),
+                ElementType::I8 => AttributeArg::I8(values.read_i8()),
+                ElementType::U8 => AttributeArg::U8(values.read_u8()),
+                ElementType::I16 => AttributeArg::I16(values.read_i16()),
+                ElementType::U16 => AttributeArg::U16(values.read_u16()),
+                ElementType::I32 => AttributeArg::I32(values.read_i32()),
+                ElementType::U32 => AttributeArg::U32(values.read_u32()),
+                ElementType::I64 => AttributeArg::I64(values.read_i64()),
+                ElementType::U64 => AttributeArg::U64(values.read_u64()),
                 ElementType::String => AttributeArg::String(values.read_str().to_string()),
-                ElementType::ValueType(type_def_or_ref) | ElementType::Class(type_def_or_ref) => {
+                ElementType::Struct(type_def_or_ref) | ElementType::Class(type_def_or_ref) => {
                     let (namespace, type_name) = match type_def_or_ref {
                         TypeDefOrRef::TypeDef(type_def) => type_def.name(reader),
                         TypeDefOrRef::TypeRef(type_ref) => type_ref.name(reader),
@@ -116,14 +116,14 @@ impl Attribute {
 
 fn read_enum(element_type: &ElementType, blob: &mut Blob) -> AttributeArg {
     match element_type {
-        ElementType::I1 => AttributeArg::I8(blob.read_i8()),
-        ElementType::U1 => AttributeArg::U8(blob.read_u8()),
-        ElementType::I2 => AttributeArg::I16(blob.read_i16()),
-        ElementType::U2 => AttributeArg::U16(blob.read_u16()),
-        ElementType::I4 => AttributeArg::I32(blob.read_i32()),
-        ElementType::U4 => AttributeArg::U32(blob.read_u32()),
-        ElementType::I8 => AttributeArg::I64(blob.read_i64()),
-        ElementType::U8 => AttributeArg::U64(blob.read_u64()),
+        ElementType::I8 => AttributeArg::I8(blob.read_i8()),
+        ElementType::U8 => AttributeArg::U8(blob.read_u8()),
+        ElementType::I16 => AttributeArg::I16(blob.read_i16()),
+        ElementType::U16 => AttributeArg::U16(blob.read_u16()),
+        ElementType::I32 => AttributeArg::I32(blob.read_i32()),
+        ElementType::U32 => AttributeArg::U32(blob.read_u32()),
+        ElementType::I64 => AttributeArg::I64(blob.read_i64()),
+        ElementType::U64 => AttributeArg::U64(blob.read_u64()),
         _ => panic!("Invalid underlying enum type encountered!"),
     }
 }
