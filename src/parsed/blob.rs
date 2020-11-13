@@ -55,16 +55,20 @@ impl<'a> Blob<'a> {
         }
     }
 
-    pub fn read_modifiers(&mut self) {
+    pub fn read_modifiers(&mut self) -> Vec<TypeDefOrRef> {
+        let mut mods = vec![];
+
         loop {
             let (value, offset) = self.peek_unsigned();
             if value != 32 && value != 31 {
                 break;
             } else {
                 self.offset += offset;
-                self.read_unsigned();
+                mods.push(TypeDefOrRef::decode(self.read_unsigned(), self.file_index))
             }
         }
+
+        mods
     }
 
     pub fn read_str(&mut self) -> &str {
