@@ -5,7 +5,7 @@ use crate::{
 };
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 /// A reader of type information from Windows Metadata
 pub struct TypeReader {
@@ -42,23 +42,6 @@ impl TypeReader {
         Self::from_iter(files)
     }
 
-    /// Insert win32 metadata at a given path
-    ///
-    /// # Panics
-    ///
-    /// This function panics if the if the file where the windows metadata is stored cannot be read.
-    pub fn from_win32<P: AsRef<Path>>(file: P) -> Self {
-        let mut reader = Self {
-            files: Vec::default(),
-            types: BTreeMap::default(),
-        };
-
-        let file = File::new(file);
-        reader.insert_file_at_index(file, 0, InsertMode::All);
-
-        reader
-    }
-
     /// Insert WinRT metadata at the given paths
     ///
     /// # Panics
@@ -71,22 +54,17 @@ impl TypeReader {
         };
         for (file_index, file) in files.into_iter().enumerate() {
             let file = File::new(file);
-            reader.insert_file_at_index(file, file_index, InsertMode::WinrtOnly);
+            reader.insert_file_at_index(file, file_index);
         }
         reader
     }
 
-    fn insert_file_at_index(&mut self, file: File, file_index: usize, insert_mode: InsertMode) {
+    fn insert_file_at_index(&mut self, file: File, file_index: usize) {
         let row_count = file.type_def_table().row_count;
         self.files.push(file);
 
         for row in 0..row_count {
             let def = TypeDef(Row::new(row, TableIndex::TypeDef, file_index as u16));
-
-            if insert_mode == InsertMode::WinrtOnly && !def.is_winrt(&self) {
-                continue;
-            }
-
             let (namespace, name) = def.name(&self);
             let namespace = namespace.to_string();
             let name = name.to_string();
@@ -309,12 +287,6 @@ impl TypeReader {
         }
         (first, last)
     }
-}
-
-#[derive(Debug, PartialEq)]
-enum InsertMode {
-    All,
-    WinrtOnly,
 }
 
 #[cfg(target_pointer_width = "64")]
